@@ -263,3 +263,12 @@ __pycache__/
 # Claude Code — личные/локальные настройки (командные лежат в .claude/settings.json)
 .claude/settings.local.json
 .claude/board/
+
+# Материалы реверс-инжиниринга и дампы игровых данных.
+# Держатся локально для работы над протоколом, но не публикуются:
+# это производные от проприетарных файлов правообладателя.
+/Pc.h
+/Utilities/Dump/
+/Utilities/DumpAndParserPackets/Dump5108.json
+/Utilities/DumpAndParserPackets/Monsters.json
+/Utilities/DumpAndParserPackets/NPCs.json

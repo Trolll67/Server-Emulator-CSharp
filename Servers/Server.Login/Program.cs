@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
-using Database.Account;
-using Database.Account.Interfaces;
-using Microsoft.EntityFrameworkCore;
+using Database.Fnl.Account;
+using Database.Fnl.DependencyInjection;
+using Database.Fnl.Parm;
+using Database.Fnl.Sql;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -42,6 +44,10 @@ namespace Server.Login
                     configurationBilder.AddJsonFile("appsettings.json", optional: false);
                     configurationBilder.AddJsonFile("loginsettings.json", optional: false);
                     configurationBilder.AddJsonFile($"appsettings.{environment}.json", optional: true);
+
+                    // Secrets: connection strings with passwords are never stored in the tracked appsettings
+                    configurationBilder.AddJsonFile("appsettings.Local.json", optional: true);
+                    configurationBilder.AddUserSecrets<Program>(optional: true);
                     configurationBilder.AddEnvironmentVariables();
                 })
                 .ConfigureServices((hostContext, services) =>
@@ -56,9 +62,15 @@ namespace Server.Login
                         .ReadFrom.Configuration(hostContext.Configuration)
                         .CreateLogger();
 
-                    // Create database context
-                    string accountConnection = hostContext.Configuration.GetConnectionString("AccountConnection");
-                    services.AddDbContext<IAccountContext, AccountContext>(options => options.UseSqlServer(accountConnection), ServiceLifetime.Transient);
+                    // Without the databases the server is useless: better to fall at start than on the first packet
+                    EnsureFnlConnectionStrings(hostContext.Configuration);
+
+                    // Access to the original R2 databases (FNLAccount, FNLParm)
+                    services.AddFnlDatabase();
+
+                    // Register repositories over the original stored procedures
+                    services.AddSingleton<IFnlAccountRepository, FnlAccountRepository>();
+                    services.AddSingleton<IFnlParmRepository, FnlParmRepository>();
 
                     // Loading configure
                     services.Configure<LoginSetting>(hostContext.Configuration.GetSection("LoginSetting"));
@@ -92,6 +104,45 @@ namespace Server.Login
                 .Build();
 
             await hostBuilder.RunAsync();
+        }
+
+        /// <summary>
+        ///     Checks that the connection strings to the original R2 databases are set before the server
+        ///     starts listening: an empty configuration would only show up as a swallowed exception
+        ///     on the first authorization packet
+        /// </summary>
+        /// <param name="configuration"></param>
+        private static void EnsureFnlConnectionStrings(IConfiguration configuration)
+        {
+            List<string> missing = new List<string>();
+
+            foreach (string name in new[] { FnlConnectionNames.FnlAccount, FnlConnectionNames.FnlParm })
+            {
+                if (string.IsNullOrWhiteSpace(configuration.GetConnectionString(name)))
+                {
+                    missing.Add(name);
+                }
+            }
+
+            if (missing.Count == 0)
+            {
+                return;
+            }
+
+            // Only the names of the keys are reported: the connection strings themselves carry the database password
+            StringBuilder message = new StringBuilder("Login server cannot start: connection strings to the R2 databases are not set.");
+
+            foreach (string name in missing)
+            {
+                message.AppendLine();
+                message.Append($"  \"ConnectionStrings:{name}\" is empty: set it via user-secrets ");
+                message.Append($"(dotnet user-secrets set \"ConnectionStrings:{name}\" \"<connection string>\") ");
+                message.Append($"or the environment variable ConnectionStrings__{name}");
+            }
+
+            Log.Fatal(message.ToString());
+
+            throw new InvalidOperationException(message.ToString());
         }
     }
 }

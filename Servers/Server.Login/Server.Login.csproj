@@ -3,6 +3,8 @@
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
 		<TargetFramework>net5.0</TargetFramework>
+		<!-- Real connection strings to FNLAccount/FNLParm live in user-secrets, not in appsettings -->
+		<UserSecretsId>586e5ad4-74bd-4999-b026-4f489b58bd11</UserSecretsId>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -17,7 +19,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="5.0.3" />
 		<PackageReference Include="Microsoft.Extensions.Configuration" Version="5.0.0" />
 		<PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="5.0.0" />
 		<PackageReference Include="Microsoft.Extensions.Configuration.FileExtensions" Version="5.0.0" />
@@ -41,7 +42,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\..\Databases\Database.Account\Database.Account.csproj" />
+		<ProjectReference Include="..\..\Databases\Database.Fnl\Database.Fnl.csproj" />
 		<ProjectReference Include="..\Core\Core.csproj" />
 		<ProjectReference Include="..\..\Packets\Packets.Core\Packets.Core.csproj" />
 		<ProjectReference Include="..\..\Packets\Packets.Server.Login\Packets.Server.Login.csproj" />

@@ -24,5 +24,12 @@ namespace Server.Login.Core.Factories.Interfaces
         /// </summary>
         /// <param name="loginSession"></param>
         void SendSelectedServer(LoginSession loginSession);
+
+        /// <summary>
+        ///     Checks that the chosen server is one of those the client was given in the list
+        /// </summary>
+        /// <param name="serverId">TblParmSvr.mSvrNo the client picked in the list</param>
+        /// <returns>True when the server is in the list, otherwise false</returns>
+        bool IsKnownServer(short serverId);
     }
 }

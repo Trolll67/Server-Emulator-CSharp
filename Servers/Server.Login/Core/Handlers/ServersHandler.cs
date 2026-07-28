@@ -1,12 +1,11 @@
-﻿using System.Linq;
-using Database.Account.Interfaces;
-using Database.Account.Models;
+using System;
 using Packets.Core.Attributes;
 using Packets.Core.Enums;
 using Packets.Server.Login.Models.Receive;
 using Packets.Server.Login.Models.Send;
 using Server.Login.Core.Factories.Interfaces;
 using Server.Login.Core.Handlers.Interfaces;
+using Server.Login.Models.Login;
 using Server.Login.Network;
 
 namespace Server.Login.Core.Handlers
@@ -15,19 +14,16 @@ namespace Server.Login.Core.Handlers
     [Handler]
     public class ServersHandler : IServersHandler
     {
-        private readonly IAccountContext _accountContext;
         private readonly IAuthorizationFactory _authorizationFactory;
         private readonly IServersFactory _serversFactory;
 
         /// <summary>
         ///     Creates a new instance
         /// </summary>
-        /// <param name="databaseContext"></param>
         /// <param name="authorizationFactory"></param>
         /// <param name="serversFactory"></param>
-        public ServersHandler(IAccountContext accountContext, IAuthorizationFactory authorizationFactory, IServersFactory serversFactory)
+        public ServersHandler(IAuthorizationFactory authorizationFactory, IServersFactory serversFactory)
         {
-            _accountContext = accountContext;
             _authorizationFactory = authorizationFactory;
             _serversFactory = serversFactory;
         }
@@ -36,33 +32,26 @@ namespace Server.Login.Core.Handlers
         [HandlerAction(PacketType.SelectServer)]
         public void SelectServerHandle(LoginSession loginSession, SelectServerModel selectServerModel)
         {
-            selectServerModel.Login = "admin";
-            AccountModel account = _accountContext.Accounts.FirstOrDefault(a => a.Id == selectServerModel.AccountId);
+            SessionLoginModel sessionLogin = loginSession.SessionLogin;
 
-            if (account == null || account.Login != selectServerModel.Login)
+            // The client repeats the account it was certified with, both values have to match the session
+            if (sessionLogin == null || sessionLogin.UserNo != selectServerModel.AccountId ||
+                !string.Equals(sessionLogin.UserId, selectServerModel.Login, StringComparison.OrdinalIgnoreCase))
             {
                 _authorizationFactory.SendError(loginSession, ServerErrorType.NoUser);
                 return;
             }
 
-            ServerModel server = _accountContext.Servers.FirstOrDefault(s => s.ServerId == selectServerModel.ServerId);
-
-            if (server == null)
+            // The factory answers from the same list it sent in 3101, no second read of FNLParm
+            if (!_serversFactory.IsKnownServer(selectServerModel.ServerId))
             {
                 _authorizationFactory.SendError(loginSession, ServerErrorType.IncorrectServer);
                 return;
             }
 
-            SessionModel session = _accountContext.Sessions.FirstOrDefault(s => s.Id == loginSession.SessionLogin.SessionId);
-
-            if (session == null || session.AccountId != selectServerModel.AccountId) // TODO || session.InGame)
-            {
-                _authorizationFactory.SendError(loginSession, ServerErrorType.NoUserLoginAnother);
-                return;
-            }
-
-            session.ServerId = selectServerModel.ServerId;
-            _accountContext.SaveChanges();
+            // Ключ сессии выдаётся один раз в CertifyUser и уходит клиенту в 3101. Перевыпуск здесь
+            // невозможен: пакет 3121 поля для ключа не имеет (см. 3121_SelectedServer.cs), клиент
+            // остался бы со старым значением.
 
             _serversFactory.SendSelectedServer(loginSession);
         }

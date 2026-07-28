@@ -53,6 +53,11 @@
 		<None Update="loginsettings.json">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
+		<!-- Local connection strings with passwords: not in git, but must reach the output
+		     directory, otherwise AddJsonFile("appsettings.Local.json") never finds it -->
+		<None Update="appsettings.Local.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
 	</ItemGroup>
 
 </Project>

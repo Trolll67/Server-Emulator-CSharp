@@ -73,19 +73,33 @@ dotnet run --project Servers/Server.Game
 Адреса и порты задаются в `loginsettings.json` / `gamesettings.json`
 соответствующих проектов.
 
-### Строки подключения
+### Доступ к базам
 
-`Server.Login` работает с оригинальными базами `FNLAccount` и `FNLParm`.
-В `appsettings*.json` лежат только пустые плейсхолдеры — **реальные строки
-в репозиторий не попадают**. Задать их можно любым из способов:
+`Server.Login` берёт реквизиты **из DSN-файлов оригинального сервера** — тех же,
+что читает он сам. Логин и пароль остаются в каталоге `Data` рядом с оригиналом
+и в репозиторий не попадают: в конфигурации задаётся только путь.
+
+Укажите каталог с `Account.dsn` и `Parm.dsn` — любым из способов:
 
 ```bash
-dotnet user-secrets set "ConnectionStrings:FnlAccount" "<строка>" --project Servers/Server.Login
+FnlDatabase__DsnDirectory=/путь/к/CleanServer/Data dotnet run --project Servers/Server.Login
 ```
 
-либо переменными окружения `ConnectionStrings__FnlAccount` и
-`ConnectionStrings__FnlParm`, либо нетрекаемым `appsettings.Local.json`.
-Если какая-то строка не задана, сервер не стартует и называет недостающий ключ.
+либо в нетрекаемом `appsettings.Local.json`:
+
+```json
+{ "FnlDatabase": { "DsnDirectory": "E:/R2/CleanServer/Data" } }
+```
+
+Имя базы — это имя DSN-файла: `Account` → `Account.dsn` → `FNLAccount`.
+Из файла читаются `Address`/`SERVER`, `DATABASE`, `UID`, `PWD`; ключ `DRIVER`
+игнорируется — оригинал ходит через ODBC, эмулятор через TDS.
+Если каталог не задан или файла нет, сервер не стартует и называет конкретный
+недостающий файл.
+
+Когда DSN-файлов нет (например, в контейнере), доступ можно задать напрямую —
+строкой подключения в `ConnectionStrings:Account` / `ConnectionStrings:Parm`;
+она перекрывает DSN.
 
 `Server.Game` пока остаётся на самодельных базах `R2Account`/`R2Game`/`R2Parm`
 через EF Core — его перевод на оригинальную схему не сделан.

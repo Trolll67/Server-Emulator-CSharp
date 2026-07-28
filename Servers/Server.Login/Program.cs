@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
@@ -63,10 +64,10 @@ namespace Server.Login
                         .CreateLogger();
 
                     // Without the databases the server is useless: better to fall at start than on the first packet
-                    EnsureFnlConnectionStrings(hostContext.Configuration);
+                    EnsureFnlDatabaseAccess(hostContext.Configuration);
 
-                    // Access to the original R2 databases (FNLAccount, FNLParm)
-                    services.AddFnlDatabase();
+                    // Access to the original R2 databases (FNLAccount, FNLParm) through the server's DSN files
+                    services.AddFnlDatabase(hostContext.Configuration);
 
                     // Register repositories over the original stored procedures
                     services.AddSingleton<IFnlAccountRepository, FnlAccountRepository>();
@@ -107,38 +108,62 @@ namespace Server.Login
         }
 
         /// <summary>
-        ///     Checks that the connection strings to the original R2 databases are set before the server
-        ///     starts listening: an empty configuration would only show up as a swallowed exception
-        ///     on the first authorization packet
+        ///     Checks that the access to the original R2 databases can be resolved before the server starts
+        ///     listening: a missing DSN file would only show up as a swallowed exception on the first
+        ///     authorization packet
         /// </summary>
         /// <param name="configuration"></param>
-        private static void EnsureFnlConnectionStrings(IConfiguration configuration)
+        private static void EnsureFnlDatabaseAccess(IConfiguration configuration)
         {
-            List<string> missing = new List<string>();
+            string dsnDirectory = configuration
+                .GetSection(FnlDatabaseOptions.SectionName)[nameof(FnlDatabaseOptions.DsnDirectory)];
+
+            List<string> problems = new List<string>();
 
             foreach (string name in new[] { FnlConnectionNames.FnlAccount, FnlConnectionNames.FnlParm })
             {
-                if (string.IsNullOrWhiteSpace(configuration.GetConnectionString(name)))
+                // An explicit connection string replaces the DSN file, then there is nothing to check
+                if (!string.IsNullOrWhiteSpace(configuration.GetConnectionString(name)))
                 {
-                    missing.Add(name);
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(dsnDirectory))
+                {
+                    problems.Add($"  \"{FnlDatabaseOptions.SectionName}:{nameof(FnlDatabaseOptions.DsnDirectory)}\" " +
+                                 $"is empty, so '{name}' can not be resolved");
+
+                    continue;
+                }
+
+                string path = SqlConnectionFactory.GetDsnPath(dsnDirectory, name);
+
+                if (!File.Exists(path))
+                {
+                    problems.Add($"  DSN file \"{path}\" for '{name}' is not found");
                 }
             }
 
-            if (missing.Count == 0)
+            if (problems.Count == 0)
             {
                 return;
             }
 
-            // Only the names of the keys are reported: the connection strings themselves carry the database password
-            StringBuilder message = new StringBuilder("Login server cannot start: connection strings to the R2 databases are not set.");
+            // Paths and key names only: the DSN files themselves carry the database password
+            StringBuilder message =
+                new StringBuilder("Login server cannot start: access to the R2 databases is not configured.");
 
-            foreach (string name in missing)
+            foreach (string problem in problems)
             {
                 message.AppendLine();
-                message.Append($"  \"ConnectionStrings:{name}\" is empty: set it via user-secrets ");
-                message.Append($"(dotnet user-secrets set \"ConnectionStrings:{name}\" \"<connection string>\") ");
-                message.Append($"or the environment variable ConnectionStrings__{name}");
+                message.Append(problem);
             }
+
+            message.AppendLine();
+            message.Append($"  Point \"{FnlDatabaseOptions.SectionName}:{nameof(FnlDatabaseOptions.DsnDirectory)}\" ");
+            message.Append("at the Data directory of the original server (the one holding Account.dsn and Parm.dsn), ");
+            message.Append($"or set the environment variable ");
+            message.Append($"{FnlDatabaseOptions.SectionName}__{nameof(FnlDatabaseOptions.DsnDirectory)}");
 
             Log.Fatal(message.ToString());
 

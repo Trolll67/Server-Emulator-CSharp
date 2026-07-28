@@ -2,7 +2,7 @@
 
 # R2 Online — Server Emulator
 
-Эмулятор серверной части MMORPG **R2 Online**, написанный на C# / .NET 5.
+Эмулятор серверной части MMORPG **R2 Online**, написанный на C# / .NET 10.
 
 Исследовательский проект: попытка выяснить, насколько современный ИИ
 способен разрабатывать и поддерживать эмулятор игрового сервера.
@@ -31,8 +31,9 @@
 
 | | |
 |---|---|
-| Платформа | .NET 5 (C#) |
-| Данные | Entity Framework Core, MS SQL Server, SQLite |
+| Платформа | .NET 10 (C#) |
+| Данные | ADO.NET поверх хранимых процедур (`Server.Login`), Entity Framework Core 10 (`Server.Game`) |
+| СУБД | MS SQL Server, SQLite |
 | Логирование | Serilog |
 | Хостинг | Microsoft.Extensions.Hosting |
 
@@ -44,18 +45,20 @@ Servers/
   Server.Login    сервер авторизации          :11015
   Server.Game     игровой сервер              :11016
 Packets/          структуры пакетов протокола
-Databases/        контексты EF Core: Account, Game, Parm, DataModel
-Sites/            вспомогательные веб-сервисы
+Databases/
+  Database.Fnl    ADO.NET поверх хранимых процедур оригинальных баз FNL*
+  Database.*      контексты EF Core: Account, Game, Parm, DataModel
+Sites/            вспомогательные веб-сервисы (вне solution)
 Utilities/        парсеры дампов, конвертеры, перевод lang-паков
 ```
 
 ## Сборка
 
+Требуется **.NET SDK 10.0** или новее.
+
 ```bash
 dotnet build Tested-Server.sln
 ```
-
-Часть проектов сейчас не компилируется — см. [Статус](#статус).
 
 Запуск серверов:
 
@@ -67,8 +70,25 @@ dotnet run --project Servers/Server.Login
 dotnet run --project Servers/Server.Game
 ```
 
-Базы (`R2Account`, `R2Game`, `R2Parm`) и адреса задаются в `appsettings.json`
-и `loginsettings.json` / `gamesettings.json` соответствующих проектов.
+Адреса и порты задаются в `loginsettings.json` / `gamesettings.json`
+соответствующих проектов.
+
+### Строки подключения
+
+`Server.Login` работает с оригинальными базами `FNLAccount` и `FNLParm`.
+В `appsettings*.json` лежат только пустые плейсхолдеры — **реальные строки
+в репозиторий не попадают**. Задать их можно любым из способов:
+
+```bash
+dotnet user-secrets set "ConnectionStrings:FnlAccount" "<строка>" --project Servers/Server.Login
+```
+
+либо переменными окружения `ConnectionStrings__FnlAccount` и
+`ConnectionStrings__FnlParm`, либо нетрекаемым `appsettings.Local.json`.
+Если какая-то строка не задана, сервер не стартует и называет недостающий ключ.
+
+`Server.Game` пока остаётся на самодельных базах `R2Account`/`R2Game`/`R2Parm`
+через EF Core — его перевод на оригинальную схему не сделан.
 
 ## Локальные материалы
 
@@ -92,15 +112,13 @@ Utilities/DumpAndParserPackets/{Dump5108,Monsters,NPCs}.json
 Экспериментальный. Стабильность, полнота протокола и совместимость с
 оригинальным клиентом не гарантируются.
 
-Решение сейчас **собирается не полностью**:
+Решение собирается целиком, без ошибок.
 
-| Проект | Состояние |
+| Часть | Состояние |
 |---|---|
-| `Servers/Server.Login` | собирается |
-| `Servers/Server.Game` | ошибка компиляции в `Models/Game/Player/GPc.cs:245` |
-| `Sites/Site.Balance` | ссылается на отсутствующий проект `Databases/Database.Balance` |
-
-Из-за этого `dotnet build Tested-Server.sln` падает целиком.
+| `Server.Login` | работает на оригинальных `FNLAccount` / `FNLParm`: авторизация, список серверов, выбор сервера |
+| `Server.Game` | собирается, на оригинальную схему не переведён; порт игровой логики не завершён |
+| `Site.Balance` | выведен из solution: ссылается на отсутствующий проект `Databases/Database.Balance` |
 
 ---
 

@@ -59,7 +59,11 @@ namespace Server.Login.Core.Handlers
                     UserId = authorizationLoginModel.Login,
                     Password = authorizationLoginModel.Password,
                     Ip = GetClientIp(loginSession),
-                    CertifiedKey = certifiedKey
+                    CertifiedKey = certifiedKey,
+
+                    // Option 54 'Certify To Password In DB' of TblParmSvrOp. With it off the client
+                    // does not send a readable password at all, so checking it would reject every login
+                    IsPwdCheck = _serversFactory.IsPasswordCheckedInDatabase()
                 });
             }
             catch (SqlException e)

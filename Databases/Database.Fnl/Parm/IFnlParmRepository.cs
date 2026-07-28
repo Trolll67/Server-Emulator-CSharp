@@ -24,5 +24,13 @@ namespace Database.Fnl.Parm
         /// <param name="svrNo">Own server number, TblParmSvr.mSvrNo</param>
         /// <returns>Family rows in the order the procedure returns them (mDispOrder, mSvrNo)</returns>
         IReadOnlyList<FamilyServerRow> GetFamily(short svrNo);
+
+        /// <summary>
+        ///     Reads the options of a server (dbo.UspGetParmSvrOp). The original reads them on startup
+        ///     and drives its behaviour by them, see <see cref="ParmServerOption"/>
+        /// </summary>
+        /// <param name="svrNo">Server number, TblParmSvr.mSvrNo</param>
+        /// <returns>Options of that server, an empty list when it has none</returns>
+        IReadOnlyList<ParmServerOptionRow> GetServerOptions(short svrNo);
     }
 }

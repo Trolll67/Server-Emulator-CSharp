@@ -33,6 +33,14 @@ namespace Database.Fnl.Parm
         private const int FamilyDesc = 6;
         private const int FamilyWorldNo = 7;
 
+        /// <summary>
+        ///     Column ordinals of the dbo.UspGetParmSvrOp result set:
+        ///     mOpNo, mIsSetup, then mOpValue1..mOpValue30
+        /// </summary>
+        private const int OptionOpNo = 0;
+        private const int OptionIsSetup = 1;
+        private const int OptionValuesOrdinal = 2;
+
         private readonly ISqlConnectionFactory _connectionFactory;
 
         /// <summary>
@@ -100,6 +108,43 @@ namespace Database.Fnl.Parm
                     MajorIp = GetTrimmedString(reader, FamilyMajorIp),
                     Desc = GetTrimmedString(reader, FamilyDesc),
                     WorldNo = GetInt16OrZero(reader, FamilyWorldNo)
+                });
+            }
+
+            return rows;
+        }
+
+        /// <inheritdoc/>
+        public IReadOnlyList<ParmServerOptionRow> GetServerOptions(short svrNo)
+        {
+            using SqlConnection connection = _connectionFactory.Create(FnlConnectionNames.FnlParm);
+            using SqlCommand command = StoredProcedure.Create(connection, "dbo.UspGetParmSvrOp");
+
+            StoredProcedure.AddInSmallInt(command, "@pSvrNo", svrNo);
+
+            connection.Open();
+
+            List<ParmServerOptionRow> rows = new List<ParmServerOptionRow>();
+
+            using SqlDataReader reader = command.ExecuteReader();
+
+            while (reader.Read())
+            {
+                // mOpNo, mIsSetup, then mOpValue1..mOpValue30 in order. The values are float
+                double[] values = new double[reader.FieldCount - OptionValuesOrdinal];
+
+                for (int i = 0; i < values.Length; i++)
+                {
+                    int ordinal = OptionValuesOrdinal + i;
+
+                    values[i] = reader.IsDBNull(ordinal) ? 0d : reader.GetDouble(ordinal);
+                }
+
+                rows.Add(new ParmServerOptionRow
+                {
+                    OpNo = reader.GetInt32(OptionOpNo),
+                    IsSetup = !reader.IsDBNull(OptionIsSetup) && reader.GetBoolean(OptionIsSetup),
+                    Values = values
                 });
             }
 

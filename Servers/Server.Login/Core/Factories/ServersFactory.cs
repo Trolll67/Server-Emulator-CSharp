@@ -27,6 +27,12 @@ namespace Server.Login.Core.Factories
         private volatile List<ServerModel> _servers;
 
         /// <summary>
+        ///     Cached option <see cref="ParmServerOption.CertifyToPasswordInDb"/> of this channel.
+        ///     Read on the first login and kept: TblParmSvrOp changes only on a reconfiguration
+        /// </summary>
+        private bool? _isPasswordCheckedInDatabase;
+
+        /// <summary>
         ///     Creates a new instance
         /// </summary>
         /// <param name="parmRepository"></param>
@@ -144,6 +150,51 @@ namespace Server.Login.Core.Factories
             _servers = serverModels;
 
             return serverModels;
+        }
+
+        /// <inheritdoc/>
+        public bool IsPasswordCheckedInDatabase()
+        {
+            bool? cached = _isPasswordCheckedInDatabase;
+
+            if (cached.HasValue)
+            {
+                return cached.Value;
+            }
+
+            bool result;
+
+            try
+            {
+                result = false;
+
+                foreach (ParmServerOptionRow option in _parmRepository.GetServerOptions(GetOwnSvrNo()))
+                {
+                    if (option.OpNo == ParmServerOption.CertifyToPasswordInDb)
+                    {
+                        result = option.IsSetup;
+
+                        break;
+                    }
+                }
+
+                _logger.LogInformation(
+                    result
+                        ? "Option 'Certify To Password In DB' is on: the password is compared against TblUser"
+                        : "Option 'Certify To Password In DB' is off: the password is not checked, as in the original");
+            }
+            catch (SqlException e)
+            {
+                // Refusing every login is worse than the original behaviour of this server,
+                // whose option is off anyway. The failed read is not cached, the next login retries
+                _logger.LogError(e, "Can not read the server options from FNLParm, the password check stays off");
+
+                return false;
+            }
+
+            _isPasswordCheckedInDatabase = result;
+
+            return result;
         }
 
         /// <summary>

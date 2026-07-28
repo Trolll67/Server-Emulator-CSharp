@@ -31,5 +31,14 @@ namespace Server.Login.Core.Factories.Interfaces
         /// <param name="serverId">TblParmSvr.mSvrNo the client picked in the list</param>
         /// <returns>True when the server is in the list, otherwise false</returns>
         bool IsKnownServer(short serverId);
+
+        /// <summary>
+        ///     Whether this channel has to compare the password against TblUser.mUserPswd:
+        ///     option <see cref="ParmServerOption.CertifyToPasswordInDb"/> of TblParmSvrOp.
+        ///     When it is off, the original does not check the password at all and the client
+        ///     does not even send it in a readable form
+        /// </summary>
+        /// <returns>True when the password has to be checked in the database</returns>
+        bool IsPasswordCheckedInDatabase();
     }
 }

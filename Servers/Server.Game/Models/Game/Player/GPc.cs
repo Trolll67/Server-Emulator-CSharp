@@ -271,13 +271,8 @@ namespace Server.Game.Models.Game
                 //}
             }
 
-
-
-
-
-
-
-
+            // TODO: порт EquipItem не завершён
+            return ErrorEnum.NotImplemented;
         }
 
         public new void CalcAbility()

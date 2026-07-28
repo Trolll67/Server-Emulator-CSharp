@@ -29,5 +29,6 @@ namespace Database.DataModel.Enums
         ServantCallInvalid,
         ServantCallNotEnoughEnergy,
         ItemIsCurse,
+        NotImplemented,
     }
 }

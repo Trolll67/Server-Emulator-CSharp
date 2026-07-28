@@ -260,6 +260,11 @@ paket-files/
 __pycache__/
 *.pyc
 
+# Локальные настройки серверов: строки подключения к БД с паролями.
+# Значения задаются через dotnet user-secrets, переменные окружения
+# ConnectionStrings__* или этот файл — в репозиторий он не попадает.
+appsettings.Local.json
+
 # Claude Code — личные/локальные настройки (командные лежат в .claude/settings.json)
 .claude/settings.local.json
 .claude/board/
@@ -272,3 +277,6 @@ __pycache__/
 /Utilities/DumpAndParserPackets/Dump5108.json
 /Utilities/DumpAndParserPackets/Monsters.json
 /Utilities/DumpAndParserPackets/NPCs.json
+
+# Логи серверов (Serilog пишет в Logs/ по appsettings.json)
+Logs/

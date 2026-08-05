@@ -1,7 +1,7 @@
 {
   "LoginSetting": {
     "Id": 100,
-    "ServerIp": "10.10.10.61",
+    "ServerIp": "127.0.0.1",
     "ServerPort": 11004,
     "ChannelSvrNo": 1
   }

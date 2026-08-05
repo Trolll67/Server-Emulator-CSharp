@@ -52,6 +52,9 @@ namespace Server.Game
                     configurationBilder.AddJsonFile("appsettings.json", optional: false);
                     configurationBilder.AddJsonFile("gamesettings.json", optional: false);
                     configurationBilder.AddJsonFile($"appsettings.{environment}.json", optional: true);
+
+                    // Secrets and real infrastructure addresses are never stored in the tracked appsettings
+                    configurationBilder.AddJsonFile("appsettings.Local.json", optional: true);
                     configurationBilder.AddEnvironmentVariables();
                 })
                 .ConfigureServices((hostContext, services) =>

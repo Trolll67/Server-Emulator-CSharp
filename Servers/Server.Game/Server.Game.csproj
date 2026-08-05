@@ -56,6 +56,11 @@
 		<None Update="gamesettings.json">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
+		<!-- Local overrides with real addresses: not in git, but must reach the output
+		     directory, otherwise AddJsonFile("appsettings.Local.json") never finds it -->
+		<None Update="appsettings.Local.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
 	</ItemGroup>
 
 	<ProjectExtensions><VisualStudio><UserProperties appsettings_1json__JsonSchema="" /></VisualStudio></ProjectExtensions>

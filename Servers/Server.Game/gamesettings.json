@@ -1,7 +1,7 @@
 {
   "GameSetting": {
     "Id": 100,
-    "ServerIp": "192.168.1.129",
+    "ServerIp": "127.0.0.1",
     "ServerPort": 11016,
 
     "GarbageItems": 100000,

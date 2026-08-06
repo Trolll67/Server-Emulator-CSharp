@@ -16,6 +16,8 @@ namespace Database.Fnl.Account
 
         private const string UpdateCertifiedKeyProcedure = "dbo.UspUpdateCertifiedKey";
 
+        private const string LoginUserProcedure = "dbo.UspLoginUser";
+
         private readonly ISqlConnectionFactory _connectionFactory;
 
         /// <summary>
@@ -107,6 +109,65 @@ namespace Database.Fnl.Account
                     SecKeyTableUse = GetByte(secKeyTableUse),
                     PcBangLv = GetInt32(pcBangLv)
                 };
+            }
+        }
+
+        /// <inheritdoc/>
+        public LoginUserResult LoginUser(LoginUserRequest request)
+        {
+            using (SqlConnection connection = _connectionFactory.Create(FnlConnectionNames.FnlAccount))
+            using (SqlCommand command = StoredProcedure.Create(connection, LoginUserProcedure))
+            {
+                // Order and types are taken from sys.parameters of the live procedure.
+                // Every parameter is bound in the declaration order, even the outputs the
+                // login slice does not read, to keep the positional contract of the original
+                StoredProcedure.AddInInt(command, "@pUserNo", request.UserNo);
+                StoredProcedure.AddInInt(command, "@pCertifiedKey", request.CertifiedKey);
+                StoredProcedure.AddInChar(command, "@pIp", 15, request.Ip);
+                StoredProcedure.AddInSmallInt(command, "@pWorldNo", request.WorldNo);
+                StoredProcedure.AddInBigInt(command, "@pIpEX", request.IpEx);
+                StoredProcedure.AddInInt(command, "@pPcBangLvEX", request.PcBangLvEx);
+                StoredProcedure.AddInBit(command, "@pIsNonClt", request.IsNonClt);
+
+                SqlParameter userId = StoredProcedure.AddOutVarChar(command, "@pUserId", 20);
+                SqlParameter userAuth = StoredProcedure.AddOutTinyInt(command, "@pUserAuth");
+                SqlParameter errNoStr = StoredProcedure.AddOutVarChar(command, "@pErrNoStr", 50);
+                StoredProcedure.AddOutInt(command, "@pLeftChat");
+                StoredProcedure.AddOutDateTime(command, "@pEndBoard");
+                StoredProcedure.AddOutInt(command, "@pPcBangLv");
+                StoredProcedure.AddOutSmallInt(command, "@pUseMacro");
+                StoredProcedure.AddOutInt(command, "@pIpEXUserNo");
+                StoredProcedure.AddOutChar(command, "@pJoinCode", 1);
+                StoredProcedure.AddOutChar(command, "@pTired", 1);
+                StoredProcedure.AddOutChar(command, "@pChnSID", 33);
+                StoredProcedure.AddOutBit(command, "@pNewId");
+
+                StoredProcedure.AddInTinyInt(command, "@pSvrInfo", request.SvrInfo);
+                StoredProcedure.AddInInt(command, "@pNewCertifiedKey", request.NewCertifiedKey);
+
+                SqlParameter newCertifiedKey = StoredProcedure.AddOutInt(command, "@pNewCertifiedKeyOutput");
+                SqlParameter secKeyState = StoredProcedure.AddOutTinyInt(command, "@pSecKeyState");
+
+                connection.Open();
+                command.ExecuteNonQuery();
+
+                LoginUserResult result = new LoginUserResult
+                {
+                    ReturnCode = StoredProcedure.ReturnValue(command),
+                    UserId = StoredProcedure.GetTrimmedString(userId),
+                    UserAuth = GetByte(userAuth),
+                    SecKeyState = GetByte(secKeyState),
+                    NewCertifiedKey = GetInt32(newCertifiedKey)
+                };
+
+                // On success @pErrNoStr still holds its initial 'eErrNoSqlInternalError':
+                // the procedure sets it once at the start and never resets it
+                if (!result.IsSuccess)
+                {
+                    result.ErrNo = StoredProcedure.GetTrimmedString(errNoStr);
+                }
+
+                return result;
             }
         }
 

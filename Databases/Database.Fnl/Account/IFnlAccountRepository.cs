@@ -19,5 +19,13 @@ namespace Database.Fnl.Account
         /// <param name="certifiedKey">New value of TblUser.mCertifiedKey</param>
         /// <returns>Result with the return code of the procedure, never null</returns>
         UpdateCertifiedKeyResult UpdateCertifiedKey(int userNo, int certifiedKey);
+
+        /// <summary>
+        ///     Re-checks a certified account entering the world and rotates its session key,
+        ///     dbo.UspLoginUser
+        /// </summary>
+        /// <param name="request">Login data of the client</param>
+        /// <returns>Result with the return code of the procedure, never null</returns>
+        LoginUserResult LoginUser(LoginUserRequest request);
     }
 }

@@ -17,5 +17,10 @@ namespace Database.Fnl.Sql
         ///     Parameters database (FNLParm): server list, game data tables. Parm.dsn
         /// </summary>
         public const string FnlParm = "Parm";
+
+        /// <summary>
+        ///     Game database (FNLGame): characters, positions, inventory. Game.dsn
+        /// </summary>
+        public const string FnlGame = "Game";
     }
 }

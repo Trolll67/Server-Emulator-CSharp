@@ -96,6 +96,14 @@ namespace Database.Fnl.Sql
         }
 
         /// <summary>
+        ///     Adds an input real (4-byte single precision) parameter, used for the map coordinates
+        /// </summary>
+        public static SqlParameter AddInReal(SqlCommand command, string name, float value)
+        {
+            return AddIn(command, name, SqlDbType.Real, -1, value);
+        }
+
+        /// <summary>
         ///     Adds an input datetime parameter, null is sent as DBNull
         /// </summary>
         public static SqlParameter AddInDateTime(SqlCommand command, string name, DateTime? value)
@@ -157,6 +165,14 @@ namespace Database.Fnl.Sql
         public static SqlParameter AddOutBit(SqlCommand command, string name)
         {
             return AddOut(command, name, SqlDbType.Bit, -1);
+        }
+
+        /// <summary>
+        ///     Adds an output real (4-byte single precision) parameter, used for the map coordinates
+        /// </summary>
+        public static SqlParameter AddOutReal(SqlCommand command, string name)
+        {
+            return AddOut(command, name, SqlDbType.Real, -1);
         }
 
         /// <summary>

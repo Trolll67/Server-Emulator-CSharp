@@ -31,7 +31,7 @@ namespace Server.Login.Services.Hosted
         public Task StartAsync(CancellationToken cancellationToken)
         {
             _networkServer.Start();
-            _logger.LogInformation("Server started");
+            _logger.LogInformation("Server started on {Endpoint}", _networkServer.Endpoint.ToString());
 
             return Task.CompletedTask;
         }

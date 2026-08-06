@@ -280,3 +280,6 @@ appsettings.Local.json
 
 # Логи серверов (Serilog пишет в Logs/ по appsettings.json)
 Logs/
+
+# macOS
+.DS_Store

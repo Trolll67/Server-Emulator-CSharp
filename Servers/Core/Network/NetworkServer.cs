@@ -55,6 +55,20 @@ namespace Core.Network
         public IPEndPoint Endpoint { get; private set; }
 
         /// <summary>
+        /// Replaces the endpoint before the server is started. Lets a server bind to the port
+        /// resolved from TblParmSvr instead of the placeholder taken from the configuration file.
+        /// </summary>
+        protected void UpdateEndpoint(IPEndPoint endpoint)
+        {
+            if (IsStarted)
+            {
+                throw new InvalidOperationException("Cannot change the endpoint after the server is started");
+            }
+
+            Endpoint = endpoint;
+        }
+
+        /// <summary>
         /// Number of sessions connected to the server
         /// </summary>
         public long ConnectedSessions { get { return Sessions.Count; } }

@@ -79,6 +79,10 @@ namespace Server.Game
                     services.AddSingleton<IFnlAccountRepository, FnlAccountRepository>();
                     services.AddSingleton<IFnlGameRepository, FnlGameRepository>();
                     services.AddSingleton<IFnlParmReferenceRepository, FnlParmReferenceRepository>();
+                    services.AddSingleton<IFnlParmRepository, FnlParmRepository>();
+
+                    // This server's own identity (svr no, world no, port) resolved once from TblParmSvr
+                    services.AddSingleton<OwnServerInfo>();
 
                     // Register database services
                     services.AddTransient<GameRepository>();

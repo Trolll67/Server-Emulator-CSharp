@@ -30,13 +30,16 @@ namespace Server.Game.Network
         /// <param name="registerHandlerService"></param>
         /// <param name="identificationService"></param>
         /// <param name="gameSetting"></param>
-        public GameServer(ILogger<GameServer> logger, ILogger<GameSession> loggerSession, IAuthorizationFactory authorizationFactory, IRegisterHandlerService registerHandlerService, IdentificationService identificationService, IOptions<GameSetting> gameSetting) : base(IPAddress.Parse(gameSetting.Value.ServerIp), gameSetting.Value.ServerPort)
+        public GameServer(ILogger<GameServer> logger, ILogger<GameSession> loggerSession, IAuthorizationFactory authorizationFactory, IRegisterHandlerService registerHandlerService, IdentificationService identificationService, OwnServerInfo ownServerInfo, IOptions<GameSetting> gameSetting) : base(IPAddress.Parse(gameSetting.Value.ServerIp), gameSetting.Value.ServerPort)
         {
             _logger = logger;
             _loggerSession = loggerSession;
             _authorizationFactory = authorizationFactory;
             _registerHandlerService = registerHandlerService;
             _identificationService = identificationService;
+
+            // Bind to the port from TblParmSvr (OwnServerInfo already applied the gamesettings.json fallback)
+            UpdateEndpoint(new IPEndPoint(IPAddress.Parse(gameSetting.Value.ServerIp), ownServerInfo.TcpPort));
         }
 
         /// <summary>

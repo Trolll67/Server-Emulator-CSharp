@@ -28,9 +28,9 @@ namespace Server.Game.Core.Handlers
         private readonly DBGameMappingService _dbGameMappingService;
         private readonly ParmRepository _parmRepository;
         private readonly IdentificationService _identificationService;
-        private readonly GameSetting _gameSetting;
+        private readonly OwnServerInfo _ownServerInfo;
 
-        public AuthorizationHandler(IAuthorizationFactory authorizationFactory, ICharacterFactory characterFactory, ICharacteristicFactory characteristicFactory, IErrorFactory commonFactory, IFnlAccountRepository accountRepository, GameRepository gameRepository, DBGameMappingService dbGameMappingService, ParmRepository parmRepository, IdentificationService identificationService, IOptions<GameSetting> gameSetting)
+        public AuthorizationHandler(IAuthorizationFactory authorizationFactory, ICharacterFactory characterFactory, ICharacteristicFactory characteristicFactory, IErrorFactory commonFactory, IFnlAccountRepository accountRepository, GameRepository gameRepository, DBGameMappingService dbGameMappingService, ParmRepository parmRepository, IdentificationService identificationService, OwnServerInfo ownServerInfo)
         {
             _authorizationFactory = authorizationFactory;
             _characterFactory = characterFactory;
@@ -41,7 +41,7 @@ namespace Server.Game.Core.Handlers
             _dbGameMappingService = dbGameMappingService;
             _parmRepository = parmRepository;
             _identificationService = identificationService;
-            _gameSetting = gameSetting.Value;
+            _ownServerInfo = ownServerInfo;
         }
 
         [HandlerAction(PacketType.LoginUserReq)]
@@ -57,7 +57,7 @@ namespace Server.Game.Core.Handlers
                 UserNo = userNo,
                 CertifiedKey = model.SessionId,
                 Ip = GetClientIp(client),
-                WorldNo = _gameSetting.Id,
+                WorldNo = _ownServerInfo.WorldNo,
                 SvrInfo = 0, // general server, not the Chaos Battle Server
                 IpEx = 0,
                 PcBangLvEx = 0,
@@ -74,7 +74,7 @@ namespace Server.Game.Core.Handlers
 
             // Build the domain session from the procedure result and load the selection screen
             GSession sessionGame = new GSession();
-            _dbGameMappingService.MapSession(sessionGame, loginResult, userNo, _gameSetting.Id);
+            _dbGameMappingService.MapSession(sessionGame, loginResult, userNo, _ownServerInfo.SvrNo);
 
             client.Sessions = sessionGame;
             client.Pcs = _gameRepository.GetPcsByAccountId(userNo);

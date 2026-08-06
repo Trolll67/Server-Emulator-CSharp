@@ -1,11 +1,8 @@
-﻿using Database.Game.Interfaces;
-using Microsoft.Extensions.Hosting;
+﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Server.Game.Models.Settings;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -15,13 +12,13 @@ namespace Server.Game.Services.Database
     {
         private readonly GameSetting _gameSetting;
         private readonly IdentificationService _identificationService;
-        private readonly IGameContext _gameContext;
+        private readonly GameRepository _gameRepository;
 
-        public GameSaveService(IOptions<GameSetting> gameSetting, IdentificationService identificationService, IGameContext gameContext)
+        public GameSaveService(IOptions<GameSetting> gameSetting, IdentificationService identificationService, GameRepository gameRepository)
         {
             _gameSetting = gameSetting.Value;
             _identificationService = identificationService;
-            _gameContext = gameContext;
+            _gameRepository = gameRepository;
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
@@ -51,19 +48,9 @@ namespace Server.Game.Services.Database
 
                         foreach (var connection in connections)
                         {
-                            var pc = connection.Pc;
-                            var pcState = _gameContext.PcStates.FirstOrDefault(x => x.No == pc.Simple.PcNo);
-
-                            if (pcState == null)
-                            {
-                                throw new Exception($"PcState with PcNo:{pc.Simple.PcNo} not found");
-                            }
-
-                            pcState.PosX = pc.PositionCur.X;
-                            pcState.PosY = pc.PositionCur.Y;
-                            pcState.PosZ = pc.PositionCur.Z;
-
-                            _gameContext.SaveChanges();
+                            // UspUpdatePos writes position plus HP/MP/Map/Stomach; the map is taken
+                            // from the loaded character so it is not reset on autosave
+                            _gameRepository.SavePosition(connection.Pc);
                         }
 
                     }

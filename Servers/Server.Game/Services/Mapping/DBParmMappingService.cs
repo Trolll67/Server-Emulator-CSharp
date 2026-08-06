@@ -1,6 +1,6 @@
 ﻿using Database.DataModel.Enums;
 using Database.DataModel.Models;
-using Database.Parm.Models;
+using Database.Fnl.Parm;
 using Packets.Server.Game.Structures;
 using Server.Game.Models.Game;
 using System;
@@ -20,8 +20,10 @@ namespace Server.Game.Services
         /// <param name="characterGame"></param>
         /// <param name="characterBalance"></param>
         /// <returns></returns>
-        public void MapCharacterGame(GPc characterGame, CharacterModel characterBalance)
-        {
+        // CharacterModel жил в удалённом слое Database.Parm, а FNLParm (T5) стартовых характеристик
+        // персонажа не отдаёт — маппер закомментирован вместе со своими (уже закомментированными) вызовами
+        //public void MapCharacterGame(GPc characterGame, CharacterModel characterBalance)
+        //{
             //characterGame.DDvMin = characterBalance.DDvMin;
             //characterGame.DDvMax = characterBalance.DDvMax;
             //characterGame.MDvMin = characterBalance.MDvMin;
@@ -60,18 +62,20 @@ namespace Server.Game.Services
             //characterGame.DistanceAttack = 300; // TODO to db balance
 
             //characterGame.IsVsibleFirst = true;
-        }
+        //}
 
         /// <summary>
         ///     Map character position game
         /// </summary>
         /// <param name="characterPositionGame"></param>
         /// <param name="characterPositionBalance"></param>
-        public void MapCharacterPositionGame(GCharacterPosition characterPositionGame, CharacterPositionModel characterPositionBalance)
-        {
-            characterPositionGame.Class = (CharacterTypeEnum)characterPositionBalance.Class;
-            characterPositionGame.Position = new Vector3(characterPositionBalance.X, characterPositionBalance.Y, characterPositionBalance.Z);
-        }
+        // CharacterPositionModel жил в удалённом слое Database.Parm; стартовых позиций FNLParm (T5)
+        // не отдаёт, поэтому GetCharacterPositionByClass возвращает заглушку без вызова этого маппера
+        //public void MapCharacterPositionGame(GCharacterPosition characterPositionGame, CharacterPositionModel characterPositionBalance)
+        //{
+        //    characterPositionGame.Class = (CharacterTypeEnum)characterPositionBalance.Class;
+        //    characterPositionGame.Position = new Vector3(characterPositionBalance.X, characterPositionBalance.Y, characterPositionBalance.Z);
+        //}
         #endregion
 
         #region Exp mapping
@@ -80,7 +84,7 @@ namespace Server.Game.Services
         /// </summary>
         /// <param name="expGame"></param>
         /// <param name="expBalance"></param>
-        public void MapExpGame(GExp expGame, ExpModel expBalance)
+        public void MapExpGame(GExp expGame, ExpRow expBalance)
         {
             expGame.Level = expBalance.Level;
             expGame.Exp = (ulong)expBalance.Exp;

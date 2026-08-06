@@ -1,6 +1,4 @@
 ﻿using Database.DataModel.Enums;
-using Database.Game.Interfaces;
-using Microsoft.EntityFrameworkCore;
 using Packets.Core.Attributes;
 using Packets.Core.Enums;
 using Packets.Server.Game.Enums;
@@ -24,7 +22,6 @@ namespace Server.Game.Core.Handlers
     public class NpcActionHandler : INpcActionHandler
     {
         private readonly INpcActionFactory _npcActionFactory;
-        private readonly IGameContext _gameContext;
         private readonly IErrorFactory _errorFactory;
         private readonly InventarSystem _inventarSystem;
         private readonly IInventoryFactory _inventoryFactory;
@@ -36,16 +33,14 @@ namespace Server.Game.Core.Handlers
         public NpcActionHandler(ICharacteristicFactory characteristicFactory, 
             IInventoryFactory inventarFactory, 
             ParmRepository databaseBalanceService, 
-            INpcActionFactory npcActionFactory, 
-            IGameContext gameContext, 
-            IErrorFactory errorFactory, 
+            INpcActionFactory npcActionFactory,
+            IErrorFactory errorFactory,
             InventarSystem inventarSystem, 
             IdentificationService identificationService, 
             SerialNumberService serialNumberService)
         {
             _characteristicFactory = characteristicFactory;
             _npcActionFactory = npcActionFactory;
-            _gameContext = gameContext;
             _errorFactory = errorFactory;
             _inventarSystem = inventarSystem;
             _inventoryFactory = inventarFactory;

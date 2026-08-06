@@ -1,8 +1,9 @@
 ﻿using Database.DataModel.Enums;
 using Database.DataModel.Models;
-using Database.Game.Models;
+using Database.Fnl.Game;
 using Server.Game.Models.Game;
 using Server.Game.Services.Database;
+using System.Collections.Generic;
 
 namespace Server.Game.Services.Mapping
 {
@@ -24,25 +25,30 @@ namespace Server.Game.Services.Mapping
         /// <summary>
         ///     Get character game
         /// </summary>
-        /// <param name="parmPc"></param>
+        /// <param name="pcNo">Character number, TblPc.mNo (UspListPc)</param>
+        /// <param name="slot">Character slot, TblPc.mSlot (UspListPc)</param>
+        /// <param name="detail">Character state (UspGetPcDetail)</param>
+        /// <param name="items">Inventory rows (UspGetPcItem)</param>
+        /// <param name="equips">Worn equipment rows (UspGetPcEquip)</param>
         /// <returns></returns>
-        public GPc GetCharacterGame(Pc parmPc)
+        public GPc GetCharacterGame(int pcNo, byte slot, PcDetailRow detail,
+            IReadOnlyList<PcItemRow> items, IReadOnlyList<PcEquipRow> equips)
         {
             GPc pc = new GPc();
             ParmMonster parmMon;
 
-            if (parmPc.Class == (int)PcClassEnum.Fighter)
+            if (detail.Class == (int)PcClassEnum.Fighter)
                 parmMon = _parmRepository.GetMonsterById(150);
-            else if (parmPc.Class == (int)PcClassEnum.Dragoon)
+            else if (detail.Class == (int)PcClassEnum.Dragoon)
                 parmMon = _parmRepository.GetMonsterById(151);
-            else if (parmPc.Class == (int)PcClassEnum.Wizard)
+            else if (detail.Class == (int)PcClassEnum.Wizard)
                 parmMon = _parmRepository.GetMonsterById(152);
-            else if (parmPc.Class == (int)PcClassEnum.Assassin)
+            else if (detail.Class == (int)PcClassEnum.Assassin)
                 parmMon = _parmRepository.GetMonsterById(729);
             else
                 parmMon = _parmRepository.GetMonsterById(952);
 
-            _databaseMappingService.MapCharacter(pc, parmPc, parmMon);
+            _databaseMappingService.MapCharacter(pc, pcNo, slot, detail, items, equips, parmMon);
 
             // TODO Перерасчет характеристик персонажа за счет уровня, силы, ловкости, интеллекта
 

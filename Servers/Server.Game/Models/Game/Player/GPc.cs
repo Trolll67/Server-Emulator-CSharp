@@ -1,5 +1,4 @@
 ﻿using Database.DataModel.Enums;
-using Database.Game.Models;
 using Packets.Server.Game.Structures;
 using Server.Game.Network;
 using System;
@@ -26,6 +25,12 @@ namespace Server.Game.Models.Game
         }
         public List<GPcEquip> Equip { get; set; }
         public GPcInventory Inventory { get; set; }
+
+        /// <summary>
+        ///     Map the character is currently on (TblPcState.mMapNo). Kept from the loaded state so
+        ///     the per-tick UspUpdatePos write does not reset the map to 0
+        /// </summary>
+        public int MapNo { get; set; }
 
         //public AttackTypeEnum AttackTarget { get; set; }
         public ushort AttackType { get; set; }

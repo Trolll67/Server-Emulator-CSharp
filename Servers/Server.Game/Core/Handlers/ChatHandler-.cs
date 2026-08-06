@@ -1,5 +1,4 @@
 ﻿using Database.DataModel.Enums;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Packets.Core.Attributes;
 using Packets.Core.Enums;
 using Packets.Server.Game.Models.Receive.Chat;

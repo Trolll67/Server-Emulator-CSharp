@@ -1,7 +1,5 @@
-﻿using Database.Game.Models;
 using Server.Game.Models.Game;
 using Server.Game.Services.Mapping;
-using System.Collections.Generic;
 
 namespace Server.Game.Core.Systems
 {
@@ -18,50 +16,9 @@ namespace Server.Game.Core.Systems
             _gameMappingService = gameMappingService;
         }
 
-        /// <summary>
-        ///     Get chracter games
-        /// </summary>
-        /// <param name="characterModels"></param>
-        /// <returns></returns>
-        public List<GPc> GetGPc(List<Pc> characterModels)
-        {
-            List<GPc> gPcs = new List<GPc>();
-
-            foreach (Pc characterModel in characterModels)
-            {
-                var gPc = _gameMappingService.GetCharacterGame(characterModel);
-                gPcs.Add(gPc);
-            }
-
-            return gPcs;
-        }
-
-        /// <summary>
-        ///     Get character game
-        /// </summary>
-        /// <param name="characterModel"></param>
-        /// <returns></returns>
-        public GPc GetCharacterGame(Pc characterModel)
-        {
-            GPc characterGameModel = _gameMappingService.GetCharacterGame(characterModel);
-
-            //foreach (ItemModel item in characterModel.Items)
-            //{
-            //    ItemGameModel itemGameModel = _gameMappingService.GetItemGame(item);
-
-            //    if (itemGameModel.Position != null)
-            //    {
-            //        _equipSystem.EquipItem(characterGameModel, itemGameModel);
-            //    }
-
-            //    characterGameModel.Items.Add(itemGameModel);
-            //}
-
-            //_inventarSystem.RecalculateWeight(characterGameModel); //TODO
-
-
-            return characterGameModel;
-        }
+        // Building a GPc from persisted state now happens in GameRepository over the FNLGame loader
+        // procedures (UspGetPcDetail/UspGetPcItem/UspGetPcEquip), so the old Pc -> GPc mapping that
+        // used the EF entity lives no more. The class is kept for the systems that inject it.
 
         /// <summary>
         ///     Recalculate character

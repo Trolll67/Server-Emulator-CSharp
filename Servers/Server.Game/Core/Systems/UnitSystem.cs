@@ -1,5 +1,4 @@
 ﻿using Database.DataModel.Models;
-using Database.Parm.Models;
 using Packets.Server.Game.Structures;
 using Server.Game.Models.Game;
 using Server.Game.Services;

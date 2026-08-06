@@ -1,14 +1,14 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
-using Database.Account;
-using Database.Account.Interfaces;
-using Database.Game;
-using Database.Game.Interfaces;
-using Database.Parm;
-using Database.Parm.Interfaces;
-using Microsoft.EntityFrameworkCore;
+using Database.Fnl.Account;
+using Database.Fnl.DependencyInjection;
+using Database.Fnl.Game;
+using Database.Fnl.Parm;
+using Database.Fnl.Sql;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -69,17 +69,16 @@ namespace Server.Game
                         .ReadFrom.Configuration(hostContext.Configuration)
                         .CreateLogger();
 
-                    // Create database account context
-                    string accountConnection = hostContext.Configuration.GetConnectionString("AccountConnection");
-                    services.AddDbContext<IAccountContext, AccountContext>(options => options.UseSqlServer(accountConnection), ServiceLifetime.Transient);
+                    // Without the databases the server is useless: better to fall at start than on the first packet
+                    EnsureFnlDatabaseAccess(hostContext.Configuration);
 
-                    // Create database parm context
-                    string gameConnection = hostContext.Configuration.GetConnectionString("GameConnection");
-                    services.AddDbContext<IGameContext, GameContext>(options => options.UseSqlServer(gameConnection), ServiceLifetime.Transient);
+                    // Access to the original R2 databases (FNLAccount, FNLGame, FNLParm) through the server's DSN files
+                    services.AddFnlDatabase(hostContext.Configuration);
 
-                    // Create database parm context
-                    string parmConnection = hostContext.Configuration.GetConnectionString("ParmConnection");
-                    services.AddDbContext<IParmContext, ParmContext>(options => options.UseSqlServer(parmConnection), ServiceLifetime.Transient);
+                    // Register repositories over the original stored procedures
+                    services.AddSingleton<IFnlAccountRepository, FnlAccountRepository>();
+                    services.AddSingleton<IFnlGameRepository, FnlGameRepository>();
+                    services.AddSingleton<IFnlParmReferenceRepository, FnlParmReferenceRepository>();
 
                     // Register database services
                     services.AddTransient<GameRepository>();
@@ -170,6 +169,69 @@ namespace Server.Game
                 .Build();
 
             await hostBuilder.RunAsync();
+        }
+
+        /// <summary>
+        ///     Checks that the access to the original R2 databases can be resolved before the server starts
+        ///     listening: a missing DSN file would only show up as a swallowed exception on the first
+        ///     packet that touches the database
+        /// </summary>
+        /// <param name="configuration"></param>
+        private static void EnsureFnlDatabaseAccess(IConfiguration configuration)
+        {
+            string dsnDirectory = configuration
+                .GetSection(FnlDatabaseOptions.SectionName)[nameof(FnlDatabaseOptions.DsnDirectory)];
+
+            List<string> problems = new List<string>();
+
+            foreach (string name in new[] { FnlConnectionNames.FnlAccount, FnlConnectionNames.FnlGame, FnlConnectionNames.FnlParm })
+            {
+                // An explicit connection string replaces the DSN file, then there is nothing to check
+                if (!string.IsNullOrWhiteSpace(configuration.GetConnectionString(name)))
+                {
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(dsnDirectory))
+                {
+                    problems.Add($"  \"{FnlDatabaseOptions.SectionName}:{nameof(FnlDatabaseOptions.DsnDirectory)}\" " +
+                                 $"is empty, so '{name}' can not be resolved");
+
+                    continue;
+                }
+
+                string path = SqlConnectionFactory.GetDsnPath(dsnDirectory, name);
+
+                if (!File.Exists(path))
+                {
+                    problems.Add($"  DSN file \"{path}\" for '{name}' is not found");
+                }
+            }
+
+            if (problems.Count == 0)
+            {
+                return;
+            }
+
+            // Paths and key names only: the DSN files themselves carry the database password
+            StringBuilder message =
+                new StringBuilder("Game server cannot start: access to the R2 databases is not configured.");
+
+            foreach (string problem in problems)
+            {
+                message.AppendLine();
+                message.Append(problem);
+            }
+
+            message.AppendLine();
+            message.Append($"  Point \"{FnlDatabaseOptions.SectionName}:{nameof(FnlDatabaseOptions.DsnDirectory)}\" ");
+            message.Append("at the Data directory of the original server (the one holding Account.dsn, Game.dsn and Parm.dsn), ");
+            message.Append($"or set the environment variable ");
+            message.Append($"{FnlDatabaseOptions.SectionName}__{nameof(FnlDatabaseOptions.DsnDirectory)}");
+
+            Log.Fatal(message.ToString());
+
+            throw new InvalidOperationException(message.ToString());
         }
     }
 }

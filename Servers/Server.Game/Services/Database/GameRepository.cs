@@ -1,76 +1,136 @@
-﻿using Database.Account.Interfaces;
-using Database.Account.Models;
-using Database.Game.Interfaces;
-using Database.Game.Models;
-using Microsoft.EntityFrameworkCore;
-using Server.Game.Core.Systems;
+using Database.Fnl.Game;
 using Server.Game.Models.Game;
+using Server.Game.Services.Mapping;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Server.Game.Services.Database
 {
     /// <summary>
-    ///     Database service
+    ///     Database service over the original FNLGame stored procedures
     /// </summary>
     public class GameRepository
     {
-        private readonly IAccountContext _accountContext;
-        private readonly IGameContext _gameContext;
-        private readonly DBGameMappingService _gameMappingService;
+        private readonly IFnlGameRepository _gameRepository;
+        private readonly GameMappingService _gameMappingService;
 
-        private readonly CharacterSystem _characterSystem;
-
-        public GameRepository(IAccountContext accountContext,
-            IGameContext gameContext,
-            DBGameMappingService databaseMappingService, 
-            CharacterSystem characterSystem)
+        public GameRepository(IFnlGameRepository gameRepository, GameMappingService gameMappingService)
         {
-            _accountContext = accountContext;
-            _gameContext = gameContext;
-            _gameMappingService = databaseMappingService;
-            _characterSystem = characterSystem;
+            _gameRepository = gameRepository;
+            _gameMappingService = gameMappingService;
         }
-
-        #region Account
-
-        #endregion
 
         #region Character
         /// <summary>
-        ///     Get characters by id
+        ///     Get the account characters for the selection screen. UspListPc returns only
+        ///     slot and number, so state and equipment are loaded per character for the preview
         /// </summary>
-        /// <param name="accountId"></param>
+        /// <param name="userNo">Account number, TblPc.mOwner</param>
         /// <returns></returns>
-        public List<GPc> GetPcsByAccountId(int accountId)
+        public List<GPc> GetPcsByAccountId(int userNo)
         {
-            List<Pc> characters = _gameContext.Pcs
-                .Include(i => i.PcDeleted)
-                .Include(i => i.PcInvenQslotInfo)
-                .Include(i => i.State)
-                .Include(i => i.PcAbnormals)
-                .Include(i => i.PcChatFilters)
-                .Include(i => i.PcFriends)
-                .Include(i => i.PcTeleports)
-                .Include(i => i.PcEquips)
-                .Include(i => i.PcInventoryItems)
-                .Where(pc => pc.Owner == accountId)
-                .ToList();
+            var rows = _gameRepository.ListPc(userNo);
 
-            List<GPc> characterGames = _characterSystem.GetGPc(characters);
+            List<GPc> characterGames = new List<GPc>(rows.Count);
+
+            foreach (var row in rows)
+            {
+                var gPc = BuildPc(row.No, row.Slot);
+                if (gPc == null)
+                    continue;
+
+                characterGames.Add(gPc);
+            }
 
             return characterGames;
         }
 
-        public async void SavePositionAsync(GPc gPc)
+        /// <summary>
+        ///     Load a character without marking it online. Used right after UspCreatePc to build the
+        ///     domain model of the freshly created character for the client
+        /// </summary>
+        /// <param name="pcNo">Character number, TblPc.mNo</param>
+        /// <param name="slot">Slot the character occupies, TblPc.mSlot</param>
+        /// <returns>The assembled character or null when there is no such character</returns>
+        public GPc GetPc(int pcNo, byte slot)
         {
-            var pcState = _gameContext.PcStates.FirstOrDefault(x => x.No == gPc.Simple.PcNo);
+            return BuildPc(pcNo, slot);
+        }
 
-            pcState.PosX = gPc.PositionCur.X;
-            pcState.PosY = gPc.PositionCur.Y;
-            pcState.PosZ = gPc.PositionCur.Z;
+        /// <summary>
+        ///     Assemble a full character from the loader procedures (detail, inventory, equipment)
+        /// </summary>
+        /// <param name="pcNo">Character number, @pPcNo</param>
+        /// <param name="slot">Slot the character occupies, TblPc.mSlot</param>
+        /// <returns>The assembled character or null when there is no such character</returns>
+        private GPc BuildPc(int pcNo, byte slot)
+        {
+            var detail = _gameRepository.GetPcDetail(pcNo);
+            if (detail == null)
+                return null;
 
-            await _gameContext.SaveChangesAsync();
+            var items = _gameRepository.GetPcItem(pcNo);
+            var equips = _gameRepository.GetPcEquip(pcNo);
+
+            var gPc = _gameMappingService.GetCharacterGame(pcNo, slot, detail, items, equips);
+
+            // Keep the map the character was loaded on so the per-tick UspUpdatePos write does not
+            // reset TblPcState.mMapNo to 0 (in this slice the player never changes the map)
+            gPc.MapNo = detail.MapNo;
+
+            return gPc;
+        }
+
+        /// <summary>
+        ///     Load the selected character on the way into the world: mark it online (UspLoginPc)
+        ///     and assemble the full character from the loader procedures
+        /// </summary>
+        /// <param name="userNo">Account number, @pUserNo</param>
+        /// <param name="pcNo">Chosen character number, @pPcNo</param>
+        /// <param name="ip">Client address, @pIp</param>
+        /// <returns>The assembled character or null when there is no such character</returns>
+        public GPc LoadPc(int userNo, int pcNo, string ip)
+        {
+            _gameRepository.LoginPc(userNo, pcNo, ip);
+
+            // TODO active abnormals (UspGetListAbnormal) have no domain target yet (GPc has no
+            // abnormal list); load and apply them once the buff system is ported
+
+            // Slot is not returned by the loader procedures and the world does not need it here
+            return BuildPc(pcNo, 0);
+        }
+
+        /// <summary>
+        ///     Create a character (UspCreatePc). The business outcome is reported by the return code
+        /// </summary>
+        public CreatePcResult CreatePc(CreatePcRequest request)
+        {
+            return _gameRepository.CreatePc(request);
+        }
+
+        /// <summary>
+        ///     Delete a character (UspDeletePcEx). The business outcome is reported by the return code
+        /// </summary>
+        public DeletePcResult DeletePc(int owner, int pcNo)
+        {
+            return _gameRepository.DeletePc(owner, pcNo);
+        }
+
+        /// <summary>
+        ///     Save the position and volatile state of a character (UspUpdatePos)
+        /// </summary>
+        public void SavePosition(GPc gPc)
+        {
+            // UspUpdatePos also writes mMapNo, so the map loaded with the character is sent back
+            // unchanged; sending 0 here would wipe the character's map on every autosave
+            _gameRepository.UpdatePos(
+                (int)gPc.Simple.PcNo,
+                gPc.Simple.Hp,
+                gPc.Simple.Mp,
+                gPc.MapNo,
+                gPc.PositionCur.X,
+                gPc.PositionCur.Y,
+                gPc.PositionCur.Z,
+                gPc.Simple.Stomach);
         }
         #endregion
 
@@ -90,40 +150,6 @@ namespace Server.Game.Services.Database
             //_gameContext.SaveChanges();
         }
 
-        #endregion
-
-        #region Server
-
-        #endregion
-
-        #region Session
-        /// <summary>
-        ///     Get session by id
-        /// </summary>
-        /// <param name="id"></param>
-        /// <returns></returns>
-        public GSession GetSessionById(int id)
-        {
-            GSession sessionGame = new GSession();
-
-            SessionModel session = _accountContext.Sessions.FirstOrDefault(s => s.Id == id);
-            _gameMappingService.MapSession(sessionGame, session);
-
-            return sessionGame;
-        }
-
-        /// <summary>
-        ///     Update session status
-        /// </summary>
-        /// <param name="id"></param>
-        /// <param name="status"></param>
-        public void UpdateSessionStatus(int id, bool status)
-        {
-            SessionModel session = _accountContext.Sessions.FirstOrDefault(s => s.Id == id);
-
-            session.InGame = status;
-            _gameContext.SaveChanges();
-        }
         #endregion
     }
 }

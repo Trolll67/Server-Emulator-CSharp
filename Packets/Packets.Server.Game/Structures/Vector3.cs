@@ -1,10 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Packets.Core.Utilities;
+﻿using Packets.Core.Utilities;
 using System;
 
 namespace Packets.Server.Game.Structures
 {
-    [Owned]
     public class Vector3 : IEquatable<Vector3>
     {
         public float X { get; set; }

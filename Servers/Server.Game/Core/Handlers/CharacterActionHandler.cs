@@ -1,5 +1,4 @@
-﻿using Database.Game.Interfaces;
-using Packets.Core.Attributes;
+﻿using Packets.Core.Attributes;
 using Packets.Core.Enums;
 using Packets.Server.Game.Models.Receive.Character;
 using Server.Game.Core.Factories.Interfaces;

@@ -1,38 +1,36 @@
-﻿using Packets.Server.Game.Models.Receive.Character;
+using Packets.Server.Game.Models.Receive.Character;
 using Server.Game.Core.Factories.Interfaces;
 using Server.Game.Core.Handlers.Interfaces;
-using System;
 using System.Linq;
 using Server.Game.Network;
 using Packets.Core.Attributes;
 using Packets.Core.Enums;
 using Packets.Server.Game.Models.Send;
-using Server.Game.Services;
-using Database.DataModel.Enums;
-using Server.Game.Core.Systems;
-using Database.Game.Interfaces;
-using Database.Game.Models;
 using Server.Game.Models.Game;
 using Server.Game.Services.Database;
+using Database.Fnl.Game;
 
 namespace Server.Game.Core.Handlers
 {
     [Handler]
     public class CharacterHandler : ICharacterHandler
     {
-        private readonly IGameContext _gameContext;
+        // Home position of a freshly created character. In the original this comes from the class
+        // template; the starting map is not known here, so 0 keeps the previous behaviour
+        private const int StartingMap = 0;
+        private const float StartingPosX = 364000.2f;
+        private const float StartingPosY = 313483.7f;
+        private const float StartingPosZ = 12339.71f;
+
+        private readonly GameRepository _gameRepository;
         private readonly ICharacterFactory _characterFactory;
         private readonly IErrorFactory _errorFactory;
-        private readonly CharacterSystem _characterSystem;
-        private readonly ParmRepository _databaseBalanceService;
 
-        public CharacterHandler(IGameContext databaseContext, ICharacterFactory characterFactory, IErrorFactory errorFactory, CharacterSystem characterSystem, ParmRepository databaseBalanceService)
+        public CharacterHandler(GameRepository gameRepository, ICharacterFactory characterFactory, IErrorFactory errorFactory)
         {
-            _gameContext = databaseContext;
+            _gameRepository = gameRepository;
             _characterFactory = characterFactory;
             _errorFactory = errorFactory;
-            _characterSystem = characterSystem;
-            _databaseBalanceService = databaseBalanceService;
         }
 
         [HandlerAction(PacketType.CreatePcReq)]
@@ -52,50 +50,37 @@ namespace Server.Game.Core.Handlers
                 return;
             }
 
-            // Check if name exist
-            if (_gameContext.Pcs.Any(c => c.NickName == model.Name))
+            // Create the character through UspCreatePc. The unique name check and the slot check
+            // live inside the procedure, the business outcome is reported by the return code
+            CreatePcResult result = _gameRepository.CreatePc(new CreatePcRequest
             {
-                _errorFactory.SendServerError(client, PacketType.CreatePcReq, GameServerErrorType.NoCharAlreadyExistNm, true);
-                return;
-            }
-
-            // TODO Вынести в настройку начальный уровень персонажа
-            // Get character information from balance
-            //var characterBalance = _databaseBalanceService.GetCharacterByLevelClass(1, (CharacterTypeEnum)model.Class);
-            //var characterPositionBalance = _databaseBalanceService.GetCharacterPositionByClass((CharacterTypeEnum)model.Class);
-
-            // Create character
-            Pc pc = new Pc
-            {
-                RegDate = DateTime.Now,
                 Owner = client.Sessions.AccountId,
                 Slot = model.Slot,
-                NickName = model.Name,
+                Nm = model.Name,
                 Class = model.Class,
                 Sex = model.Sex,
                 Head = model.Head,
                 Face = model.Face,
-                HomePosX = 364000.2f,
-                HomePosY = 313483.7f,
-                HomePosZ = 12339.71f,
-                State = new PcState
-                {
-                    Level = 1,
-                    Hp = 93,
-                    Mp = 51,
-                    PosX = 364000.2f,
-                    PosY = 313483.7f,
-                    PosZ = 12339.71f,
-                    Stomach = 100,
-                }
-            };
+                Body = model.TypeBody,
+                HomeMap = StartingMap,
+                HomeX = StartingPosX,
+                HomeY = StartingPosY,
+                HomeZ = StartingPosZ
+            });
 
-            // Save character
-            _gameContext.Pcs.Add(pc);
-            _gameContext.SaveChanges();
+            if (!result.IsSuccess)
+            {
+                // ReturnCode 2 - eErrNoCharAlreadyExistNm, 1 - the slot is already taken
+                GameServerErrorType errorType = result.ReturnCode == 2
+                    ? GameServerErrorType.NoCharAlreadyExistNm
+                    : GameServerErrorType.NoUserCharSlotBusy;
 
-            // Add character for client
-            GPc gamePc = _characterSystem.GetCharacterGame(pc);
+                _errorFactory.SendServerError(client, PacketType.CreatePcReq, errorType, true);
+                return;
+            }
+
+            // Build the freshly created character from the loader procedures for the client
+            GPc gamePc = _gameRepository.GetPc(result.PcNo, model.Slot);
             client.Pcs.Add(gamePc);
 
             _characterFactory.SendCompleteCreateCharacters(client, gamePc);
@@ -104,22 +89,24 @@ namespace Server.Game.Core.Handlers
         [HandlerAction(PacketType.DeletePcReq)]
         public void DeleteCharactersHandle(GameSession client, DeletePcReqModel model)
         {
-            var pc = _gameContext.Pcs.FirstOrDefault(c => c.No == model.PcNo);
+            GPc pcGame = client.Pcs.FirstOrDefault(c => c.Simple.PcNo == model.PcNo);
 
-            if (pc == null)
+            if (pcGame == null)
             {
                 _errorFactory.SendServerError(client, PacketType.CreatePcReq, GameServerErrorType.NoCharCannotDel, true);
+                return;
             }
 
-            // Delete character
-            pc.DelDate = DateTime.Now;
-            //character.IsDeleted = true;
+            // Delete the character through UspDeletePcEx, the business outcome is the return code
+            DeletePcResult result = _gameRepository.DeletePc(client.Sessions.AccountId, (int)model.PcNo);
 
-            // Save results
-            _gameContext.SaveChanges();
+            if (!result.IsSuccess)
+            {
+                _errorFactory.SendServerError(client, PacketType.CreatePcReq, GameServerErrorType.NoCharCannotDel, true);
+                return;
+            }
 
             // Delete character from client
-            GPc pcGame = client.Pcs.FirstOrDefault(c => c.Simple.PcNo == pc.No);
             client.Pcs.Remove(pcGame);
 
             _characterFactory.SendCompleteDeleteCharacters(client, pcGame);

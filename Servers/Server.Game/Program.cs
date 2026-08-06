@@ -146,6 +146,7 @@ namespace Server.Game
                     // Register services
                     services.AddSingleton<IdentificationService>();
                     services.AddSingleton<SerialNumberService>();
+                    services.AddSingleton<LogoutService>();
                     services.AddSingleton<GameServer>();
 
                     // Register hosted services

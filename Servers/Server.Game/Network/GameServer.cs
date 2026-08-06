@@ -20,6 +20,7 @@ namespace Server.Game.Network
         private readonly IAuthorizationFactory _authorizationFactory;
         private readonly IRegisterHandlerService _registerHandlerService;
         private readonly IdentificationService _identificationService;
+        private readonly LogoutService _logoutService;
 
         /// <summary>
         ///     Creates a new instance
@@ -29,14 +30,16 @@ namespace Server.Game.Network
         /// <param name="authorizationFactory"></param>
         /// <param name="registerHandlerService"></param>
         /// <param name="identificationService"></param>
+        /// <param name="logoutService"></param>
         /// <param name="gameSetting"></param>
-        public GameServer(ILogger<GameServer> logger, ILogger<GameSession> loggerSession, IAuthorizationFactory authorizationFactory, IRegisterHandlerService registerHandlerService, IdentificationService identificationService, OwnServerInfo ownServerInfo, IOptions<GameSetting> gameSetting) : base(IPAddress.Parse(gameSetting.Value.ServerIp), gameSetting.Value.ServerPort)
+        public GameServer(ILogger<GameServer> logger, ILogger<GameSession> loggerSession, IAuthorizationFactory authorizationFactory, IRegisterHandlerService registerHandlerService, IdentificationService identificationService, LogoutService logoutService, OwnServerInfo ownServerInfo, IOptions<GameSetting> gameSetting) : base(IPAddress.Parse(gameSetting.Value.ServerIp), gameSetting.Value.ServerPort)
         {
             _logger = logger;
             _loggerSession = loggerSession;
             _authorizationFactory = authorizationFactory;
             _registerHandlerService = registerHandlerService;
             _identificationService = identificationService;
+            _logoutService = logoutService;
 
             // Bind to the port from TblParmSvr (OwnServerInfo already applied the gamesettings.json fallback)
             UpdateEndpoint(new IPEndPoint(IPAddress.Parse(gameSetting.Value.ServerIp), ownServerInfo.TcpPort));
@@ -49,7 +52,7 @@ namespace Server.Game.Network
         protected override NetworkSession CreateSession()
         {
             GameSession gameSession = new GameSession(this);
-            gameSession.InicializeServices(_loggerSession, _authorizationFactory, _registerHandlerService, _identificationService);
+            gameSession.InicializeServices(_loggerSession, _authorizationFactory, _registerHandlerService, _identificationService, _logoutService);
 
             return gameSession;
         }

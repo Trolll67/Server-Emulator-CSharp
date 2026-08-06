@@ -40,6 +40,12 @@ namespace Database.Fnl.Account
         public int NewCertifiedKey { get; set; }
 
         /// <summary>
+        ///     TblUser.mUseMacro, @pUseMacro - the macro usage counter of the account. UspLogoutUser
+        ///     writes it back, so the session keeps it between login and logout
+        /// </summary>
+        public short UseMacro { get; set; }
+
+        /// <summary>
         ///     Error name, @pErrNoStr, for example eErrNoUserDiffCertifiedKey. Filled only when
         ///     <see cref="ReturnCode"/> is not zero: on success the procedure leaves there
         ///     its initial value 'eErrNoSqlInternalError' and never resets it

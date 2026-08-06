@@ -100,6 +100,16 @@ namespace Server.Game.Services.Database
         }
 
         /// <summary>
+        ///     Mark a character offline as it leaves the world (UspLogoutPc)
+        /// </summary>
+        /// <param name="userNo">Account number, @pUserNo</param>
+        /// <param name="pcNo">Character number, @pPcNo</param>
+        public void LogoutPc(int userNo, int pcNo)
+        {
+            _gameRepository.LogoutPc(userNo, pcNo);
+        }
+
+        /// <summary>
         ///     Create a character (UspCreatePc). The business outcome is reported by the return code
         /// </summary>
         public CreatePcResult CreatePc(CreatePcRequest request)

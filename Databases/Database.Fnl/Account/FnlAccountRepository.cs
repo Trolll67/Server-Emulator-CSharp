@@ -18,6 +18,8 @@ namespace Database.Fnl.Account
 
         private const string LoginUserProcedure = "dbo.UspLoginUser";
 
+        private const string LogoutUserProcedure = "dbo.UspLogoutUser";
+
         private readonly ISqlConnectionFactory _connectionFactory;
 
         /// <summary>
@@ -135,7 +137,7 @@ namespace Database.Fnl.Account
                 StoredProcedure.AddOutInt(command, "@pLeftChat");
                 StoredProcedure.AddOutDateTime(command, "@pEndBoard");
                 StoredProcedure.AddOutInt(command, "@pPcBangLv");
-                StoredProcedure.AddOutSmallInt(command, "@pUseMacro");
+                SqlParameter useMacro = StoredProcedure.AddOutSmallInt(command, "@pUseMacro");
                 StoredProcedure.AddOutInt(command, "@pIpEXUserNo");
                 StoredProcedure.AddOutChar(command, "@pJoinCode", 1);
                 StoredProcedure.AddOutChar(command, "@pTired", 1);
@@ -157,7 +159,8 @@ namespace Database.Fnl.Account
                     UserId = StoredProcedure.GetTrimmedString(userId),
                     UserAuth = GetByte(userAuth),
                     SecKeyState = GetByte(secKeyState),
-                    NewCertifiedKey = GetInt32(newCertifiedKey)
+                    NewCertifiedKey = GetInt32(newCertifiedKey),
+                    UseMacro = GetInt16(useMacro)
                 };
 
                 // On success @pErrNoStr still holds its initial 'eErrNoSqlInternalError':
@@ -168,6 +171,26 @@ namespace Database.Fnl.Account
                 }
 
                 return result;
+            }
+        }
+
+        /// <inheritdoc/>
+        public LogoutUserResult LogoutUser(int userNo, int chatBlockApplyTime, short useMacro)
+        {
+            using (SqlConnection connection = _connectionFactory.Create(FnlConnectionNames.FnlAccount))
+            using (SqlCommand command = StoredProcedure.Create(connection, LogoutUserProcedure))
+            {
+                StoredProcedure.AddInInt(command, "@pUserNo", userNo);
+                StoredProcedure.AddInInt(command, "@pUserChatBlockApplyTime", chatBlockApplyTime);
+                StoredProcedure.AddInSmallInt(command, "@pUseMacro", useMacro);
+
+                connection.Open();
+                command.ExecuteNonQuery();
+
+                return new LogoutUserResult
+                {
+                    ReturnCode = StoredProcedure.ReturnValue(command)
+                };
             }
         }
 

@@ -163,6 +163,11 @@ namespace Server.Game.Services
             sessionGame.AccountId = userNo;
             sessionGame.ServerId = serverId;
             sessionGame.InGame = loginResult.IsSuccess;
+            sessionGame.UseMacro = loginResult.UseMacro;
+
+            // The procedure may adjust the requested key on a collision, so the session keeps
+            // the value it actually wrote, not the one the server generated
+            sessionGame.CertifiedKey = loginResult.NewCertifiedKey;
         }
         #endregion
     }

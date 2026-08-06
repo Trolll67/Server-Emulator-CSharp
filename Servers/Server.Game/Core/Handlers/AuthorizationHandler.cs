@@ -19,6 +19,12 @@ namespace Server.Game.Core.Handlers
     [Handler]
     public class AuthorizationHandler : IAuthorizationHandler
     {
+        /// <summary>
+        ///     Generator of the session keys the world server rotates on every UspLoginUser call,
+        ///     the same way the login server issues the first key in UspCertifyUser_CN
+        /// </summary>
+        private static readonly System.Random CertifiedKeyRandom = new System.Random();
+
         private readonly IAuthorizationFactory _authorizationFactory;
         private readonly ICharacterFactory _characterFactory;
         private readonly ICharacteristicFactory _characteristicFactory;
@@ -29,8 +35,9 @@ namespace Server.Game.Core.Handlers
         private readonly ParmRepository _parmRepository;
         private readonly IdentificationService _identificationService;
         private readonly OwnServerInfo _ownServerInfo;
+        private readonly LogoutService _logoutService;
 
-        public AuthorizationHandler(IAuthorizationFactory authorizationFactory, ICharacterFactory characterFactory, ICharacteristicFactory characteristicFactory, IErrorFactory commonFactory, IFnlAccountRepository accountRepository, GameRepository gameRepository, DBGameMappingService dbGameMappingService, ParmRepository parmRepository, IdentificationService identificationService, OwnServerInfo ownServerInfo)
+        public AuthorizationHandler(IAuthorizationFactory authorizationFactory, ICharacterFactory characterFactory, ICharacteristicFactory characteristicFactory, IErrorFactory commonFactory, IFnlAccountRepository accountRepository, GameRepository gameRepository, DBGameMappingService dbGameMappingService, ParmRepository parmRepository, IdentificationService identificationService, OwnServerInfo ownServerInfo, LogoutService logoutService)
         {
             _authorizationFactory = authorizationFactory;
             _characterFactory = characterFactory;
@@ -42,6 +49,7 @@ namespace Server.Game.Core.Handlers
             _parmRepository = parmRepository;
             _identificationService = identificationService;
             _ownServerInfo = ownServerInfo;
+            _logoutService = logoutService;
         }
 
         [HandlerAction(PacketType.LoginUserReq)]
@@ -62,7 +70,11 @@ namespace Server.Game.Core.Handlers
                 IpEx = 0,
                 PcBangLvEx = 0,
                 IsNonClt = false,
-                NewCertifiedKey = 0
+
+                // UspLoginUser unconditionally overwrites TblUser.mCertifiedKey with this value
+                // even before it compares the keys; passing zero would leave a key no later
+                // re-authorization can match, so the key is rotated like the original does
+                NewCertifiedKey = NextCertifiedKey()
             });
 
             // Only the return code is trustworthy: a wrong key or an unknown account fails here
@@ -77,6 +89,16 @@ namespace Server.Game.Core.Handlers
             _dbGameMappingService.MapSession(sessionGame, loginResult, userNo, _ownServerInfo.SvrNo);
 
             client.Sessions = sessionGame;
+
+            // The client may have dropped the socket while UspLoginUser was running: by that
+            // moment the disconnect had no session to log out, so the mark set by the procedure
+            // has to be cleared here, or the account stays "in the world" forever
+            if (!client.IsConnected)
+            {
+                _logoutService.Logout(client);
+                return;
+            }
+
             client.Pcs = _gameRepository.GetPcsByAccountId(userNo);
 
             _authorizationFactory.SendServerTime(client);
@@ -120,6 +142,19 @@ namespace Server.Game.Core.Handlers
         }
 
         /// <summary>
+        ///     Generates the next session key. Random is not thread safe and the sessions are
+        ///     served by the socket threads, so the generator is used under a lock
+        /// </summary>
+        /// <returns>Positive value for TblUser.mCertifiedKey</returns>
+        private static int NextCertifiedKey()
+        {
+            lock (CertifiedKeyRandom)
+            {
+                return CertifiedKeyRandom.Next(1, int.MaxValue);
+            }
+        }
+
+        /// <summary>
         ///     Address of the client, the procedures write it into TblUser.mIp / TblPc.mIp
         /// </summary>
         /// <param name="client"></param>
@@ -132,7 +167,16 @@ namespace Server.Game.Core.Handlers
         [HandlerAction(PacketType.LogoutPcReq)]
         public void Logout(GameSession client, LogoutPcReqModel model)
         {
-            // TODO Logout
+            // Leave the world registry first so the autosave and the visibility loops stop
+            // touching the character while it is being written out, the same order the
+            // disconnect path follows
+            _identificationService.RemoveConnection(client);
+
+            // Save the character and clear the login marks (UspLogoutPc, UspLogoutUser), then
+            // close the session: the databases already treat the account as offline, so a socket
+            // kept open would be a session the world no longer knows about
+            _logoutService.Logout(client);
+            client.Disconnect();
         }
     }
 }

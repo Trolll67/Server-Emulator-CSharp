@@ -27,5 +27,15 @@ namespace Database.Fnl.Account
         /// <param name="request">Login data of the client</param>
         /// <returns>Result with the return code of the procedure, never null</returns>
         LoginUserResult LoginUser(LoginUserRequest request);
+
+        /// <summary>
+        ///     Marks an account as logged out of its world, dbo.UspLogoutUser. The procedure
+        ///     negates TblUser.mWorldNo, so a later login does not answer eErrNoUserLoginAnother
+        /// </summary>
+        /// <param name="userNo">TblUser.mUserNo</param>
+        /// <param name="chatBlockApplyTime">Minutes to subtract from the chat block, 0 keeps it as is</param>
+        /// <param name="useMacro">Value written back into TblUser.mUseMacro, from the login result</param>
+        /// <returns>Result with the return code of the procedure, never null</returns>
+        LogoutUserResult LogoutUser(int userNo, int chatBlockApplyTime, short useMacro);
     }
 }

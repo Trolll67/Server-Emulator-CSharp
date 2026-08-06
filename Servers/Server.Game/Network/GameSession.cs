@@ -9,6 +9,7 @@ using Packets.Core.Interfaces;
 using Packets.Core.Utilities;
 using Server.Game.Core.Factories.Interfaces;
 using System;
+using System.Threading;
 using Server.Game.Services;
 using Server.Game.Models.Game;
 using System.Collections.Generic;
@@ -24,6 +25,7 @@ namespace Server.Game.Network
         private IAuthorizationFactory _authorizationFactory;
         private IRegisterHandlerService _registerHandlerService;
         private IdentificationService _identificationService;
+        private LogoutService _logoutService;
 
         #region Properties for game session
         /// <summary>
@@ -40,6 +42,11 @@ namespace Server.Game.Network
         ///     Character game model
         /// </summary>
         public GPc Pc { get; set; }
+
+        /// <summary>
+        ///     The session is already logged out in the databases, see <see cref="TryBeginLogout"/>
+        /// </summary>
+        private int _isLoggedOut;
         #endregion
 
         /// <summary>
@@ -58,12 +65,24 @@ namespace Server.Game.Network
         /// <param name="authorizationFactory"></param>
         /// <param name="registerHandlerService"></param>
         /// <param name="identificationService"></param>
-        public void InicializeServices(ILogger<GameSession> logger, IAuthorizationFactory authorizationFactory, IRegisterHandlerService registerHandlerService, IdentificationService identificationService)
+        /// <param name="logoutService"></param>
+        public void InicializeServices(ILogger<GameSession> logger, IAuthorizationFactory authorizationFactory, IRegisterHandlerService registerHandlerService, IdentificationService identificationService, LogoutService logoutService)
         {
             _logger = logger;
             _authorizationFactory = authorizationFactory;
             _registerHandlerService = registerHandlerService;
             _identificationService = identificationService;
+            _logoutService = logoutService;
+        }
+
+        /// <summary>
+        ///     Claims the right to log the session out in the databases. The LogoutPcReq handler
+        ///     and the disconnect can race on the same session from different threads, so only
+        ///     the first caller receives true
+        /// </summary>
+        public bool TryBeginLogout()
+        {
+            return Interlocked.Exchange(ref _isLoggedOut, 1) == 0;
         }
 
         /// <summary>
@@ -87,7 +106,8 @@ namespace Server.Game.Network
             // Remove session in store
             _identificationService.RemoveConnection(this);
 
-            // Save account in database
+            // Save the character and clear the login mark in the databases (UspLogoutPc, UspLogoutUser)
+            _logoutService.Logout(this);
         }
 
         /// <summary>

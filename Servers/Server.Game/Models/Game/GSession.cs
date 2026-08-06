@@ -21,5 +21,16 @@
         ///     Is in game
         /// </summary>
         public bool InGame { get; set; }
+
+        /// <summary>
+        ///     TblUser.mUseMacro received from UspLoginUser; UspLogoutUser writes it back on logout
+        /// </summary>
+        public short UseMacro { get; set; }
+
+        /// <summary>
+        ///     The session key actually written into TblUser.mCertifiedKey by UspLoginUser.
+        ///     A later re-authorization of this session must present exactly this value
+        /// </summary>
+        public int CertifiedKey { get; set; }
     }
 }

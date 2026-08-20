@@ -1,4 +1,4 @@
-using Packets.Server.Game.Models.Receive.Character;
+﻿using Packets.Server.Game.Models.Receive.Character;
 using Server.Game.Core.Factories.Interfaces;
 using Server.Game.Core.Handlers.Interfaces;
 using System;
@@ -314,10 +314,14 @@ namespace Server.Game.Core.Handlers
         }
 
         /// <summary>
-        ///     The name has to fit TblPc.mNm char(12) and carry nothing but letters and digits:
-        ///     the field of the packet is fixed and may hold spaces, quotes or control bytes,
-        ///     the original refuses all of that with eErrNoCharInvalidNm. The name is not repaired
-        ///     on the way: a name with spaces around it is refused, not trimmed
+        ///     The name has to fit TblPc.mNm char(12) and carry nothing but ASCII letters and
+        ///     digits: the field of the packet is fixed and may hold spaces, quotes or control
+        ///     bytes, the original refuses all of that with eErrNoCharInvalidNm. The name is not
+        ///     repaired on the way: a name with spaces around it is refused, not trimmed.
+        ///     Non-ASCII letters are refused too - mNm is a single byte column and the procedure
+        ///     converts the parameter by the collation of the database, so anything outside ASCII
+        ///     may silently turn into question marks; allow wider ranges only after the collation
+        ///     of the live FNLGame is confirmed
         /// </summary>
         /// <param name="name">Name as it came in the packet</param>
         /// <returns>True when the name may be handed to the procedure</returns>
@@ -330,7 +334,11 @@ namespace Server.Game.Core.Handlers
 
             foreach (char symbol in name)
             {
-                if (!char.IsLetterOrDigit(symbol))
+                bool isAsciiLetterOrDigit = (symbol >= '0' && symbol <= '9')
+                    || (symbol >= 'A' && symbol <= 'Z')
+                    || (symbol >= 'a' && symbol <= 'z');
+
+                if (!isAsciiLetterOrDigit)
                 {
                     return false;
                 }

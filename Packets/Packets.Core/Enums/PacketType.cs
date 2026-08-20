@@ -24,6 +24,7 @@
         ChatAck = 2034,
         LoginUserReq = 5100,
         InformationCharacter = 5101,
+        EnteredWorldAck = 5102,
         DisplayedCharacter = 5103,
         EnteredMonAck = 5104,
         EnteredItemAck = 5105,

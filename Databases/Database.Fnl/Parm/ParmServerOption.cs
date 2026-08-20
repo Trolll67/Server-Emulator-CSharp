@@ -1,4 +1,4 @@
-namespace Database.Fnl.Parm
+﻿namespace Database.Fnl.Parm
 {
     /// <summary>
     ///     Numbers of the server options in TblParmSvrOp that the emulator relies on.
@@ -13,5 +13,13 @@ namespace Database.Fnl.Parm
         ///     to the external billing service
         /// </summary>
         public const int CertifyToPasswordInDb = 54;
+
+        /// <summary>
+        ///     "Do Not Account Automatic Creation": forbids creating an account that does not exist yet.
+        ///     Worded the other way round than the rest, so the flag the certify procedure takes is its
+        ///     negation: with the option off an unknown login creates the account, with it on the login
+        ///     is refused. The original reads the same number, see CSqlUser::Certify of the channel
+        /// </summary>
+        public const int DoNotAccountAutomaticCreation = 53;
     }
 }

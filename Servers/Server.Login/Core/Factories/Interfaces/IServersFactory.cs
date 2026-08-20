@@ -40,5 +40,13 @@ namespace Server.Login.Core.Factories.Interfaces
         /// </summary>
         /// <returns>True when the password has to be checked in the database</returns>
         bool IsPasswordCheckedInDatabase();
+
+        /// <summary>
+        ///     Whether an unknown login creates the account instead of being refused: the negation of
+        ///     option <see cref="ParmServerOption.DoNotAccountAutomaticCreation"/> of TblParmSvrOp,
+        ///     exactly as the original channel builds the @pIsAddUser flag of the certify procedure
+        /// </summary>
+        /// <returns>True when a missing account has to be created on login</returns>
+        bool IsAccountCreatedOnLogin();
     }
 }

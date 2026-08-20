@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Database.Fnl.Parm;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
@@ -27,10 +27,11 @@ namespace Server.Login.Core.Factories
         private volatile List<ServerModel> _servers;
 
         /// <summary>
-        ///     Cached option <see cref="ParmServerOption.CertifyToPasswordInDb"/> of this channel.
-        ///     Read on the first login and kept: TblParmSvrOp changes only on a reconfiguration
+        ///     Options of this channel from TblParmSvrOp, by option number. Read on the first login
+        ///     and kept: the table changes only on a reconfiguration, and the original reads it once
+        ///     at startup as well. Null until the first successful read, a failed read is not cached
         /// </summary>
-        private bool? _isPasswordCheckedInDatabase;
+        private volatile IReadOnlyDictionary<int, bool> _options;
 
         /// <summary>
         ///     Creates a new instance
@@ -155,46 +156,75 @@ namespace Server.Login.Core.Factories
         /// <inheritdoc/>
         public bool IsPasswordCheckedInDatabase()
         {
-            bool? cached = _isPasswordCheckedInDatabase;
+            // Refusing every login is worse than the original behaviour of this server, whose option
+            // is off anyway, so an unreadable table leaves the check off
+            return IsOptionOn(ParmServerOption.CertifyToPasswordInDb, false);
+        }
 
-            if (cached.HasValue)
+        /// <inheritdoc/>
+        public bool IsAccountCreatedOnLogin()
+        {
+            // The option forbids the creation, so the flag of the procedure is its negation.
+            // An unreadable table counts as "forbidden": writing accounts into FNLAccount by
+            // an option nobody could read is the one guess that is not safe to make
+            return !IsOptionOn(ParmServerOption.DoNotAccountAutomaticCreation, true);
+        }
+
+        /// <summary>
+        ///     Reads an option of this channel from the cached set of TblParmSvrOp
+        /// </summary>
+        /// <param name="opNo">Option number, see <see cref="ParmServerOption"/></param>
+        /// <param name="whenUnreadable">Value to assume when FNLParm can not be read</param>
+        /// <returns>TblParmSvrOp.mIsSetup of the option, false when the channel has no such row</returns>
+        private bool IsOptionOn(int opNo, bool whenUnreadable)
+        {
+            IReadOnlyDictionary<int, bool> options = _options ?? LoadOptions();
+
+            if (options == null)
             {
-                return cached.Value;
+                return whenUnreadable;
             }
 
-            bool result;
+            return options.TryGetValue(opNo, out bool isSetup) && isSetup;
+        }
+
+        /// <summary>
+        ///     Rereads the options of this channel from FNLParm and caches them
+        /// </summary>
+        /// <returns>Options by number, null when the database is not readable</returns>
+        private IReadOnlyDictionary<int, bool> LoadOptions()
+        {
+            Dictionary<int, bool> options = new Dictionary<int, bool>();
 
             try
             {
-                result = false;
-
                 foreach (ParmServerOptionRow option in _parmRepository.GetServerOptions(GetOwnSvrNo()))
                 {
-                    if (option.OpNo == ParmServerOption.CertifyToPasswordInDb)
-                    {
-                        result = option.IsSetup;
-
-                        break;
-                    }
+                    options[option.OpNo] = option.IsSetup;
                 }
-
-                _logger.LogInformation(
-                    result
-                        ? "Option 'Certify To Password In DB' is on: the password is compared against TblUser"
-                        : "Option 'Certify To Password In DB' is off: the password is not checked, as in the original");
             }
             catch (SqlException e)
             {
-                // Refusing every login is worse than the original behaviour of this server,
-                // whose option is off anyway. The failed read is not cached, the next login retries
-                _logger.LogError(e, "Can not read the server options from FNLParm, the password check stays off");
+                // The failed read is not cached, the next login retries. Every caller decides
+                // for itself what an unknown option means for it
+                _logger.LogError(e, "Can not read the server options from FNLParm");
 
-                return false;
+                return null;
             }
 
-            _isPasswordCheckedInDatabase = result;
+            _logger.LogInformation(
+                options.TryGetValue(ParmServerOption.CertifyToPasswordInDb, out bool isPasswordChecked) && isPasswordChecked
+                    ? "Option 'Certify To Password In DB' is on: the password is compared against TblUser"
+                    : "Option 'Certify To Password In DB' is off: the password is not checked, as in the original");
 
-            return result;
+            _logger.LogInformation(
+                options.TryGetValue(ParmServerOption.DoNotAccountAutomaticCreation, out bool isCreationForbidden) && isCreationForbidden
+                    ? "Option 'Do Not Account Automatic Creation' is on: an unknown login is refused"
+                    : "Option 'Do Not Account Automatic Creation' is off: an unknown login creates the account");
+
+            _options = options;
+
+            return options;
         }
 
         /// <summary>

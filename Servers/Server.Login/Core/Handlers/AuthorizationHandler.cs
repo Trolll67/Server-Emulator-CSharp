@@ -63,7 +63,12 @@ namespace Server.Login.Core.Handlers
 
                     // Option 54 'Certify To Password In DB' of TblParmSvrOp. With it off the client
                     // does not send a readable password at all, so checking it would reject every login
-                    IsPwdCheck = _serversFactory.IsPasswordCheckedInDatabase()
+                    IsPwdCheck = _serversFactory.IsPasswordCheckedInDatabase(),
+
+                    // Option 53 'Do Not Account Automatic Creation' of the same table, negated:
+                    // with it off the procedure creates the account instead of answering
+                    // eErrNoUserNotExistId3, which is how the original channel fills an empty TblUser
+                    IsAddUser = _serversFactory.IsAccountCreatedOnLogin()
                 });
             }
             catch (SqlException e)
@@ -90,7 +95,13 @@ namespace Server.Login.Core.Handlers
             // its output parameters with whatever they happened to hold
             if (!certifyUser.IsSuccess)
             {
-                _authorizationFactory.SendError(loginSession, GetErrorType(certifyUser));
+                ServerErrorType errorType = GetErrorType(certifyUser);
+
+                // Без этой строки отказ виден только на клиенте: пакет 3102 несёт один код ошибки
+                // и не говорит, что именно ответила процедура
+                _logger.LogInformation($"Account {authorizationLoginModel.Login} is not certified: UspCertifyUser_CN answered {certifyUser.ErrNo} with the return code {certifyUser.ReturnCode}, the client gets {errorType}");
+
+                _authorizationFactory.SendError(loginSession, errorType);
                 return;
             }
 
@@ -127,8 +138,9 @@ namespace Server.Login.Core.Handlers
                     return ServerErrorType.NoUserLoginAnother;
 
                 default:
-                    // Blocks, not activated accounts and resource mismatches have no own code in the packet
-                    _logger.LogWarning($"UspCertifyUser_CN answered {certifyUser.ErrNo} with the return code {certifyUser.ReturnCode}");
+                    // Блокировки, неактивированные аккаунты и несовпадения ресурсов своего кода
+                    // в пакете не имеют. Причину пишет вызывающий: там она попадает в лог
+                    // одной строкой вместе с логином
                     return ServerErrorType.NoUser;
             }
         }

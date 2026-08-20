@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Security.Cryptography;
+using Microsoft.Extensions.Options;
 using Packets.Server.Game.Models.Send.Settings;
 using Server.Game.Core.Factories.Interfaces;
+using Server.Game.Models.Settings;
 using Server.Game.Network;
 using Packets.Server.Game.Models.Send;
 using Packets.Server.Game.Structures;
@@ -9,6 +12,24 @@ namespace Server.Game.Core.Factories
 {
     public class AuthorizationFactory : IAuthorizationFactory
     {
+        /// <summary>
+        ///     How many bytes at the end of the welcome block are not key material but fields the
+        ///     client expects at their places. Generation rewrites only what stands before them,
+        ///     so the length and the layout of the block stay exactly as they were
+        /// </summary>
+        private const int WelcomeKeyTailLength = 6;
+
+        private readonly GameSetting _gameSetting;
+
+        /// <summary>
+        ///     Creates a new instance
+        /// </summary>
+        /// <param name="gameSetting"></param>
+        public AuthorizationFactory(IOptions<GameSetting> gameSetting)
+        {
+            _gameSetting = gameSetting.Value;
+        }
+
         public void SendWelcome(GameSession loginSession)
         {
             byte[] packetData = new byte[] {
@@ -25,6 +46,23 @@ namespace Server.Game.Core.Factories
                 0x2b, 0xad, 0x05, 0x5e, 0x1b, 0x0d, 0x4d, 0xad, 0x74, 0xf1, 0x48, 0x2a, 0x27, 0x25, 0x06, 0x2e, 0x1c,
                 0x54, 0x21, 0xed, 0x37, 0x54, 0xa7, 0x00, 0xb3, 0x05, 0xf0, 0x1d
             };
+
+            // Feature flag GameSetting.GenerateSessionKey: the key part of the block becomes a fresh
+            // random one per connection, the tail fields and the size of the block are left alone, so
+            // the layout of the packet does not move. Nothing else changes yet - the traffic cipher
+            // still runs on the static key of BlowfishCrypt, and generating a key without rekeying the
+            // cipher only makes sense once the live client is proven to read the block we send
+            if (_gameSetting.GenerateSessionKey)
+            {
+                int keyLength = packetData.Length - WelcomeKeyTailLength;
+
+                RandomNumberGenerator.Fill(new Span<byte>(packetData, 0, keyLength));
+
+                byte[] cipherKey = new byte[keyLength];
+                Array.Copy(packetData, cipherKey, keyLength);
+
+                loginSession.CipherKey = cipherKey;
+            }
 
             ConnectionClientModel connectionClientModel = new ConnectionClientModel
             {

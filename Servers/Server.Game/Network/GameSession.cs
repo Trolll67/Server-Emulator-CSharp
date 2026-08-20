@@ -98,6 +98,15 @@ namespace Server.Game.Network
         public bool IsInWorld => State == GameSessionState.InWorld;
 
         /// <summary>
+        ///     Key part of the welcome block this session handed to the client, kept for later use.
+        ///     Filled only with GameSetting.GenerateSessionKey on, null otherwise - then the client
+        ///     got the prepared static block and there is nothing session specific to remember.
+        ///     The cipher of the session does not use it: BlowfishCrypt runs on its own static key,
+        ///     and rekeying the cipher waits until the live client proves it reads the sent block
+        /// </summary>
+        public byte[] CipherKey { get; set; }
+
+        /// <summary>
         ///     The session is already logged out in the databases, see <see cref="TryBeginLogout"/>
         /// </summary>
         private int _isLoggedOut;

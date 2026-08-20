@@ -1,5 +1,9 @@
-﻿using Packets.Server.Login.Models.Send;
+﻿using System;
+using System.Security.Cryptography;
+using Microsoft.Extensions.Options;
+using Packets.Server.Login.Models.Send;
 using Server.Login.Core.Factories.Interfaces;
+using Server.Login.Models.Settings;
 using Server.Login.Network;
 
 namespace Server.Login.Core.Factories
@@ -7,6 +11,24 @@ namespace Server.Login.Core.Factories
     /// <inheritdoc />
     public class AuthorizationFactory : IAuthorizationFactory
     {
+        /// <summary>
+        ///     How many bytes at the end of the welcome block are not key material but fields the
+        ///     client expects at their places. Generation rewrites only what stands before them,
+        ///     so the length and the layout of the block stay exactly as they were
+        /// </summary>
+        private const int WelcomeKeyTailLength = 6;
+
+        private readonly LoginSetting _loginSetting;
+
+        /// <summary>
+        ///     Creates a new instance
+        /// </summary>
+        /// <param name="loginSetting"></param>
+        public AuthorizationFactory(IOptions<LoginSetting> loginSetting)
+        {
+            _loginSetting = loginSetting.Value;
+        }
+
         /// <inheritdoc />
         public void SendWelcome(LoginSession loginSession)
         {
@@ -25,6 +47,23 @@ namespace Server.Login.Core.Factories
                 0x51, 0x56, 0x75, 0x18, 0x44, 0x4e, 0x46, 0xeb, 0x5e, 0x45, 0x37, 0xd1, 0x07, 0x45, 0x46, 0xeb,
                 0x01, 0x00, 0x94, 0x00, 0xf0, 0x1d
             };
+
+            // Feature flag LoginSetting.GenerateSessionKey: the key part of the block becomes a fresh
+            // random one per connection, the tail fields and the size of the block are left alone, so
+            // the layout of the packet does not move. Nothing else changes yet - the traffic cipher
+            // still runs on the static key of BlowfishCrypt, and generating a key without rekeying the
+            // cipher only makes sense once the live client is proven to read the block we send
+            if (_loginSetting.GenerateSessionKey)
+            {
+                int keyLength = packetData.Length - WelcomeKeyTailLength;
+
+                RandomNumberGenerator.Fill(new Span<byte>(packetData, 0, keyLength));
+
+                byte[] cipherKey = new byte[keyLength];
+                Array.Copy(packetData, cipherKey, keyLength);
+
+                loginSession.CipherKey = cipherKey;
+            }
 
             ConnectionClientModel connectionClientModel = new ConnectionClientModel
             {

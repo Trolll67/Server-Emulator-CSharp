@@ -7,7 +7,36 @@ namespace Core.Network.Cryptography
     /// </summary>
     public static class BlowfishCrypt
     {
+        /// <summary>
+        ///     Расшифровка тела пакета, пришедшего от клиента
+        /// </summary>
+        /// <param name="packet"></param>
+        /// <returns></returns>
         public static byte[] Decrypt(byte[] packet)
+        {
+            return Transform(packet);
+        }
+
+        /// <summary>
+        ///     Шифрование тела пакета, уходящего клиенту. Шифр потоковый: тело складывается по XOR
+        ///     с гаммой, которая не зависит от самих данных, а состояние ключа заводится заново
+        ///     на каждый пакет. Значит шифрование и расшифровка - одно и то же преобразование,
+        ///     и Decrypt(Encrypt(x)) совпадает с x побайтово. Состояние между пакетами не хранится
+        /// </summary>
+        /// <param name="packet"></param>
+        /// <returns></returns>
+        public static byte[] Encrypt(byte[] packet)
+        {
+            return Transform(packet);
+        }
+
+        /// <summary>
+        ///     Наложение гаммы на пакет. Ключ - локальная копия, поэтому каждый вызов начинается
+        ///     с одного и того же состояния и пакеты не зависят друг от друга
+        /// </summary>
+        /// <param name="packet"></param>
+        /// <returns></returns>
+        private static byte[] Transform(byte[] packet)
         {
             byte[] key =
             {

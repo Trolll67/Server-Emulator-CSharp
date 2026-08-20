@@ -22,6 +22,22 @@ namespace Server.Login.Network
         private IAuthorizationFactory _authorizationFactory;
         private IRegisterHandlerService _registerHandlerService;
 
+        /// <summary>
+        ///     Feature flag of LoginSetting.EncryptOutgoingPackets: the frames of this session leave
+        ///     encrypted. Off by default, then the session sends what it always sent - the crypt
+        ///     byte 0x00 and the plain frame
+        /// </summary>
+        private bool _encryptOutgoing;
+
+        /// <summary>
+        ///     The welcome packet already left this session. Until that moment the frames go in the
+        ///     clear even with <see cref="_encryptOutgoing"/> on: welcome is the packet that hands
+        ///     the key block to the client, so an encrypted one would be noise the client has
+        ///     nothing to decrypt with, and the connection would die before the login even starts.
+        ///     Written and read on the thread that serves the session
+        /// </summary>
+        private bool _welcomeSent;
+
         #region Properties for login session
 
         /// <summary>
@@ -46,11 +62,13 @@ namespace Server.Login.Network
         /// <param name="logger"></param>
         /// <param name="authorizationFactory"></param>
         /// <param name="registerHandlerService"></param>
-        public void InicializeServices(ILogger<LoginSession> logger, IAuthorizationFactory authorizationFactory, IRegisterHandlerService registerHandlerService)
+        /// <param name="encryptOutgoing">Value of LoginSetting.EncryptOutgoingPackets, see <see cref="_encryptOutgoing"/></param>
+        public void InicializeServices(ILogger<LoginSession> logger, IAuthorizationFactory authorizationFactory, IRegisterHandlerService registerHandlerService, bool encryptOutgoing)
         {
             _logger = logger;
             _authorizationFactory = authorizationFactory;
             _registerHandlerService = registerHandlerService;
+            _encryptOutgoing = encryptOutgoing;
         }
 
         /// <summary>
@@ -60,8 +78,11 @@ namespace Server.Login.Network
         {
             _logger.LogInformation($"New client connected {Id}");
 
-            // Send welcome packet
+            // Send welcome packet, always in the clear: it carries the key block itself
             _authorizationFactory.SendWelcome(this);
+
+            // The client has the key block now, the rest of the session may be encrypted
+            _welcomeSent = true;
         }
 
         /// <summary>
@@ -149,11 +170,24 @@ namespace Server.Login.Network
             // Parse model to byte array
             byte[] data = _registerHandlerService.Parse(packetType, model);
 
+            // The part of the frame the crypt byte covers. On the incoming path the whole rest of
+            // the frame after the crypt byte goes through the cipher - the packet number, the opcode
+            // and the payload - so the outgoing one is built and encrypted exactly the same way
+            FormationPackage bodyPackage = new FormationPackage();
+            bodyPackage.AddByte(0x01); // TODO number package
+            bodyPackage.AddShort((short)packetType);
+            bodyPackage.AddBytes(data, 0, data.Length);
+
+            byte[] body = bodyPackage.GetBytes();
+
+            // Welcome is out of the flag, see _welcomeSent
+            bool encrypt = _encryptOutgoing && _welcomeSent;
+
+            // The cipher is a stream one and keeps the length, so the layout of the frame is the
+            // same with the flag on and off: the length prefix, the crypt byte, then the body
             FormationPackage formationPackage = new FormationPackage();
-            formationPackage.AddByte(0x00); // TODO crypt
-            formationPackage.AddByte(0x01); // TODO number package
-            formationPackage.AddShort((short)packetType);
-            formationPackage.AddBytes(data, 0, data.Length);
+            formationPackage.AddByte(encrypt ? (byte)0x01 : (byte)0x00);
+            formationPackage.AddBytes(encrypt ? BlowfishCrypt.Encrypt(body) : body);
             formationPackage.AddShort((short)(formationPackage.Size + 2), begin: true);
 
             base.Send(formationPackage.GetBytes());

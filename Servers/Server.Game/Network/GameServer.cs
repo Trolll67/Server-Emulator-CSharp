@@ -21,6 +21,7 @@ namespace Server.Game.Network
         private readonly IRegisterHandlerService _registerHandlerService;
         private readonly IdentificationService _identificationService;
         private readonly LogoutService _logoutService;
+        private readonly GameSetting _gameSetting;
 
         /// <summary>
         ///     Creates a new instance
@@ -40,9 +41,26 @@ namespace Server.Game.Network
             _registerHandlerService = registerHandlerService;
             _identificationService = identificationService;
             _logoutService = logoutService;
+            _gameSetting = gameSetting.Value;
 
             // Bind to the port from TblParmSvr; OwnServerInfo has already refused to start without it
             UpdateEndpoint(new IPEndPoint(IPAddress.Parse(gameSetting.Value.ServerIp), ownServerInfo.TcpPort));
+
+            WarnOnConflictingCryptoSettings();
+        }
+
+        /// <summary>
+        ///     Both feature flags at once contradict each other: the welcome block is generated per
+        ///     connection, while the traffic cipher still runs on the static key of BlowfishCrypt.
+        ///     The client then drops the connection with nothing in the log to explain it, so at
+        ///     least the reason is written out at start
+        /// </summary>
+        private void WarnOnConflictingCryptoSettings()
+        {
+            if (_gameSetting.GenerateSessionKey && _gameSetting.EncryptOutgoingPackets)
+            {
+                _logger.LogWarning("GameSetting.GenerateSessionKey and GameSetting.EncryptOutgoingPackets are both on: the client gets a generated key block while the outgoing traffic is encrypted with the static key, so it will most likely drop the connection. Leave one of the flags off");
+            }
         }
 
         /// <summary>
@@ -52,7 +70,7 @@ namespace Server.Game.Network
         protected override NetworkSession CreateSession()
         {
             GameSession gameSession = new GameSession(this);
-            gameSession.InicializeServices(_loggerSession, _authorizationFactory, _registerHandlerService, _identificationService, _logoutService);
+            gameSession.InicializeServices(_loggerSession, _authorizationFactory, _registerHandlerService, _identificationService, _logoutService, _gameSetting.EncryptOutgoingPackets);
 
             return gameSession;
         }

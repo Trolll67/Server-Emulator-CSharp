@@ -20,6 +20,7 @@ namespace Server.Login.Network
         private readonly ILogger<LoginSession> _loggerSession;
         private readonly IAuthorizationFactory _authorizationFactory;
         private readonly IRegisterHandlerService _registerHandlerService;
+        private readonly LoginSetting _loginSetting;
 
         /// <summary>
         ///     Creates a new instance
@@ -35,8 +36,25 @@ namespace Server.Login.Network
             _loggerSession = loggerSession;
             _authorizationFactory = authorizationFactory;
             _registerHandlerService = registerHandlerService;
+            _loginSetting = loginSetting.Value;
 
             ResolveListenPort(parmRepository, loginSetting.Value);
+
+            WarnOnConflictingCryptoSettings();
+        }
+
+        /// <summary>
+        ///     Both feature flags at once contradict each other: the welcome block is generated per
+        ///     connection, while the traffic cipher still runs on the static key of BlowfishCrypt.
+        ///     The client then drops the connection with nothing in the log to explain it, so at
+        ///     least the reason is written out at start
+        /// </summary>
+        private void WarnOnConflictingCryptoSettings()
+        {
+            if (_loginSetting.GenerateSessionKey && _loginSetting.EncryptOutgoingPackets)
+            {
+                _logger.LogWarning("LoginSetting.GenerateSessionKey and LoginSetting.EncryptOutgoingPackets are both on: the client gets a generated key block while the outgoing traffic is encrypted with the static key, so it will most likely drop the connection. Leave one of the flags off");
+            }
         }
 
         /// <summary>
@@ -84,7 +102,7 @@ namespace Server.Login.Network
         protected override NetworkSession CreateSession()
         {
             LoginSession loginSession = new LoginSession(this);
-            loginSession.InicializeServices(_loggerSession, _authorizationFactory, _registerHandlerService);
+            loginSession.InicializeServices(_loggerSession, _authorizationFactory, _registerHandlerService, _loginSetting.EncryptOutgoingPackets);
 
             return loginSession;
         }

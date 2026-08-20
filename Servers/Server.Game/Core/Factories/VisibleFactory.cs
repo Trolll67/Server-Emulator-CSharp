@@ -158,7 +158,17 @@ namespace Server.Game.Core.Factories
             clientTo.Send(existedPcAckModel);
         }
 
-        public void SendDisplayedDetailsCharacter(GameSession clientFrom, GameSession clientTo)
+        /// <summary>
+        ///     5103: the character of one session as another session has to see it
+        /// </summary>
+        /// <param name="clientFrom">Session of the character the packet tells about</param>
+        /// <param name="clientTo">Session the packet is sent to</param>
+        /// <param name="isTeleport">
+        ///     The character has to be put at the given position at once instead of being walked
+        ///     there: a teleport, and the same for a client that is read back to the position of
+        ///     the server after a refused move
+        /// </param>
+        public void SendDisplayedDetailsCharacter(GameSession clientFrom, GameSession clientTo, bool isTeleport = false)
         {
             PublicPc publicPc = new PublicPc
             {
@@ -180,6 +190,7 @@ namespace Server.Game.Core.Factories
 
             DisplayedCharacterModel displayedCharactersModel = new DisplayedCharacterModel
             {
+                IsTeleport = isTeleport,
 
                 Character = new PublicPc()
                 {

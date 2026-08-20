@@ -136,6 +136,7 @@ namespace Server.Game
                     services.AddTransient<ExpSystem>();
                     services.AddTransient<InventarSystem>();
                     services.AddTransient<ItemUseSystem>();
+                    services.AddTransient<MoveSystem>();
                     services.AddTransient<ReinforceSystem>();
                     services.AddTransient<UnitDropSystem>();
                     services.AddTransient<UnitSystem>();

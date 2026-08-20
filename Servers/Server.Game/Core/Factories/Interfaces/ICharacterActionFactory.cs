@@ -6,7 +6,7 @@ namespace Server.Game.Core.Factories.Interfaces
     {
         void SendMovedCharacters(GameSession clientTo, GameSession clientFrom);
 
-        void SendStopMoveCharacter(GameSession clientTo, GameSession client);
+        void SendStopMoveCharacter(GameSession clientTo, GameSession clientFrom, byte flag);
 
         void SendJumpCharacter(GameSession clientTo, GameSession clientFrom);
 

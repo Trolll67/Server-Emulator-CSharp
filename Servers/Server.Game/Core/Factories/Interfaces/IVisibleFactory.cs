@@ -10,7 +10,7 @@ namespace Server.Game.Core.Factories.Interfaces
     {
         void SendDisplayedCharacters(IEnumerable<GameSession> clientsFrom, GameSession clientTo);
 
-        void SendDisplayedDetailsCharacter(GameSession clientFrom, GameSession clientTo);
+        void SendDisplayedDetailsCharacter(GameSession clientFrom, GameSession clientTo, bool isTeleport = false);
 
         void SendDisplayedItems(GameSession client, IEnumerable<GPublicItem> itemGameModels);
 

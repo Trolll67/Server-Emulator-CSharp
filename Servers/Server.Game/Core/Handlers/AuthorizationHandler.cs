@@ -9,6 +9,7 @@ using Packets.Core.Attributes;
 using Packets.Core.Enums;
 using Packets.Server.Game.Models.Receive;
 using Packets.Server.Game.Models.Send;
+using Packets.Server.Game.Models.Send.Character;
 using Server.Game.Core.Factories.Interfaces;
 using Server.Game.Core.Handlers.Interfaces;
 using Server.Game.Models.Game;
@@ -60,6 +61,16 @@ namespace Server.Game.Core.Handlers
         [HandlerAction(PacketType.LoginUserReq)]
         public void Authorization(GameSession client, LoginUserReqModel model)
         {
+            // 5100 belongs to a fresh socket only. A second login on a session that already chose
+            // a character would hand out one more selection screen and let a second 5116 through:
+            // the world registry would then hold two entries for one socket and the first character
+            // would stay in it forever, saved by the autosave and never logged out
+            if (client.State != GameSessionState.Connected)
+            {
+                _commonFactory.SendServerError(client, PacketType.LoginUserReq, GameServerErrorType.NoUserChkAlreadyLogined, true);
+                return;
+            }
+
             int userNo = (int)model.AccountId;
 
             // The world server no longer reads a Sessions table: the session key issued by the login
@@ -122,6 +133,10 @@ namespace Server.Game.Core.Handlers
 
             client.Pcs = _gameRepository.GetPcsByAccountId(userNo);
 
+            // The account is certified, the client is going to the selection screen: from here
+            // 5116 is the only step left before the world
+            client.MarkLoggedIn();
+
             _authorizationFactory.SendServerTime(client);
             _authorizationFactory.SendGameConfiguration(client);
             _characterFactory.SendInformationCharacters(client);
@@ -130,36 +145,166 @@ namespace Server.Game.Core.Handlers
         [HandlerAction(PacketType.ChoosePcReq)]
         public void EnterWorld(GameSession client, ChoosePcReqModel model)
         {
+            // 5116 has a place only between the account login and the world: a session that never
+            // passed 5100 has no selection list, and a session already in the world would load a
+            // second character over the one it plays
+            if (client.State != GameSessionState.LoggedIn)
+            {
+                SendChoosePcNak(client);
+                return;
+            }
+
             // The chosen character must belong to the account's selection list
             GPc characterGame = client.Pcs.FirstOrDefault(c => c.Simple.PcNo == model.PcNo);
 
             if (characterGame == null)
             {
-                _commonFactory.SendServerError(client, PacketType.ChoosePcReq, GameServerErrorType.NoCharInvalidNo, true);
+                SendChoosePcNak(client);
                 return;
             }
 
-            // Load the selected character on the way into the world: UspLoginPc + the loader procedures
-            client.Pc = _gameRepository.LoadPc(client.Sessions.AccountId, (int)model.PcNo, GetClientIp(client));
+            int userNo = client.Sessions.AccountId;
+            int pcNo = (int)model.PcNo;
+            GPc characterLoaded;
 
-            if (client.Pc == null)
+            // Load the selected character on the way into the world: UspLoginPc + the loader
+            // procedures. UspLoginPc marks the character online before the loaders run, so every
+            // failure from here on has to be rolled back with UspLogoutPc - otherwise the character
+            // stays online in the database and the next attempt is refused
+            try
             {
-                _commonFactory.SendServerError(client, PacketType.ChoosePcReq, GameServerErrorType.NoCharInvalidNo, true);
+                characterLoaded = _gameRepository.LoadPc(userNo, pcNo, GetClientIp(client));
+            }
+            catch (Exception e) when (e is SqlException || e is InvalidOperationException)
+            {
+                _logger.LogError(e, $"Can not load character {pcNo} of account {userNo} into the world");
+
+                RollbackLoginPc(userNo, pcNo);
+                SendChoosePcNak(client);
                 return;
             }
 
-            // Register session
-            _identificationService.AddConnection(client);
+            if (characterLoaded == null)
+            {
+                // UspLoginPc has already run, but the loader procedures returned nothing
+                RollbackLoginPc(userNo, pcNo);
+                SendChoosePcNak(client);
+                return;
+            }
 
             // Get exp by level TODO
-            GExp expGame = _parmRepository.GetExpByLvl(client.Pc.Simple.Level);
+            // Taken before 5117: the lookup throws when the parameter table has no row for the
+            // level, and after 5117 that turns into "the character is here" followed by a Nak
+            GExp expGame;
 
-            _authorizationFactory.SendCompleteEnterWorld(client);
-            _characteristicFactory.SendInformationAbilityCharacteristics(client);
-            _characteristicFactory.SendHealthPointCharacteristics(client);
-            _characteristicFactory.SendSpeedCharacteristics(client, client);
-            _characteristicFactory.SendInfoWeight(client);
-            _characteristicFactory.SendInfoExp(client, expGame);
+            try
+            {
+                expGame = _parmRepository.GetExpByLvl(characterLoaded.Simple.Level);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, $"No experience row for level {characterLoaded.Simple.Level} of character {pcNo}");
+
+                RollbackLoginPc(userNo, pcNo);
+                SendChoosePcNak(client);
+                return;
+            }
+
+            client.Pc = characterLoaded;
+
+            // The client may have dropped the socket while the loaders were running: at that moment
+            // the disconnect had no character to log out, so the mark of UspLoginPc is cleared here
+            if (!client.IsConnected)
+            {
+                client.Pc = null;
+                RollbackLoginPc(userNo, pcNo);
+                return;
+            }
+
+            try
+            {
+                // Register session. AddConnection also hands out the unique identifier 5117 carries,
+                // so the world registry is filled one step earlier than in the original
+                // TODO split the identifier allocation from the registration in IdentificationService
+                // to place the character into the world strictly after 5117
+                _identificationService.AddConnection(client);
+
+                // The disconnect could have run completely between the check above and this
+                // registration: its RemoveConnection found nothing back then, so the fresh entry
+                // would stay in the registry forever, autosaved on behalf of a socket that is gone
+                if (!client.IsConnected)
+                {
+                    RollbackEnterWorld(client, userNo, pcNo);
+                    return;
+                }
+
+                // 5117 goes first: it carries the character itself, the client builds the world around it
+                _authorizationFactory.SendCompleteEnterWorld(client);
+
+                // The character is announced, from here the session counts as being in the world
+                client.EnterWorld();
+
+                _characteristicFactory.SendInformationAbilityCharacteristics(client);
+                _characteristicFactory.SendHealthPointCharacteristics(client);
+                _characteristicFactory.SendSpeedCharacteristics(client, client);
+                _characteristicFactory.SendInfoWeight(client);
+                _characteristicFactory.SendInfoExp(client, expGame);
+
+                // 5102 closes the sequence: the client leaves the loading screen only after it
+                client.Send(new EnteredWorldAckModel());
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, $"Can not put character {pcNo} of account {userNo} into the world");
+
+                RollbackEnterWorld(client, userNo, pcNo);
+                SendChoosePcNak(client);
+            }
+        }
+
+        /// <summary>
+        ///     Undoes a half finished entry into the world in the reverse order: the session stops
+        ///     counting as being in the world for the guards, leaves the world registry, forgets the
+        ///     character and gives up the online mark UspLoginPc has set
+        /// </summary>
+        /// <param name="client">Session that failed to enter</param>
+        /// <param name="userNo">Account number, @pUserNo</param>
+        /// <param name="pcNo">Chosen character number, @pPcNo</param>
+        private void RollbackEnterWorld(GameSession client, int userNo, int pcNo)
+        {
+            client.LeaveWorld();
+            _identificationService.RemoveConnection(client);
+            client.Pc = null;
+
+            RollbackLoginPc(userNo, pcNo);
+        }
+
+        /// <summary>
+        ///     Clears the online mark of a character the world failed to take in (UspLogoutPc).
+        ///     Never throws: the answer to the client matters more than the second database failure
+        /// </summary>
+        /// <param name="userNo">Account number, @pUserNo</param>
+        /// <param name="pcNo">Chosen character number, @pPcNo</param>
+        private void RollbackLoginPc(int userNo, int pcNo)
+        {
+            try
+            {
+                _gameRepository.LogoutPc(userNo, pcNo);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, $"Can not roll UspLoginPc back for character {pcNo} of account {userNo}");
+            }
+        }
+
+        /// <summary>
+        ///     The common answer to a failed character choice: 1102 with the opcode of 5116 echoed
+        ///     back, the client returns to the selection screen
+        /// </summary>
+        /// <param name="client"></param>
+        private void SendChoosePcNak(GameSession client)
+        {
+            _commonFactory.SendServerError(client, PacketType.ChoosePcReq, GameServerErrorType.NoCharInvalidNo, true);
         }
 
         /// <summary>
@@ -188,9 +333,11 @@ namespace Server.Game.Core.Handlers
         [HandlerAction(PacketType.LogoutPcReq)]
         public void Logout(GameSession client, LogoutPcReqModel model)
         {
-            // Leave the world registry first so the autosave and the visibility loops stop
-            // touching the character while it is being written out, the same order the
-            // disconnect path follows
+            // The session no longer plays: the state is dropped for the guards of the world
+            // packets, and the registry entry is removed so the autosave and the visibility
+            // loops stop touching the character while it is being written out - the same order
+            // the disconnect path follows
+            client.LeaveWorld();
             _identificationService.RemoveConnection(client);
 
             // Save the character and clear the login marks (UspLogoutPc, UspLogoutUser), then

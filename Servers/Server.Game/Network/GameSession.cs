@@ -17,6 +17,30 @@ using System.Collections.Generic;
 namespace Server.Game.Network
 {
     /// <summary>
+    ///     Where the session stands in the login sequence. The original keeps the same two marks
+    ///     on the user object - the account is certified and the character is in the world - and
+    ///     the packet handlers refuse to work when the session is not in the expected state
+    /// </summary>
+    public enum GameSessionState
+    {
+        /// <summary>
+        ///     The socket is open, nothing else happened yet: the session has no account behind it
+        /// </summary>
+        Connected = 0,
+
+        /// <summary>
+        ///     UspLoginUser accepted the account, the client sits on the character selection screen
+        ///     and no character is chosen yet
+        /// </summary>
+        LoggedIn = 1,
+
+        /// <summary>
+        ///     The chosen character is loaded and placed into the world, the client plays
+        /// </summary>
+        InWorld = 2
+    }
+
+    /// <summary>
     ///     Network game session
     /// </summary>
     public class GameSession : NetworkSession
@@ -42,6 +66,20 @@ namespace Server.Game.Network
         ///     Character game model
         /// </summary>
         public GPc Pc { get; set; }
+
+        /// <summary>
+        ///     Stage of the login sequence the session reached, see <see cref="GameSessionState"/>.
+        ///     Moved only by <see cref="MarkLoggedIn"/>, <see cref="EnterWorld"/> and <see cref="LeaveWorld"/>.
+        ///     Written both from the thread that serves the packets of this session and from the
+        ///     disconnect, without synchronization: a guard may read InWorld on a socket that is
+        ///     already dying, so the checks must survive that race and never assume the socket is alive
+        /// </summary>
+        public GameSessionState State { get; private set; }
+
+        /// <summary>
+        ///     The character of this session is loaded and placed into the world
+        /// </summary>
+        public bool IsInWorld => State == GameSessionState.InWorld;
 
         /// <summary>
         ///     The session is already logged out in the databases, see <see cref="TryBeginLogout"/>
@@ -76,6 +114,37 @@ namespace Server.Game.Network
         }
 
         /// <summary>
+        ///     The account passed UspLoginUser: the session may ask for the selection screen
+        ///     and choose a character
+        /// </summary>
+        public void MarkLoggedIn()
+        {
+            State = GameSessionState.LoggedIn;
+        }
+
+        /// <summary>
+        ///     The character is loaded and the client already got 5117: from here the session
+        ///     lives in the world and the world packets are allowed
+        /// </summary>
+        public void EnterWorld()
+        {
+            State = GameSessionState.InWorld;
+        }
+
+        /// <summary>
+        ///     The session leaves the world - the entry failed and was rolled back, the character
+        ///     logged out or the socket died. The account itself stays certified, so the session
+        ///     falls back to the selection screen state
+        /// </summary>
+        public void LeaveWorld()
+        {
+            if (State == GameSessionState.InWorld)
+            {
+                State = GameSessionState.LoggedIn;
+            }
+        }
+
+        /// <summary>
         ///     Claims the right to log the session out in the databases. The LogoutPcReq handler
         ///     and the disconnect can race on the same session from different threads, so only
         ///     the first caller receives true
@@ -102,6 +171,11 @@ namespace Server.Game.Network
         protected override void OnDisconnected()
         {
             _logger.LogInformation($"Client disconnected {Id}");
+
+            // Drop the world state first: the guards of the world packets must stop letting
+            // this session through before its character is written out. The loops that walk
+            // the sessions are stopped by RemoveConnection below
+            LeaveWorld();
 
             // Remove session in store
             _identificationService.RemoveConnection(this);

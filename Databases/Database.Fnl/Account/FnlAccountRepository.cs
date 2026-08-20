@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Database.Fnl.Sql;
 using Microsoft.Data.SqlClient;
 
@@ -8,9 +8,11 @@ namespace Database.Fnl.Account
     public class FnlAccountRepository : IFnlAccountRepository
     {
         /// <summary>
-        ///     The Chinese variant is used on purpose: UspCertifyUser_KR additionally requires
-        ///     TblUser.mAccountGuid, and on the live FNLAccount it is zero for every row,
-        ///     so _KR would reject any login with eErrNoAuthInvalid
+        ///     The Chinese variant is the one the original channel uses everywhere outside Korea:
+        ///     it prepares _KR only when CParm reports the country as Korea, and _CN in every other
+        ///     case. _KR additionally requires TblUser.mAccountGuid, and on the live FNLAccount it is
+        ///     zero for every row, so it would reject any login with eErrNoAuthInvalid. The base
+        ///     UspCertifyUser is never called by the original at all
         /// </summary>
         private const string CertifyUserProcedure = "dbo.UspCertifyUser_CN";
 

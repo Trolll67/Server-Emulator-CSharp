@@ -1,4 +1,4 @@
-using Database.DataModel.Enums;
+﻿using Database.DataModel.Enums;
 using Database.Fnl.Account;
 using Database.Fnl.Game;
 using Packets.Server.Game.Structures;
@@ -157,13 +157,13 @@ namespace Server.Game.Services
         /// <param name="serverId">World this game server owns, from GameSetting</param>
         public void MapSession(GSession sessionGame, LoginUserResult loginResult, int userNo, int? serverId)
         {
-            // GSession currently exposes only AccountId/ServerId/InGame; UserAuth/UserId from
-            // loginResult have no domain field yet (would need a GSession change, out of T7 scope)
+            // UserId of loginResult still has no domain field, the world server does not need it yet
             sessionGame.Id = userNo;
             sessionGame.AccountId = userNo;
             sessionGame.ServerId = serverId;
             sessionGame.InGame = loginResult.IsSuccess;
             sessionGame.UseMacro = loginResult.UseMacro;
+            sessionGame.UserAuth = loginResult.UserAuth;
 
             // The procedure may adjust the requested key on a collision, so the session keeps
             // the value it actually wrote, not the one the server generated

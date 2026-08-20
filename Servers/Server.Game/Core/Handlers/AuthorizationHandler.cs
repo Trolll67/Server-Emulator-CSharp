@@ -1,6 +1,9 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using System.Net;
 using Database.Fnl.Account;
+using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Packets.Core.Attributes;
 using Packets.Core.Enums;
@@ -36,8 +39,9 @@ namespace Server.Game.Core.Handlers
         private readonly IdentificationService _identificationService;
         private readonly OwnServerInfo _ownServerInfo;
         private readonly LogoutService _logoutService;
+        private readonly ILogger<AuthorizationHandler> _logger;
 
-        public AuthorizationHandler(IAuthorizationFactory authorizationFactory, ICharacterFactory characterFactory, ICharacteristicFactory characteristicFactory, IErrorFactory commonFactory, IFnlAccountRepository accountRepository, GameRepository gameRepository, DBGameMappingService dbGameMappingService, ParmRepository parmRepository, IdentificationService identificationService, OwnServerInfo ownServerInfo, LogoutService logoutService)
+        public AuthorizationHandler(IAuthorizationFactory authorizationFactory, ICharacterFactory characterFactory, ICharacteristicFactory characteristicFactory, IErrorFactory commonFactory, IFnlAccountRepository accountRepository, GameRepository gameRepository, DBGameMappingService dbGameMappingService, ParmRepository parmRepository, IdentificationService identificationService, OwnServerInfo ownServerInfo, LogoutService logoutService, ILogger<AuthorizationHandler> logger)
         {
             _authorizationFactory = authorizationFactory;
             _characterFactory = characterFactory;
@@ -50,6 +54,7 @@ namespace Server.Game.Core.Handlers
             _identificationService = identificationService;
             _ownServerInfo = ownServerInfo;
             _logoutService = logoutService;
+            _logger = logger;
         }
 
         [HandlerAction(PacketType.LoginUserReq)]
@@ -60,22 +65,38 @@ namespace Server.Game.Core.Handlers
             // The world server no longer reads a Sessions table: the session key issued by the login
             // server (mCertifiedKey) is re-checked through dbo.UspLoginUser. The 5100 packet carries
             // mUserNo in AccountId and mCertifiedKey in SessionId (see Server.Login AuthorizationHandler)
-            LoginUserResult loginResult = _accountRepository.LoginUser(new LoginUserRequest
-            {
-                UserNo = userNo,
-                CertifiedKey = model.SessionId,
-                Ip = GetClientIp(client),
-                WorldNo = _ownServerInfo.WorldNo,
-                SvrInfo = 0, // general server, not the Chaos Battle Server
-                IpEx = 0,
-                PcBangLvEx = 0,
-                IsNonClt = false,
+            LoginUserResult loginResult;
 
-                // UspLoginUser unconditionally overwrites TblUser.mCertifiedKey with this value
-                // even before it compares the keys; passing zero would leave a key no later
-                // re-authorization can match, so the key is rotated like the original does
-                NewCertifiedKey = NextCertifiedKey()
-            });
+            try
+            {
+                loginResult = _accountRepository.LoginUser(new LoginUserRequest
+                {
+                    UserNo = userNo,
+                    CertifiedKey = model.SessionId,
+                    Ip = GetClientIp(client),
+                    WorldNo = _ownServerInfo.WorldNo,
+                    SvrInfo = 0, // general server, not the Chaos Battle Server
+                    IpEx = 0,
+                    PcBangLvEx = 0,
+                    IsNonClt = false,
+
+                    // UspLoginUser unconditionally overwrites TblUser.mCertifiedKey with this value
+                    // even before it compares the keys; passing zero would leave a key no later
+                    // re-authorization can match, so the key is rotated like the original does
+                    NewCertifiedKey = NextCertifiedKey()
+                });
+            }
+            catch (Exception e) when (e is SqlException || e is InvalidOperationException)
+            {
+                // FNLAccount is down, the connection is not configured, or the procedure itself failed
+                // — UspLoginUser reaches into FNLBilling, so the login of the database matters there too.
+                // Without an answer the client hangs on the loading screen forever, so it gets the same
+                // code as a wrong session key and the world server keeps running
+                _logger.LogError(e, $"Can not log mUserNo {userNo} into world {_ownServerInfo.WorldNo}, UspLoginUser failed");
+
+                _commonFactory.SendServerError(client, PacketType.LoginUserReq, GameServerErrorType.NoUserNotLogin, true);
+                return;
+            }
 
             // Only the return code is trustworthy: a wrong key or an unknown account fails here
             if (!loginResult.IsSuccess)

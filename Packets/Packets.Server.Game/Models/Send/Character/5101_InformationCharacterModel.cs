@@ -17,6 +17,12 @@ namespace Packets.Server.Game.Models.Send.Character
             Equipments = new List<Equipment>();
         }
 
+        /// <summary>
+        ///     TblUser.mUserAuth, поле __mAuth структуры CTrLoginUserAck: 0 - аккаунт не активирован,
+        ///     1 - обычный игрок, выше - персонал. Приходит из UspLoginUser
+        /// </summary>
+        public byte Auth { get; set; }
+
         public List<Character> Characters { get; set; }
         public List<Equipment> Equipments { get; set; }
     }

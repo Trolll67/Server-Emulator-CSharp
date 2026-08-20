@@ -34,7 +34,11 @@ namespace Server.Game.Core.Factories
 
         public void SendInformationCharacters(GameSession client)
         {
-            InformationCharacterModel informationCharactersModel = new InformationCharacterModel();
+            InformationCharacterModel informationCharactersModel = new InformationCharacterModel
+            {
+                // Поле __mAuth пакета: клиент получает уровень доступа аккаунта из UspLoginUser
+                Auth = client.Sessions?.UserAuth ?? 0
+            };
 
             foreach (var pc in client.Pcs)
             {

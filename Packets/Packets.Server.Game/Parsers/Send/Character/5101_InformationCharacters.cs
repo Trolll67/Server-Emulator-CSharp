@@ -16,8 +16,9 @@ namespace Packets.Server.Game.Parsers.Send.Character
         {
             FormationPackage formationPackage = new FormationPackage();
 
-            // Не расшифрованные байты
-            formationPackage.AddZeroBytes(1);
+            // Первый байт полезной нагрузки CTrLoginUserAck - mAuth, сразу за ним начинается
+            // массив персонажей: выравнивания между ними на проводе нет
+            formationPackage.AddByte(model.Auth);
 
             // Информация о персонажах
             for (int i = 0; i < 3; i++)

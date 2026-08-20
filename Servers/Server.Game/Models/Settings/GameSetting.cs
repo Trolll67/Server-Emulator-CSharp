@@ -1,4 +1,6 @@
-﻿namespace Server.Game.Models.Settings
+﻿using System.Collections.Generic;
+
+namespace Server.Game.Models.Settings
 {
     /// <summary>
     ///     Config for setting game server
@@ -7,8 +9,11 @@
     {
         public short Id { get; set; }
 
+        /// <summary>
+        ///     Address the server listens on. Doubles as the key this field server is looked up by
+        ///     in FNLParm.TblParmSvr (mMajorIp), which is where the listen port comes from
+        /// </summary>
         public string ServerIp { get; set; }
-        public short ServerPort { get; set; }
 
         // Garbage settings
         public int GarbageItems { get; set; }
@@ -26,5 +31,8 @@
         public int ItemPickUpDistance { get; set; }
 
         public int SavePcsEverySeconds { get; set; }
+
+        // Стартовые карта и позиция при создании персонажа, по одной записи на класс
+        public List<StartPosition> StartPositions { get; set; } = new List<StartPosition>();
     }
 }

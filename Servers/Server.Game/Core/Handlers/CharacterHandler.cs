@@ -7,27 +7,28 @@ using Packets.Core.Attributes;
 using Packets.Core.Enums;
 using Packets.Server.Game.Models.Send;
 using Server.Game.Models.Game;
+using Server.Game.Models.Settings;
 using Server.Game.Services.Database;
+using Database.DataModel.Enums;
 using Database.Fnl.Game;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Server.Game.Core.Handlers
 {
     [Handler]
     public class CharacterHandler : ICharacterHandler
     {
-        // Home position of a freshly created character. In the original this comes from the class
-        // template; the starting map is not known here, so 0 keeps the previous behaviour
-        private const int StartingMap = 0;
-        private const float StartingPosX = 364000.2f;
-        private const float StartingPosY = 313483.7f;
-        private const float StartingPosZ = 12339.71f;
-
+        private readonly ILogger<CharacterHandler> _logger;
+        private readonly GameSetting _gameSetting;
         private readonly GameRepository _gameRepository;
         private readonly ICharacterFactory _characterFactory;
         private readonly IErrorFactory _errorFactory;
 
-        public CharacterHandler(GameRepository gameRepository, ICharacterFactory characterFactory, IErrorFactory errorFactory)
+        public CharacterHandler(ILogger<CharacterHandler> logger, IOptions<GameSetting> gameSetting, GameRepository gameRepository, ICharacterFactory characterFactory, IErrorFactory errorFactory)
         {
+            _logger = logger;
+            _gameSetting = gameSetting.Value;
             _gameRepository = gameRepository;
             _characterFactory = characterFactory;
             _errorFactory = errorFactory;
@@ -50,6 +51,19 @@ namespace Server.Game.Core.Handlers
                 return;
             }
 
+            // Стартовые карта и позиция зависят от класса, значения задаются в gamesettings.json
+            StartPosition startPosition = _gameSetting.StartPositions
+                .FirstOrDefault(p => p.Class == (CharacterTypeEnum)model.Class);
+
+            if (startPosition == null)
+            {
+                // Класс не описан в конфиге — это ошибка настройки сервера. В оригинале сюда
+                // приходит eErrNoContentsNotSupport, но его числовой код пока не известен
+                _logger.LogError("No start position for class {Class} in GameSetting.StartPositions, character creation rejected", model.Class);
+                _errorFactory.SendServerError(client, PacketType.CreatePcReq, GameServerErrorType.UnknownError, true);
+                return;
+            }
+
             // Create the character through UspCreatePc. The unique name check and the slot check
             // live inside the procedure, the business outcome is reported by the return code
             CreatePcResult result = _gameRepository.CreatePc(new CreatePcRequest
@@ -62,10 +76,10 @@ namespace Server.Game.Core.Handlers
                 Head = model.Head,
                 Face = model.Face,
                 Body = model.TypeBody,
-                HomeMap = StartingMap,
-                HomeX = StartingPosX,
-                HomeY = StartingPosY,
-                HomeZ = StartingPosZ
+                HomeMap = startPosition.Map,
+                HomeX = startPosition.X,
+                HomeY = startPosition.Y,
+                HomeZ = startPosition.Z
             });
 
             if (!result.IsSuccess)

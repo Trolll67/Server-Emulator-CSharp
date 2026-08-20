@@ -24,6 +24,13 @@
 
     "SavePcsEverySeconds":  5,
 
+    // Периоды фоновых заданий планировщика, значение всегда в миллисекундах. Без ключа задание
+    // работает со своим значением по умолчанию: GarbageItems, GarbageUnits, VisibleConnections,
+    // VisibleItems, VisibleUnits, RespawnUnits — 100 мс, SaveCharacters — SavePcsEverySeconds
+    "JobIntervals": {
+      // "VisibleConnections": 100
+    },
+
     // Стартовые карта и позиция при создании персонажа.
     // Карта 1 — остров Гвинея. Классы Magician и Summoner в оригинале стартуют на острове
     // Аккра (карта 80), но только когда включён соответствующий контент; при выключенном

@@ -38,6 +38,12 @@ namespace Server.Game.Models.Settings
 
         public int SavePcsEverySeconds { get; set; }
 
+        /// <summary>
+        ///     Периоды фоновых заданий планировщика в миллисекундах, по имени задания. Ключа нет —
+        ///     задание работает со своим значением по умолчанию
+        /// </summary>
+        public Dictionary<string, int> JobIntervals { get; set; } = new Dictionary<string, int>();
+
         // Стартовые карта и позиция при создании персонажа, по одной записи на класс
         public List<StartPosition> StartPositions { get; set; } = new List<StartPosition>();
     }

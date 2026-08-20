@@ -28,6 +28,7 @@ using Server.Game.Services.Game;
 using Server.Game.Services.GameServices;
 using Server.Game.Services.Hosted;
 using Server.Game.Services.Mapping;
+using Server.Game.Services.Scheduling;
 
 namespace Server.Game
 {
@@ -150,8 +151,15 @@ namespace Server.Game
                     services.AddSingleton<LogoutService>();
                     services.AddSingleton<GameServer>();
 
+                    // Single engine for all periodic work, the game services register their jobs in it
+                    services.AddSingleton<PeriodicScheduler>();
+
                     // Register hosted services
                     services.AddHostedService<NetworkHostedService>();
+
+                    // Started before the game services, so the jobs they register start right away;
+                    // stopped after them, so the jobs are cancelled on shutdown
+                    services.AddHostedService(provider => provider.GetRequiredService<PeriodicScheduler>());
 
                     // Register game hosted services
                     services.AddHostedService<AttackGameService>();

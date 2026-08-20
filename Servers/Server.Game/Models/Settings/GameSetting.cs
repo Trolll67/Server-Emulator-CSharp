@@ -30,6 +30,12 @@ namespace Server.Game.Models.Settings
         // Inventar settings
         public int ItemPickUpDistance { get; set; }
 
+        /// <summary>
+        ///     Move settings. How far a character may move with one packet, in units. Kept inside
+        ///     [500, 10000) as the original does, any other value means the default of 500
+        /// </summary>
+        public int MoveMaxDistancePerTick { get; set; }
+
         public int SavePcsEverySeconds { get; set; }
 
         // Стартовые карта и позиция при создании персонажа, по одной записи на класс

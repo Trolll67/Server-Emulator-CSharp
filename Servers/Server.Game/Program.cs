@@ -222,6 +222,20 @@ namespace Server.Game
                 }
             }
 
+            // Everything found so far is about the DSN files, only then the hint about them makes sense
+            bool dsnIsTheProblem = problems.Count != 0;
+
+            // The connection pool size is a configuration mistake of the same kind: better to see it
+            // at start than on the first query
+            FnlDatabaseOptions options =
+                configuration.GetSection(FnlDatabaseOptions.SectionName).Get<FnlDatabaseOptions>()
+                ?? new FnlDatabaseOptions();
+
+            if (!options.TryValidatePoolSize(out string poolProblem))
+            {
+                problems.Add("  " + poolProblem);
+            }
+
             if (problems.Count == 0)
             {
                 return;
@@ -237,11 +251,14 @@ namespace Server.Game
                 message.Append(problem);
             }
 
-            message.AppendLine();
-            message.Append($"  Point \"{FnlDatabaseOptions.SectionName}:{nameof(FnlDatabaseOptions.DsnDirectory)}\" ");
-            message.Append("at the Data directory of the original server (the one holding Account.dsn, Game.dsn and Parm.dsn), ");
-            message.Append($"or set the environment variable ");
-            message.Append($"{FnlDatabaseOptions.SectionName}__{nameof(FnlDatabaseOptions.DsnDirectory)}");
+            if (dsnIsTheProblem)
+            {
+                message.AppendLine();
+                message.Append($"  Point \"{FnlDatabaseOptions.SectionName}:{nameof(FnlDatabaseOptions.DsnDirectory)}\" ");
+                message.Append("at the Data directory of the original server (the one holding Account.dsn, Game.dsn and Parm.dsn), ");
+                message.Append($"or set the environment variable ");
+                message.Append($"{FnlDatabaseOptions.SectionName}__{nameof(FnlDatabaseOptions.DsnDirectory)}");
+            }
 
             Log.Fatal(message.ToString());
 

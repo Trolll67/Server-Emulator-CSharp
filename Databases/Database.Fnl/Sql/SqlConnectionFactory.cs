@@ -35,6 +35,11 @@ namespace Database.Fnl.Sql
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        ///     A new connection per query is the normal way of working with ADO.NET: the pool lives
+        ///     inside Microsoft.Data.SqlClient and is shared by everyone who asks for the same
+        ///     connection string, so what is created here is a handle over a pooled connection
+        /// </remarks>
         public SqlConnection Create(string name)
         {
             return new SqlConnection(_connectionStrings.GetOrAdd(name, Build));
@@ -82,15 +87,28 @@ namespace Database.Fnl.Sql
                     "the Address (or SERVER) and DATABASE keys are expected");
             }
 
+            // Normally the server has already fallen at start on such a configuration, this is the
+            // last line of defence for a factory built by hand
+            if (!_options.TryValidatePoolSize(out string poolProblem))
+            {
+                throw new InvalidOperationException(
+                    $"Can not connect to '{dsn.Database}': " + poolProblem);
+            }
+
             // The DRIVER key of the DSN file is deliberately ignored: the original goes through ODBC,
             // the emulator talks to SQL Server over TDS with Microsoft.Data.SqlClient
+            // The pool keys are written out explicitly, with the ADO.NET defaults as the defaults:
+            // the connection string then tells the whole truth about the pool of this database
             SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder
             {
                 DataSource = "tcp:" + dsn.Server,
                 InitialCatalog = dsn.Database,
                 Encrypt = _options.Encrypt,
                 TrustServerCertificate = _options.TrustServerCertificate,
-                ConnectTimeout = _options.ConnectTimeout
+                ConnectTimeout = _options.ConnectTimeout,
+                Pooling = _options.Pooling,
+                MinPoolSize = _options.MinPoolSize,
+                MaxPoolSize = _options.MaxPoolSize
             };
 
             if (string.IsNullOrWhiteSpace(dsn.UserId))

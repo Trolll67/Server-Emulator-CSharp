@@ -265,6 +265,11 @@ __pycache__/
 # ConnectionStrings__* или этот файл — в репозиторий он не попадает.
 appsettings.Local.json
 
+# Каталог ресурсов сервера по образцу Data оригинального сервера: DSN-файлы,
+# с которыми работает эмулятор. Каждый DSN несёт UID и PWD доступа к БД,
+# поэтому каталог целиком остаётся локальным.
+/Data/
+
 # Claude Code — личные/локальные настройки (командные лежат в .claude/settings.json)
 .claude/settings.local.json
 .claude/board/

@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Packets.Server.Game.Enums;
 using Server.Game.Core.Factories.Interfaces;
@@ -18,12 +19,14 @@ namespace Server.Game.Services.GameServices
         private readonly GameSetting _gameSetting;
         private readonly IVisibleFactory _visibleFactory;
         private readonly IdentificationService _identificationService;
+        private readonly ILogger<VisibleGameService> _logger;
 
-        public VisibleGameService(IOptions<GameSetting> gameSetting, IVisibleFactory visibleFactory, IdentificationService identificationService)
+        public VisibleGameService(IOptions<GameSetting> gameSetting, IVisibleFactory visibleFactory, IdentificationService identificationService, ILogger<VisibleGameService> logger)
         {
             _gameSetting = gameSetting.Value;
             _visibleFactory = visibleFactory;
             _identificationService = identificationService;
+            _logger = logger;
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
@@ -106,7 +109,7 @@ namespace Server.Game.Services.GameServices
                     }
                     catch (Exception ex)
                     {
-
+                        _logger.LogError(ex, "Can not update visible connections");
                     }
 
                     Thread.Sleep(100);
@@ -183,7 +186,7 @@ namespace Server.Game.Services.GameServices
                     }
                     catch (Exception ex)
                     {
-
+                        _logger.LogError(ex, "Can not update visible items");
                     }
 
                     Thread.Sleep(100);
@@ -260,7 +263,7 @@ namespace Server.Game.Services.GameServices
                     }
                     catch (Exception ex)
                     {
-
+                        _logger.LogError(ex, "Can not update visible units");
                     }
 
                     Thread.Sleep(100);

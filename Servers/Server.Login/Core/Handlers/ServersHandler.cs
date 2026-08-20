@@ -1,4 +1,5 @@
-using System;
+﻿using System;
+using Microsoft.Extensions.Logging;
 using Packets.Core.Attributes;
 using Packets.Core.Enums;
 using Packets.Server.Login.Models.Receive;
@@ -16,16 +17,19 @@ namespace Server.Login.Core.Handlers
     {
         private readonly IAuthorizationFactory _authorizationFactory;
         private readonly IServersFactory _serversFactory;
+        private readonly ILogger<ServersHandler> _logger;
 
         /// <summary>
         ///     Creates a new instance
         /// </summary>
         /// <param name="authorizationFactory"></param>
         /// <param name="serversFactory"></param>
-        public ServersHandler(IAuthorizationFactory authorizationFactory, IServersFactory serversFactory)
+        /// <param name="logger"></param>
+        public ServersHandler(IAuthorizationFactory authorizationFactory, IServersFactory serversFactory, ILogger<ServersHandler> logger)
         {
             _authorizationFactory = authorizationFactory;
             _serversFactory = serversFactory;
+            _logger = logger;
         }
 
         /// <inheritdoc />
@@ -38,6 +42,8 @@ namespace Server.Login.Core.Handlers
             if (sessionLogin == null || sessionLogin.UserNo != selectServerModel.AccountId ||
                 !string.Equals(sessionLogin.UserId, selectServerModel.Login, StringComparison.OrdinalIgnoreCase))
             {
+                _logger.LogWarning($"Packet 3120 from an unknown session: it names mUserNo {selectServerModel.AccountId} and login {selectServerModel.Login}, the session holds {(sessionLogin == null ? "nothing" : sessionLogin.UserNo + " and " + sessionLogin.UserId)}");
+
                 _authorizationFactory.SendError(loginSession, ServerErrorType.NoUser);
                 return;
             }
@@ -45,6 +51,8 @@ namespace Server.Login.Core.Handlers
             // The factory answers from the same list it sent in 3101, no second read of FNLParm
             if (!_serversFactory.IsKnownServer(selectServerModel.ServerId))
             {
+                _logger.LogWarning($"Account {sessionLogin.UserId} chose the server {selectServerModel.ServerId}, which is not in the family list sent in 3101");
+
                 _authorizationFactory.SendError(loginSession, ServerErrorType.IncorrectServer);
                 return;
             }

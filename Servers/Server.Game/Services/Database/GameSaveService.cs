@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Server.Game.Models.Settings;
 using System;
@@ -13,12 +14,14 @@ namespace Server.Game.Services.Database
         private readonly GameSetting _gameSetting;
         private readonly IdentificationService _identificationService;
         private readonly GameRepository _gameRepository;
+        private readonly ILogger<GameSaveService> _logger;
 
-        public GameSaveService(IOptions<GameSetting> gameSetting, IdentificationService identificationService, GameRepository gameRepository)
+        public GameSaveService(IOptions<GameSetting> gameSetting, IdentificationService identificationService, GameRepository gameRepository, ILogger<GameSaveService> logger)
         {
             _gameSetting = gameSetting.Value;
             _identificationService = identificationService;
             _gameRepository = gameRepository;
+            _logger = logger;
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
@@ -56,7 +59,7 @@ namespace Server.Game.Services.Database
                     }
                     catch (Exception ex)
                     {
-
+                        _logger.LogError(ex, "Can not autosave characters");
                     }
 
                     Thread.Sleep(_gameSetting.SavePcsEverySeconds * 1000);

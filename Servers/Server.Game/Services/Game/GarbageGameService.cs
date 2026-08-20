@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Server.Game.Models.Settings;
 using System;
@@ -14,11 +15,13 @@ namespace Server.Game.Services.GameServices
     {
         private readonly GameSetting _gameSetting;
         private readonly IdentificationService _identificationService;
+        private readonly ILogger<GarbageGameService> _logger;
 
-        public GarbageGameService(IOptions<GameSetting> gameSetting, IdentificationService identificationService)
+        public GarbageGameService(IOptions<GameSetting> gameSetting, IdentificationService identificationService, ILogger<GarbageGameService> logger)
         {
             _gameSetting = gameSetting.Value;
             _identificationService = identificationService;
+            _logger = logger;
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
@@ -59,7 +62,7 @@ namespace Server.Game.Services.GameServices
                     }
                     catch (Exception ex)
                     {
-
+                        _logger.LogError(ex, "Can not garbage items");
                     }
 
                     Thread.Sleep(100);
@@ -109,7 +112,7 @@ namespace Server.Game.Services.GameServices
                     }
                     catch (Exception ex)
                     {
-
+                        _logger.LogError(ex, "Can not garbage units");
                     }
 
                     Thread.Sleep(100);

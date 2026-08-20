@@ -141,6 +141,9 @@ namespace Server.Game.Network
 
                 PacketType packetType = (PacketType)packetId;
 
+                if (_logger.IsEnabled(LogLevel.Debug))
+                    _logger.LogDebug("Received {PacketType} ({PacketId}), {Size} bytes", packetType, packetId, size);
+
                 // Parse byte array to model
                 object parserModel = _registerHandlerService.Parse(packetType, formationPackage.GetBytes());
 
@@ -178,11 +181,19 @@ namespace Server.Game.Network
             formationPackage.AddBytes(data, 0, data.Length);
             formationPackage.AddShort((short)(formationPackage.Size + 2), begin: true);
 
+            // Клиент падает молча, а сервер об успешной отправке ничего не пишет: без этой строки
+            // не видно, какой пакет он получил последним
+            if (_logger.IsEnabled(LogLevel.Debug))
+                _logger.LogDebug("Sent {PacketType} ({PacketId}), {Size} bytes, payload {PayloadSize}", packetType, (short)packetType, formationPackage.Size, data.Length);
+
             base.Send(formationPackage.GetBytes());
         }
 
         public void SendOnlyBytesForDelevop(byte[] data)
         {
+            if (_logger.IsEnabled(LogLevel.Debug))
+                _logger.LogDebug("Sent a recorded packet, {Size} bytes", data.Length);
+
             base.Send(data);
         }
 

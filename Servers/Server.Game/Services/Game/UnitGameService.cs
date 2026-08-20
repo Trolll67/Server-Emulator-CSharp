@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Server.Game.Core.Systems;
 using Server.Game.Models.Game;
 using Server.Game.Services.Database;
@@ -19,12 +20,14 @@ namespace Server.Game.Services.GameServices
         private readonly IdentificationService _identificationService;
 
         private readonly List<GMonster> _monsters;
+        private readonly ILogger<UnitGameService> _logger;
 
-        public UnitGameService(UnitSystem unitSystem, ParmRepository databaseBalanceService, IdentificationService identificationService)
+        public UnitGameService(UnitSystem unitSystem, ParmRepository databaseBalanceService, IdentificationService identificationService, ILogger<UnitGameService> logger)
         {
             _unitSystem = unitSystem;
             _databaseBalanceService = databaseBalanceService;
             _identificationService = identificationService;
+            _logger = logger;
 
             // Load units
             _monsters = _unitSystem.GetUnitGames();
@@ -77,7 +80,7 @@ namespace Server.Game.Services.GameServices
                     }
                     catch (Exception ex)
                     {
-
+                        _logger.LogError(ex, "Can not respawn units");
                     }
 
                     Thread.Sleep(100);

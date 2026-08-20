@@ -5,7 +5,6 @@ using Server.Game.Core.Handlers.Interfaces;
 using Server.Game.Models.Game;
 using Server.Game.Network;
 using Server.Game.Services;
-using System;
 
 namespace Server.Game.Core.Handlers
 {
@@ -72,26 +71,20 @@ namespace Server.Game.Core.Handlers
             // attack while it still walks up to the target, and the distance of every single swing
             // is checked by the attack service anyway
 
-            // A request for the target that is being attacked already is a repeat of the auto
-            // attack of the client and not a new attack: only the start of an attack and a real
-            // change of the target move the timer of the swing
-            bool isNewTarget = client.Pc.AttackedUniqueIdentifier == null
-                || client.Pc.AttackedUniqueIdentifier.Id != model.TargetSessionGameId.Id;
-
             client.Pc.TargetUniqueId = model.TargetSessionGameId;
             client.Pc.AttackType = model.AttackType;
             client.Pc.AttackPosition = model.AttackPosition;
             client.Pc.AttackFlag = model.AttackFlag;
 
-            if (isNewTarget)
-            {
-                // The first swing at a target is due at once - the attack service takes it on its
-                // nearest tick and puts the next one AttackRate ahead. The timer of a running
-                // attack is left where it stands on purpose: rewriting it on every request would
-                // let a client that repeats 5133 in a loop get a swing on every tick of the
-                // service and hit far faster than its attack rate allows
-                client.Pc.AttackDateTime = DateTime.Now;
-            }
+            // The timer of the swing is not touched here at all, neither by a repeated request nor
+            // by a new target: the only one who writes it is the attack service, which puts it one
+            // attack rate ahead of the swing it has just played. A character that is not swinging
+            // right now therefore always has it in the past - the zero date of a character that has
+            // not attacked yet, or the moment of the next swing of an attack that was interrupted -
+            // so the first swing of a new attack goes out on the nearest tick of the service anyway,
+            // while the rest of an unfinished attack rate is kept. Putting "now" in here would let a
+            // client that switches its target back and forth, or walks between two requests (a move
+            // drops the attack), swing on every tick of the service instead of once per attack rate
 
             // Written last on purpose: this is the flag by which the attack tick and the move
             // handler tell an attacking character from an idle one. The swings tick in the thread

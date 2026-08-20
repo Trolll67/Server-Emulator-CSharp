@@ -1,8 +1,12 @@
 ﻿using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Packets.Server.Game.Models.Send.Attack;
+using Packets.Server.Game.Structures;
 using Server.Game.Core.Factories.Interfaces;
 using Server.Game.Core.Systems;
+using Server.Game.Models.Game;
 using Server.Game.Network;
+using Server.Game.Services.Scheduling;
 using System;
 using System.Linq;
 using System.Threading;
@@ -10,151 +14,314 @@ using System.Threading.Tasks;
 
 namespace Server.Game.Services.Game
 {
+    /// <summary>
+    ///     Attack game service: the auto attack of the characters. The request of the client (5133)
+    ///     only marks the character as attacking (AttackHandler.BeginAttack), every swing itself is
+    ///     played here - one pass looks at all the attacking characters, hits with the ones whose
+    ///     swing is due and stops the attacks that lost their target
+    /// </summary>
     public class AttackGameService : IHostedService
     {
+        /// <summary>
+        ///     How often the swing pass is repeated, in milliseconds. Overridable through
+        ///     "GameSetting:JobIntervals:&lt;job name&gt;". A swing is a matter of seconds, so the pass
+        ///     itself only decides how precise its moment is - and the neighbours learn about the hit
+        ///     with the very same delay the visibility pass has
+        /// </summary>
+        private const int TickIntervalMilliseconds = 100;
 
+        /// <summary>
+        ///     Shortest pause between two swings of one character, in milliseconds. GChar.AttackRate is
+        ///     read as milliseconds (A2, unchecked against the original), and a parm without an attack
+        ///     rate gives a zero that would otherwise let a character swing on every pass. Empirical
+        ///     value, not the original
+        /// </summary>
+        public const int MinimumAttackRateMilliseconds = 500;
 
         private readonly IAttackFactory _attackFactory;
-        private readonly ICharacteristicFactory _characteristicFactory;
         private readonly AttackSystem _attackSystem;
-        private readonly IdentificationService _identificationService;
-        private readonly IMonsterActionFactory _monsterActionFactory;
         private readonly ExpSystem _expSystem;
-        private readonly IVisibleFactory _visibleFactory;
-        private readonly UnitDropSystem _unitDropSystem;
+        private readonly IdentificationService _identificationService;
+        private readonly PeriodicScheduler _periodicScheduler;
+        private readonly ILogger<AttackGameService> _logger;
 
-
-        public AttackGameService(UnitDropSystem unitDropSystem, IVisibleFactory visibleFactory, ExpSystem expSystem, IMonsterActionFactory monsterActionFactory, AttackSystem attackSystem, IdentificationService identificationService, IAttackFactory attackFactory, ICharacteristicFactory characteristicFactory)
+        public AttackGameService(AttackSystem attackSystem, ExpSystem expSystem, IdentificationService identificationService, IAttackFactory attackFactory, PeriodicScheduler periodicScheduler, ILogger<AttackGameService> logger)
         {
             _attackSystem = attackSystem;
+            _expSystem = expSystem;
             _identificationService = identificationService;
             _attackFactory = attackFactory;
-            _characteristicFactory = characteristicFactory;
-            _monsterActionFactory = monsterActionFactory;
-            _expSystem = expSystem;
-            _visibleFactory = visibleFactory;
-            _unitDropSystem = unitDropSystem;
+            _periodicScheduler = periodicScheduler;
+            _logger = logger;
         }
-
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            BeginAttack();
+            _periodicScheduler.Schedule(nameof(AttackConnections), TimeSpan.FromMilliseconds(TickIntervalMilliseconds), AttackConnections);
+
             return Task.CompletedTask;
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            return Task.CompletedTask;
         }
 
-
-        private void BeginAttack()
+        /// <summary>
+        ///     Swings of all the attacking characters. The whole pass runs on the single thread of its
+        ///     own job, so the hp of the monsters and their death are written from one place only
+        /// </summary>
+        private void AttackConnections()
         {
-            //Task.Run(() =>
-            //{
-            //    while (true)
-            //    {
-            //        try
-            //        {
-            //            var connections = _identificationService.GetAllConnections().Where(c => c.Pc != null && c.Pc.checkAttack);
-            //            foreach (var conection in connections)
-            //            {
+            try
+            {
+                // The attacking ones are the sessions that are in the world and were marked by 5133:
+                // AttackedUniqueIdentifier is the flag of an attack in progress, the same one the move
+                // handler drops when the attacker walks away
+                var connections = _identificationService.GetAllConnections().Where(c => c.Pc != null && c.Pc.AttackedUniqueIdentifier != null);
 
-            //                // Attack character to unit
+                DateTime now = DateTime.Now;
 
-            //                // Define attacker character and defender unit
-            //                var attacker = conection;
-            //                var defender = _identificationService.GetUnitByUniqueIdentifier(conection.Pc.TargetUniqueId);
+                foreach (var connection in connections)
+                {
+                    // The state is read once: the request of the client comes from a network thread and
+                    // may change the target - or drop the attack - in the middle of the pass
+                    UniqueId targetUniqueId = connection.Pc.AttackedUniqueIdentifier;
 
-            //                if (attacker.IsConnected == true && defender != null && attacker.Pc.AttackedUniqueIdentifier != null && attacker.Pc.AttackDateTime < DateTime.Now)
-            //                {
-            //                    // Check dead attacker and defender
-            //                    if (attacker.Pc.DeadTime != null || defender.DeadTime != null)
-            //                    {
-            //                        attacker.Pc.AttackedUniqueIdentifier = null;
-            //                        break;
-            //                    }
+                    if (targetUniqueId == null)
+                    {
+                        continue;
+                    }
 
-            //                    // Check is visible unit
-            //                    if (attacker.Pc.VisibleUnitGames.FirstOrDefault(c => c == defender) == null)
-            //                    {
-            //                        attacker.Pc.AttackedUniqueIdentifier = null;
-            //                        break;
-            //                    }
+                    // The moment of the next swing, put AttackRate ahead by the previous one
+                    if (connection.Pc.AttackDateTime > now)
+                    {
+                        continue;
+                    }
 
-            //                    // Check attack distance
-            //                    if (attacker.Pc.CurrentPosition.Distance(defender.Position) > attacker.Pc.DistanceAttack)
-            //                    {
-            //                        attacker.Pc.AttackedUniqueIdentifier = null;
-            //                        break;
-            //                    }
-
-            //                    var typeHit = _attackSystem.AttackCharacterToUnit(attacker.Pc, defender);
-
-            //                    _attackFactory.SendAttacked(attacker, attacker.Pc.UniqueIdentifier, defender.UniqueIdentifier, typeHit, attacker.Pc.CurrentPosition, defender.Hp);
-
-            //                    foreach (GameSession visible in attacker.Pc.VisibleCharacterGames)
-            //                    {
-            //                        _attackFactory.SendAttacked(visible, attacker.Pc.UniqueIdentifier, defender.UniqueIdentifier, typeHit, attacker.Pc.CurrentPosition, defender.Hp);
-            //                    }
-
-            //                    // Check hp and dead
-            //                    if (defender.Hp <= 0)
-            //                    {
-            //                        defender.Hp = 0;
-            //                        defender.DeadTime = DateTime.Now;
-
-            //                        _attackFactory.SendDeadAttack(attacker, attacker.Pc.UniqueIdentifier, defender.UniqueIdentifier, attacker.Pc.Reputation, ChaoticStatusType.Normal);
-
-            //                        foreach (GameSession visible in attacker.Pc.VisibleCharacterGames)
-            //                        {
-            //                            _attackFactory.SendDeadAttack(visible, attacker.Pc.UniqueIdentifier, defender.UniqueIdentifier, attacker.Pc.Reputation, ChaoticStatusType.Normal);
-            //                        }
-
-            //                        attacker.Pc.AttackedUniqueIdentifier = null;
-            //                        defender.AttackedUniqueIdentifier = null;
-
-            //                        // Check level or update
-            //                        _expSystem.KillUnit(attacker, defender);
-
-            //                        // Send drop from unit
-            //                        _unitDropSystem.SendUnitDrop(defender);
-            //                    }
-            //                    else
-            //                    {
-            //                        // Nothing
-            //                    }
-
-            //                    // Check dead attacker and defender
-            //                    if (attacker.Pc.DeadTime != null || defender.DeadTime != null)
-            //                    {
-            //                        conection.Pc.checkAttack = false;
-            //                        attacker.Pc.AttackedUniqueIdentifier = null;
-            //                        _attackFactory.SendEndAttack(conection, attacker.Pc.UniqueIdentifier);
-
-            //                        foreach (GameSession visible in attacker.Pc.VisibleCharacterGames)
-            //                        {
-            //                            _attackFactory.SendEndAttack(visible, attacker.Pc.UniqueIdentifier);
-            //                        }
-            //                        break;
-            //                    }
-
-            //                    //Thread.Sleep(attacker.CharacterGame.AttackRate);
-            //                    attacker.Pc.AttackDateTime = DateTime.Now.AddMilliseconds(attacker.Pc.AttackRate);
-            //                }
-            //            }
-            //        }
-            //        catch (Exception ex)
-            //        {
-
-            //        }
-
-            //        Thread.Sleep(1);
-            //    }
-            //});
-
+                    Attack(connection, targetUniqueId, now);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Can not attack connections");
+            }
         }
 
+        /// <summary>
+        ///     One swing of one character: everything that has to hold for the attack to go on is
+        ///     checked, then the swing is calculated, applied and told about
+        /// </summary>
+        /// <param name="client">Attacking session</param>
+        /// <param name="targetUniqueId">Target of the attack, read off the character</param>
+        /// <param name="now">Moment of this pass</param>
+        private void Attack(GameSession client, UniqueId targetUniqueId, DateTime now)
+        {
+            // A session that is not in the world any more has nobody to draw its swings for, so it is
+            // left out of the packets: the attack of the character it used to have is only taken off
+            // the neighbours
+            if (!client.IsInWorld)
+            {
+                StopAttack(client, targetUniqueId, sendToAttacker: false);
+                return;
+            }
+
+            // A dead attacker stops swinging: the client of a killed character keeps its auto attack
+            // running until it is told the attack is over
+            if (client.Pc.DeadTime != null)
+            {
+                StopAttack(client, targetUniqueId);
+                return;
+            }
+
+            // Only monsters are attacked in this phase (PvP is not ported). A target that is not in the
+            // identification service any more is a corpse the garbage pass has taken away, and a target
+            // with a death time is a corpse that is still lying in the world
+            GMonster target = _identificationService.GetUnitByUniqueIdentifier(targetUniqueId);
+
+            if (target == null || target.DeadTime != null)
+            {
+                StopAttack(client, targetUniqueId);
+                return;
+            }
+
+            // The list itself is replaced by the visibility pass and never edited in place, so the
+            // reference taken here is a consistent snapshot of what the attacker sees
+            if (!client.Pc.VisibleUnitGames.Contains(target))
+            {
+                StopAttack(client, targetUniqueId);
+                return;
+            }
+
+            // The distance is checked on every swing and not once at the start: the client begins to
+            // attack while it still walks up to the target and may as well walk away from it
+            if (client.Pc.PositionCur.Distance(target.PositionCur) > client.Pc._DistAttack)
+            {
+                StopAttack(client, targetUniqueId);
+                return;
+            }
+
+            AttackResult result = _attackSystem.Attack(CombatSnapshot.Of(client.Pc), CombatSnapshot.Of(target));
+
+            // Current hp of the monster lives in Simple, which is replaced as a whole by the respawn:
+            // taken into a local, the damage lands either on the monster we hit or on nobody at all.
+            // The read and the write are kept next to each other on purpose - the recovery pass writes
+            // the same field from its own thread, and everything in between is a window where a
+            // regenerated hp rolls the damage of the swing back
+            GPcSimple simple = target.Simple;
+            int hp = simple.Hp;
+
+            if (result.Damage > 0)
+            {
+                hp -= result.Damage;
+
+                if (hp < 0)
+                {
+                    hp = 0;
+                }
+
+                simple.Hp = hp;
+            }
+
+            // The attacker plays the swing itself, the neighbours are the ones who see it happen.
+            // HpAttacked carries what is left of the hp of the monster (A3)
+            short hpAttacked = GetHpAttacked(hp);
+
+            _attackFactory.SendAttacked(client, client.Pc.UniqueId, target.UniqueId, result.TypeHit, client.Pc.PositionCur, hpAttacked);
+
+            foreach (var visibleCharacterGame in client.Pc.VisibleCharacterGames)
+            {
+                _attackFactory.SendAttacked(visibleCharacterGame, client.Pc.UniqueId, target.UniqueId, result.TypeHit, client.Pc.PositionCur, hpAttacked);
+            }
+
+            // The next swing of this character. A rate that is not a sane number of milliseconds is
+            // pulled up to the minimum, otherwise the pass would swing on every tick
+            client.Pc.AttackDateTime = now.AddMilliseconds(GetAttackRate(client.Pc.AttackRate));
+
+            // Only a swing that took hp off can kill: a monster may stand at zero hp and be alive
+            // (a parm without hp at all, a negative regeneration that took it under zero), and a miss
+            // against such a monster must not kill it over and over and pay the experience every time
+            if (result.Damage <= 0 || hp > 0)
+            {
+                return;
+            }
+
+            KillTarget(client, target, targetUniqueId, now);
+        }
+
+        /// <summary>
+        ///     Death of the monster the swing has killed: it is fixed once, the experience is given out
+        ///     once, and the corpse is left to the garbage and the respawn passes
+        /// </summary>
+        /// <param name="client">Session that killed the monster</param>
+        /// <param name="target">Killed monster</param>
+        /// <param name="targetUniqueId">Identifier the attack was started with</param>
+        /// <param name="now">Moment of this pass</param>
+        private void KillTarget(GameSession client, GMonster target, UniqueId targetUniqueId, DateTime now)
+        {
+            // The guard goes before the write and the whole branch: death is what pays the experience,
+            // so a monster whose DeadTime is already set is a monster somebody else has killed - it
+            // must not pay twice. A death time is written here and nowhere else (the respawn only
+            // clears it back to null from its own thread), and this pass runs on a single thread, so
+            // the check and the write hold together
+            if (target.DeadTime != null)
+            {
+                StopAttack(client, targetUniqueId);
+                return;
+            }
+
+            target.DeadTime = now;
+
+            // 5137 carries the reputation of the killer: for a monster it goes out unchanged, changing
+            // it belongs to PvP which is not ported
+            int chaotic = client.Pc.Detail.Chaotic;
+            ChaoticStatusType chaoticStatus = (ChaoticStatusType)client.Pc.Detail.ChaoticStatus;
+
+            _attackFactory.SendDeadAttack(client, client.Pc.UniqueId, target.UniqueId, chaotic, chaoticStatus);
+
+            foreach (var visibleCharacterGame in client.Pc.VisibleCharacterGames)
+            {
+                _attackFactory.SendDeadAttack(visibleCharacterGame, client.Pc.UniqueId, target.UniqueId, chaotic, chaoticStatus);
+            }
+
+            // Experience and the levels it brings, with everything the client has to be told about them
+            _expSystem.KillUnit(client, target);
+
+            // The corpse stays in the world until GarbageGameService takes it away and UnitGameService
+            // brings the monster back - nothing of that is done here
+            StopAttack(client, targetUniqueId);
+        }
+
+        /// <summary>
+        ///     End of the attack: the character stops being an attacking one and everybody who draws its
+        ///     swings is told about it. The very same contract the move handler keeps - 5134 to the
+        ///     attacker and to its neighbours - so the client sees no difference between an attack
+        ///     stopped by a move and one stopped by this pass
+        /// </summary>
+        /// <param name="client">Session whose attack ends</param>
+        /// <param name="targetUniqueId">Target this pass has checked the attack against</param>
+        /// <param name="sendToAttacker">Whether the attacker itself is told the attack is over</param>
+        private void StopAttack(GameSession client, UniqueId targetUniqueId, bool sendToAttacker = true)
+        {
+            UniqueId attackedUniqueId = client.Pc.AttackedUniqueIdentifier;
+
+            // Only the attack this pass has looked at is stopped. Between the checks and this line the
+            // network thread could have dropped the attack itself (a move) or pointed it at another
+            // target by a new 5133 - that attack has not been checked by anybody yet, and taking it
+            // down here would kill an auto attack the client has every right to keep playing
+            if (attackedUniqueId == null || attackedUniqueId.Id != targetUniqueId.Id)
+            {
+                return;
+            }
+
+            // The flag goes down before the packets: a send that throws must not leave a character
+            // marked as attacking a target that is gone
+            client.Pc.AttackedUniqueIdentifier = null;
+
+            if (sendToAttacker)
+            {
+                _attackFactory.SendEndAttack(client, client.Pc.UniqueId);
+            }
+
+            foreach (var visibleCharacterGame in client.Pc.VisibleCharacterGames)
+            {
+                _attackFactory.SendEndAttack(visibleCharacterGame, client.Pc.UniqueId);
+            }
+        }
+
+        /// <summary>
+        ///     Pause between two swings of the character, in milliseconds: the attack rate built by
+        ///     CalcSpeed out of the parm and the equipment, never shorter than the minimum
+        /// </summary>
+        /// <param name="attackRate">GChar.AttackRate of the attacker</param>
+        private static int GetAttackRate(short attackRate)
+        {
+            if (attackRate < MinimumAttackRateMilliseconds)
+            {
+                return MinimumAttackRateMilliseconds;
+            }
+
+            return attackRate;
+        }
+
+        /// <summary>
+        ///     Hp of the monster the way 5132 carries it: a short, so a monster with an hp bigger than a
+        ///     short can hold does not wrap around into a negative one on the way to the client
+        /// </summary>
+        /// <param name="hp">Current hp of the monster</param>
+        private static short GetHpAttacked(int hp)
+        {
+            if (hp <= 0)
+            {
+                return 0;
+            }
+
+            if (hp > short.MaxValue)
+            {
+                return short.MaxValue;
+            }
+
+            return (short)hp;
+        }
     }
 }

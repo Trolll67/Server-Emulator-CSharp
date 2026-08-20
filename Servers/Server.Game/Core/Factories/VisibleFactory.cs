@@ -390,6 +390,28 @@ namespace Server.Game.Core.Factories
             client.Send(enteredItemModel);
         }
 
+        /// <summary>
+        ///     Percent of monster hp for display packets: current hp lives in Simple.Hp, maximum - in ParmMon.Hp.
+        ///     A dead monster and a monster with a broken parm (maximum is not positive) give 0
+        /// </summary>
+        /// <param name="monster"></param>
+        /// <returns></returns>
+        private static short GetHpPercent(GMonster monster)
+        {
+            short maxHp = monster.ParmMon.Hp;
+            if (maxHp <= 0 || monster.Simple.Hp <= 0)
+            {
+                return 0;
+            }
+
+            if (monster.Simple.Hp >= maxHp)
+            {
+                return 100;
+            }
+
+            return (short)(monster.Simple.Hp * 100 / maxHp);
+        }
+
         public void SendDisplayedUnit(GameSession client, IEnumerable<GMonster> unitGameModels)
         {
             ExistedMonAckModel displayedNpcMonsterModel = new ExistedMonAckModel();
@@ -402,7 +424,7 @@ namespace Server.Game.Core.Factories
                     AttackRate = monster.Detail.AttackRate,
                     Reputation = monster.Detail.Chaotic,
                     DirectionSight = monster.DirectionSight,
-                    Hp = (short)(monster.Simple.Hp * 100 / monster.ParmMon.Hp),
+                    Hp = GetHpPercent(monster),
                     Level = 0,
                     MonsterId = monster.ParmMon.ParmNo,
                     MoveRate = monster.Detail.MoveRate,
@@ -432,7 +454,7 @@ namespace Server.Game.Core.Factories
                     AttackRate = monster.Detail.AttackRate,
                     Reputation = monster.Detail.Chaotic,
                     DirectionSight = monster.DirectionSight,
-                    Hp = (short)(monster.Hp * 100 / monster.ParmMon.Hp),
+                    Hp = GetHpPercent(monster),
                     Level = 0,
                     MonsterId = monster.ParmMon.ParmNo,
                     MoveRate = monster.Detail.MoveRate,

@@ -44,6 +44,16 @@ namespace Server.Game.Services.GameServices
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
+            // Register the loaded units, they are born alive and get their unique identifiers here.
+            // The host calls StartAsync once, and the respawn pass adds a unit back only after
+            // RemoveUnit, so a monster can not be registered twice
+            foreach (var monster in _monsters)
+            {
+                _identificationService.AddUnit(monster);
+            }
+
+            _logger.LogInformation("Registered {Count} unit(s) in the world", _monsters.Count);
+
             // Run tasks
             _periodicScheduler.Schedule(nameof(RespawnUnits), TimeSpan.FromMilliseconds(TickIntervalMilliseconds), RespawnUnits);
             // MoveUnits();
@@ -77,8 +87,9 @@ namespace Server.Game.Services.GameServices
 
                     _identificationService.RemoveUnit(monster);
 
+                    // Restores hp/mp, ability and DeadTime. TODO: return the monster to its spot
+                    // (PositionDefault, DirectionSightDefault) as well
                     monster._SetDefaultInfo(monster.ParmMon);
-                    //_unitSystem.ResetUnit(monster);
 
                     _identificationService.AddUnit(monster);
                 }

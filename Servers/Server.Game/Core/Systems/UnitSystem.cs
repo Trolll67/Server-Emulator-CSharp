@@ -30,12 +30,12 @@ namespace Server.Game.Core.Systems
             // Create all units
             foreach (var mSpot in monsterSpots)
             {
-                // Get new unit
+                // Get new unit, the mapping calls _SetDefaultInfo: full hp/mp from the parm
                 var monster = _parmRepository.GetGMonsterById(mSpot.MonsterId);
 
-                // Set general fields
+                // Set general fields, the unit is born alive and waits for no respawn pass
                 monster.IsVsibleFirst = true;
-                monster.DeadTime = DateTime.MinValue;
+                monster.DeadTime = null;
                 Vector3 pos;
                 MonsterSpotGroup sGroup;
                 if (mSpot.SpotGroup.Count > 0)
@@ -60,25 +60,6 @@ namespace Server.Game.Core.Systems
             }
 
             return monsters;
-        }
-
-        /// <summary>
-        ///     Reset unit
-        /// </summary>
-        /// <param name="unitGame"></param>
-        public void ResetUnit(GMonster unitGame)
-        {
-            //// Set default hp
-            //unitGame.Hp = unitGame.HpMax;
-            //unitGame.Mp = unitGame.MpMax;
-
-            //// Set default position
-            //unitGame.CurrentPosition = new Vector3(unitGame.PositionDefault.X, unitGame.PositionDefault.Y, unitGame.PositionDefault.Z);
-            //unitGame.DirectionSight = Random;
-
-            //// Set general fields
-            //unitGame.IsVsibleFirst = true;
-            //unitGame.DeadTime = null;
         }
 
         //public UnitGameModel AddUnit(int unitId, UnitPositionModel unitPositionGameModel)

@@ -125,6 +125,20 @@ namespace Server.Login.Network
         }
 
         /// <summary>
+        ///     Handle broken packet length in the incoming stream
+        /// </summary>
+        /// <param name="packetSize"></param>
+        /// <param name="dropped"></param>
+        protected override void OnFramingError(int packetSize, long dropped)
+        {
+            _logger.LogWarning($"Broken packet length {packetSize} at login session {Id}, {dropped} bytes dropped");
+
+            // The stream is desynchronized forever, feeding the handlers with garbage is worse
+            // than asking the client to connect again
+            Disconnect();
+        }
+
+        /// <summary>
         ///     Send message to client
         /// </summary>
         /// <param name="model"></param>

@@ -58,6 +58,13 @@ namespace Server.Game.Models.Settings
         public int SavePcsEverySeconds { get; set; }
 
         /// <summary>
+        ///     Сколько процентов накопленного опыта снимает смерть персонажа. Без ключа в конфиге
+        ///     остаются прежние 2 процента; значение вне [0, 100] системой опыта тоже сводится
+        ///     к 2, см. <see cref="Server.Game.Core.Systems.ExpSystem.DeathExpPenaltyPercent"/>
+        /// </summary>
+        public int DeathExpPenaltyPercent { get; set; } = 2;
+
+        /// <summary>
         ///     Периоды фоновых заданий планировщика в миллисекундах, по имени задания. Ключа нет —
         ///     задание работает со своим значением по умолчанию
         /// </summary>

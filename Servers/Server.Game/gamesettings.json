@@ -36,6 +36,10 @@
 
     "SavePcsEverySeconds":  5,
 
+    // Штраф опыта при смерти персонажа, в процентах от накопленного на текущем уровне.
+    // Допустимы значения [0, 100], любое другое даёт 2 — как было зашито в код
+    "DeathExpPenaltyPercent": 2,
+
     // Периоды фоновых заданий планировщика, значение всегда в миллисекундах. Без ключа задание
     // работает со своим значением по умолчанию: GarbageItems, GarbageUnits, VisibleConnections,
     // VisibleItems, VisibleUnits, RespawnUnits — 100 мс, SaveCharacters — SavePcsEverySeconds

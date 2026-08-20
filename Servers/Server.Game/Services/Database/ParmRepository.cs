@@ -14,6 +14,12 @@ namespace Server.Game.Services.Database
     {
         private readonly DBParmMappingService _parmMappingService;
 
+        // Таблица опыта по возрастанию уровня, снятая при загрузке парма: по ней подбирается
+        // строка уровня, которого в таблице нет (см. GetExpByLvl). Порядок нужен и самому поиску,
+        // и потолку MaxExpLevel, а таблица за время жизни сервера не меняется
+        private readonly List<ExpRow> _orderedExps;
+        private readonly ExpRow _highestExpRow;
+
         public List<Abnormal> Abnormals { get; }
         public List<AbnormalAdd> AbnormalAdds { get; }
         public List<AbnormalResist> AbnormalResists { get; }
@@ -37,6 +43,11 @@ namespace Server.Game.Services.Database
 
         public List<ExpRow> Exps { get; set; }
 
+        /// <summary>
+        ///     Потолок таблицы опыта — уровень последней её строки. Ноль, когда таблица пуста
+        /// </summary>
+        public short MaxExpLevel { get; }
+
         public ParmRepository(IFnlParmReferenceRepository parmReferenceRepository, DBParmMappingService parmMappingService)
         {
             _parmMappingService = parmMappingService;
@@ -53,6 +64,10 @@ namespace Server.Game.Services.Database
             MonsterSpots = parmReferenceRepository.GetMonsterSpots().ToList();
             Monsters = parmReferenceRepository.GetMonsters().ToList();
             Exps = parmReferenceRepository.GetExps().ToList();
+
+            _orderedExps = Exps.OrderBy(e => e.Level).ToList();
+            _highestExpRow = _orderedExps.LastOrDefault();
+            MaxExpLevel = _highestExpRow != null ? _highestExpRow.Level : (short)0;
 
             var monsterRoles = parmReferenceRepository.GetMonsterRoles();
 
@@ -161,17 +176,62 @@ namespace Server.Game.Services.Database
 
         #region Exp
         /// <summary>
-        ///     Get exp by lvl
+        ///     Get exp by lvl. Уровня может не быть в таблице: тогда берётся ближайшая строка
+        ///     сверху, а выше потолка таблицы — последняя строка (на потолке уровень не растёт —
+        ///     см. ExpSystem.KillUnit). Пустая таблица даёт нулевой порог, а не исключение
         /// </summary>
         /// <param name="level"></param>
         public GExp GetExpByLvl(long level)
         {
             GExp expGame = new GExp();
 
-            ExpRow exp = Exps.First(e => e.Level == level);
+            ExpRow exp = FindExpRow(level);
+
+            if (exp == null)
+            {
+                return expGame;
+            }
+
             _parmMappingService.MapExpGame(expGame, exp);
 
             return expGame;
+        }
+
+        /// <summary>
+        ///     Строка таблицы опыта по уровню: точная, а если такой нет — ближайшая с уровнем выше
+        ///     (дыра в середине таблицы не должна отдавать порог первого уровня и дарить мгновенный
+        ///     ап). Выше потолка — последняя строка, на пустой таблице — null. Поиск двоичный по
+        ///     упорядоченной копии таблицы: метод зовётся на каждом апе и при входе в мир
+        /// </summary>
+        /// <param name="level"></param>
+        private ExpRow FindExpRow(long level)
+        {
+            int low = 0;
+            int high = _orderedExps.Count - 1;
+            ExpRow nearestAbove = null;
+
+            while (low <= high)
+            {
+                int middle = low + (high - low) / 2;
+                ExpRow row = _orderedExps[middle];
+
+                if (row.Level == level)
+                {
+                    return row;
+                }
+
+                if (row.Level > level)
+                {
+                    nearestAbove = row;
+                    high = middle - 1;
+                }
+                else
+                {
+                    low = middle + 1;
+                }
+            }
+
+            return nearestAbove ?? _highestExpRow;
         }
         #endregion
 

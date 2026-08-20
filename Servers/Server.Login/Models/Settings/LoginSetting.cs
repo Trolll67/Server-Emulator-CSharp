@@ -7,8 +7,11 @@ namespace Server.Login.Models.Settings
     {
         public short Id { get; set; }
 
+        /// <summary>
+        ///     Address the server listens on. Doubles as the key this channel is looked up by
+        ///     in FNLParm.TblParmSvr (mMajorIp), which is where the listen port comes from
+        /// </summary>
         public string ServerIp { get; set; }
-        public short ServerPort { get; set; }
 
         /// <summary>
         ///     Own number of the channel server in FNLParm.TblParmSvr. Used when the server can not be

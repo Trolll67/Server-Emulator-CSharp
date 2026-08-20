@@ -1,8 +1,9 @@
 {
   "LoginSetting": {
     "Id": 100,
+    // Адрес прослушивания; он же ключ, по которому канал ищется в TblParmSvr.
+    // Порт берётся только из TblParmSvr.mTcpPort, в конфиге его нет
     "ServerIp": "127.0.0.1",
-    "ServerPort": 11004,
     "ChannelSvrNo": 1
   }
 }

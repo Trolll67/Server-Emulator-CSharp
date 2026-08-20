@@ -32,7 +32,7 @@ namespace Server.Game.Network
         /// <param name="identificationService"></param>
         /// <param name="logoutService"></param>
         /// <param name="gameSetting"></param>
-        public GameServer(ILogger<GameServer> logger, ILogger<GameSession> loggerSession, IAuthorizationFactory authorizationFactory, IRegisterHandlerService registerHandlerService, IdentificationService identificationService, LogoutService logoutService, OwnServerInfo ownServerInfo, IOptions<GameSetting> gameSetting) : base(IPAddress.Parse(gameSetting.Value.ServerIp), gameSetting.Value.ServerPort)
+        public GameServer(ILogger<GameServer> logger, ILogger<GameSession> loggerSession, IAuthorizationFactory authorizationFactory, IRegisterHandlerService registerHandlerService, IdentificationService identificationService, LogoutService logoutService, OwnServerInfo ownServerInfo, IOptions<GameSetting> gameSetting) : base(IPAddress.Parse(gameSetting.Value.ServerIp), 0)
         {
             _logger = logger;
             _loggerSession = loggerSession;
@@ -41,7 +41,7 @@ namespace Server.Game.Network
             _identificationService = identificationService;
             _logoutService = logoutService;
 
-            // Bind to the port from TblParmSvr (OwnServerInfo already applied the gamesettings.json fallback)
+            // Bind to the port from TblParmSvr; OwnServerInfo has already refused to start without it
             UpdateEndpoint(new IPEndPoint(IPAddress.Parse(gameSetting.Value.ServerIp), ownServerInfo.TcpPort));
         }
 

@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System;
+using System.Net;
 using System.Net.Sockets;
 using Core.Network;
 using Database.Fnl.Parm;
@@ -28,7 +29,7 @@ namespace Server.Login.Network
         /// <param name="authorizationFactory"></param>
         /// <param name="registerHandlerService"></param>
         /// <param name="loginSetting"></param>
-        public LoginServer(ILogger<LoginServer> logger, ILogger<LoginSession> loggerSession, IAuthorizationFactory authorizationFactory, IRegisterHandlerService registerHandlerService, IFnlParmRepository parmRepository, IOptions<LoginSetting> loginSetting) : base(IPAddress.Parse(loginSetting.Value.ServerIp), loginSetting.Value.ServerPort)
+        public LoginServer(ILogger<LoginServer> logger, ILogger<LoginSession> loggerSession, IAuthorizationFactory authorizationFactory, IRegisterHandlerService registerHandlerService, IFnlParmRepository parmRepository, IOptions<LoginSetting> loginSetting) : base(IPAddress.Parse(loginSetting.Value.ServerIp), 0)
         {
             _logger = logger;
             _loggerSession = loggerSession;
@@ -40,22 +41,40 @@ namespace Server.Login.Network
 
         /// <summary>
         ///     Finds this server in TblParmSvr by its address and kind (channel), and binds to the
-        ///     port stored there. Falls back to the port from loginsettings.json when there is no
-        ///     matching row, so a misconfigured database does not prevent the server from starting.
+        ///     port stored there. TblParmSvr is the only source of the port: the same table tells the
+        ///     client where to connect, so a port taken from anywhere else would only be reachable
+        ///     by accident. A missing or empty row stops the server instead of silently listening
+        ///     somewhere the client will never look
         /// </summary>
         private void ResolveListenPort(IFnlParmRepository parmRepository, LoginSetting setting)
         {
             ParmServerRow own = parmRepository.GetParmSvr(ParmServerType.Channel, setting.ServerIp);
 
-            if (own != null && own.TcpPort > 0)
+            if (own == null)
             {
-                UpdateEndpoint(new IPEndPoint(IPAddress.Parse(setting.ServerIp), own.TcpPort));
-                _logger.LogInformation("Resolved listen port {Port} from TblParmSvr (channel server {SvrNo} on {Ip})", own.TcpPort, own.SvrNo, setting.ServerIp);
-
-                return;
+                throw Fatal($"TblParmSvr has no channel server (mType = {(byte)ParmServerType.Channel}) with mMajorIp = '{setting.ServerIp}'. " +
+                            "Add the row, or point \"LoginSetting:ServerIp\" at the address the channel is registered under");
             }
 
-            _logger.LogWarning("TblParmSvr has no channel server on {Ip}, using port {Port} from loginsettings.json", setting.ServerIp, setting.ServerPort);
+            if (own.TcpPort <= 0)
+            {
+                throw Fatal($"Channel server {own.SvrNo} on {setting.ServerIp} has no listen port: TblParmSvr.mTcpPort is {own.TcpPort}");
+            }
+
+            UpdateEndpoint(new IPEndPoint(IPAddress.Parse(setting.ServerIp), own.TcpPort));
+            _logger.LogInformation("Resolved listen port {Port} from TblParmSvr (channel server {SvrNo} on {Ip})", own.TcpPort, own.SvrNo, setting.ServerIp);
+        }
+
+        /// <summary>
+        ///     Logs the reason and builds the exception that stops the host
+        /// </summary>
+        private InvalidOperationException Fatal(string message)
+        {
+            string text = "Login server cannot start: " + message;
+
+            _logger.LogCritical(text);
+
+            return new InvalidOperationException(text);
         }
 
         /// <summary>

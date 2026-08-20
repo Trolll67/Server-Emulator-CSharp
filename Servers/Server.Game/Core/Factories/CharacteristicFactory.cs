@@ -91,7 +91,7 @@ namespace Server.Game.Core.Factories
             {
                 SessionGameId = clientFrom.Pc.UniqueId,
                 Hp = clientFrom.Pc.Ability.MaxHp,
-                Mp = clientFrom.Pc.Ability.MaxHp,
+                Mp = clientFrom.Pc.Ability.MaxMp,
             };
 
             clientTo.Send(levelUpAckModel);

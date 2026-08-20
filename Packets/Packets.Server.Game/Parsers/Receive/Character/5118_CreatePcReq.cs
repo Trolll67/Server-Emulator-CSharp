@@ -23,6 +23,9 @@ namespace Packets.Server.Game.Parsers.Receive.Character
             createPcReqModel.Head = formationPackage.ReadByte();
             createPcReqModel.Face = formationPackage.ReadByte();
             createPcReqModel.TypeBody = formationPackage.ReadByte();
+            // Имя занимает 13 байт, последний из них сервер обязан обнулить и проверить сам
+            // (валидация имени - объём T5). За именем идёт хвост NonCltChk (5 int) - маркер
+            // клиента, нашей реализацией пока не читается
             createPcReqModel.Name = FormationPackageUtility.GetText(formationPackage.ReadBytes(13), 0);
 
             return createPcReqModel;

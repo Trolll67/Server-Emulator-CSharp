@@ -28,7 +28,7 @@ namespace Packets.Server.Game.Parsers.Send.Character
                 if (character != null)
                 {
                     // TODO Изменить модель и вытягивать из базы
-                    formationPackage.AddZeroBytes(1); // Есть ли значок гильдии
+                    formationPackage.AddZeroBytes(1); // Flag
                     formationPackage.AddZeroBytes(3); // Align
                     formationPackage.AddInteger(character.Id);
                     formationPackage.AddByte(character.Class);
@@ -67,9 +67,9 @@ namespace Packets.Server.Game.Parsers.Send.Character
                     formationPackage.AddZeroBytes(1); // TeamRankEffectSeq
                     formationPackage.AddZeroBytes(3); // Align
                     formationPackage.AddZeroBytes(4); // UTGWMatchGroup
-                    formationPackage.AddZeroBytes(4); // Align
-                    formationPackage.AddZeroBytes(8); // ExpToLevelUp
+                    formationPackage.AddZeroBytes(8); // LevelupCoinExp
                     formationPackage.AddZeroBytes(4); // LastReceiptSection
+                    formationPackage.AddZeroBytes(4); // Align до 144 байт записи
                 }
                 else
                 {
@@ -87,100 +87,100 @@ namespace Packets.Server.Game.Parsers.Send.Character
                     // Оружие
                     formationPackage.AddULong(equipment.Weapon?.Id ?? 0);
                     formationPackage.AddInteger(equipment.Weapon?.ItemId ?? 0);
-                    formationPackage.AddZeroBytes(4); // Не расшифрованные байты
+                    formationPackage.AddZeroBytes(4); // ItemBindType
 
                     // Щит
                     formationPackage.AddULong(equipment.Shield?.Id ?? 0);
                     formationPackage.AddInteger(equipment.Shield?.ItemId ?? 0);
-                    formationPackage.AddZeroBytes(4); // Не расшифрованные байты
+                    formationPackage.AddZeroBytes(4); // ItemBindType
 
                     // Доспех
                     formationPackage.AddULong(equipment.Armor?.Id ?? 0);
                     formationPackage.AddInteger(equipment.Armor?.ItemId ?? 0);
-                    formationPackage.AddZeroBytes(4); // Не расшифрованные байты
+                    formationPackage.AddZeroBytes(4); // ItemBindType
 
                     // Первое кольцо
                     formationPackage.AddULong(equipment.FirstRing?.Id ?? 0);
                     formationPackage.AddInteger(equipment.FirstRing?.ItemId ?? 0);
-                    formationPackage.AddZeroBytes(4); // Не расшифрованные байты
+                    formationPackage.AddZeroBytes(4); // ItemBindType
 
                     // Второе кольцо
                     formationPackage.AddULong(equipment.SecondRing?.Id ?? 0);
                     formationPackage.AddInteger(equipment.SecondRing?.ItemId ?? 0);
-                    formationPackage.AddZeroBytes(4); // Не расшифрованные байты
+                    formationPackage.AddZeroBytes(4); // ItemBindType
 
                     // Ожерелье
                     formationPackage.AddULong(equipment.Necklace?.Id ?? 0);
                     formationPackage.AddInteger(equipment.Necklace?.ItemId ?? 0);
-                    formationPackage.AddZeroBytes(4); // Не расшифрованные байты
+                    formationPackage.AddZeroBytes(4); // ItemBindType
 
                     // Ботинки
                     formationPackage.AddULong(equipment.Boots?.Id ?? 0);
                     formationPackage.AddInteger(equipment.Boots?.ItemId ?? 0);
-                    formationPackage.AddZeroBytes(4); // Не расшифрованные байты
+                    formationPackage.AddZeroBytes(4); // ItemBindType
 
                     // Перчатки
                     formationPackage.AddULong(equipment.Gloves?.Id ?? 0);
                     formationPackage.AddInteger(equipment.Gloves?.ItemId ?? 0);
-                    formationPackage.AddZeroBytes(4); // Не расшифрованные байты
+                    formationPackage.AddZeroBytes(4); // ItemBindType
 
                     // Шлем
                     formationPackage.AddULong(equipment.Helmet?.Id ?? 0);
                     formationPackage.AddInteger(equipment.Helmet?.ItemId ?? 0);
-                    formationPackage.AddZeroBytes(4); // Не расшифрованные байты
+                    formationPackage.AddZeroBytes(4); // ItemBindType
 
                     // Ремень
                     formationPackage.AddULong(equipment.Belt?.Id ?? 0);
                     formationPackage.AddInteger(equipment.Belt?.ItemId ?? 0);
-                    formationPackage.AddZeroBytes(4); // Не расшифрованные байты
+                    formationPackage.AddZeroBytes(4); // ItemBindType
 
                     // Плащ
                     formationPackage.AddULong(equipment.Cloak?.Id ?? 0);
                     formationPackage.AddInteger(equipment.Cloak?.ItemId ?? 0);
-                    formationPackage.AddZeroBytes(4); // Не расшифрованные байты
+                    formationPackage.AddZeroBytes(4); // ItemBindType
 
 
                     // Сфера мастерства
                     formationPackage.AddULong(equipment.SphereMastery?.Id ?? 0);
                     formationPackage.AddInteger(equipment.SphereMastery?.ItemId ?? 0);
-                    formationPackage.AddZeroBytes(4); // Не расшифрованные байты
+                    formationPackage.AddZeroBytes(4); // ItemBindType
 
                     // Сфера души
                     formationPackage.AddULong(equipment.SphereSoul?.Id ?? 0);
                     formationPackage.AddInteger(equipment.SphereSoul?.ItemId ?? 0);
-                    formationPackage.AddZeroBytes(4); // Не расшифрованные байты
+                    formationPackage.AddZeroBytes(4); // ItemBindType
 
                     // Сфера защиты
                     formationPackage.AddULong(equipment.SphereDefense?.Id ?? 0);
                     formationPackage.AddInteger(equipment.SphereDefense?.ItemId ?? 0);
-                    formationPackage.AddZeroBytes(4); // Не расшифрованные байты
+                    formationPackage.AddZeroBytes(4); // ItemBindType
 
                     // Сфера разрушения
                     formationPackage.AddULong(equipment.SphereDestruction?.Id ?? 0);
                     formationPackage.AddInteger(equipment.SphereDestruction?.ItemId ?? 0);
-                    formationPackage.AddZeroBytes(4); // Не расшифрованные байты
+                    formationPackage.AddZeroBytes(4); // ItemBindType
 
                     // Сфера жизни
                     formationPackage.AddULong(equipment.SphereLife?.Id ?? 0);
                     formationPackage.AddInteger(equipment.SphereLife?.ItemId ?? 0);
-                    formationPackage.AddZeroBytes(4); // Не расшифрованные байты
+                    formationPackage.AddZeroBytes(4); // ItemBindType
 
                     // Сфера удачи
                     formationPackage.AddULong(equipment.SphereLuck?.Id ?? 0);
                     formationPackage.AddInteger(equipment.SphereLuck?.ItemId ?? 0);
-                    formationPackage.AddZeroBytes(4); // Не расшифрованные байты
+                    formationPackage.AddZeroBytes(4); // ItemBindType
 
                     // Сфера перевоплощения 
                     formationPackage.AddULong(equipment.SphereReincarnation?.Id ?? 0);
                     formationPackage.AddInteger(equipment.SphereReincarnation?.ItemId ?? 0);
-                    formationPackage.AddZeroBytes(4); // Не расшифрованные байты
+                    formationPackage.AddZeroBytes(4); // ItemBindType
 
                     // Сфера характеристик
                     formationPackage.AddULong(equipment.SphereCharacteristics?.Id ?? 0);
                     formationPackage.AddInteger(equipment.SphereCharacteristics?.ItemId ?? 0);
-                    formationPackage.AddZeroBytes(4); // Не расшифрованные байты
+                    formationPackage.AddZeroBytes(4); // ItemBindType
 
-                    formationPackage.AddZeroBytes(16); // Servant(Питомец)
+                    formationPackage.AddZeroBytes(16); // Servant(Питомец) - двадцатая запись экипировки
                 }
                 else
                 {
@@ -188,7 +188,8 @@ namespace Packets.Server.Game.Parsers.Send.Character
                 }
             }
 
-            // Не расшифрованные байты - 12 байт на одного
+            // Блок перед характеристиками: CurTm (SYSTEMTIME, 16), LeftChatTick (4)
+            // и EndBoard (SYSTEMTIME, 16). Сервером пока не заполняются
             formationPackage.AddZeroBytes(36);
 
             // Сила персонажей
@@ -258,10 +259,9 @@ namespace Packets.Server.Game.Parsers.Send.Character
 
                 if (character != null)
                 {
-                    // Координаты персонажа
-                    formationPackage.AddFloat(character.Position.X);
-                    formationPackage.AddFloat(character.Position.Y);
-                    formationPackage.AddFloat(character.Position.Z);
+                    // Порядок координат на проводе задаёт Vector3.Write - такой же, как
+                    // в остальных пакетах с C3D<float>
+                    character.Position.Write(formationPackage);
                 }
                 else
                 {
@@ -269,7 +269,8 @@ namespace Packets.Server.Game.Parsers.Send.Character
                 }
             }
 
-            // Не расшифрованные байты
+            // Хвост пакета: LimitPlayTime (2 x 4) и IsSpecificServer (1).
+            // Сервером пока не заполняются
             formationPackage.AddZeroBytes(9);
 
             return formationPackage.GetBytes();

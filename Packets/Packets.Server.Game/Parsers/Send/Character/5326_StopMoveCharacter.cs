@@ -14,7 +14,7 @@ namespace Packets.Server.Game.Parsers.Send.Character
 
             model.SessionGameId.Write(formationPackage);
             model.Position.Write(formationPackage);
-            formationPackage.AddByte(0); // Flag is always zero
+            formationPackage.AddByte(model.Flag);
 
             return formationPackage.GetBytes();
         }

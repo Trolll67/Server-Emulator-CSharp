@@ -10,6 +10,11 @@ namespace Packets.Server.Game.Models.Receive.Character
     public class DeletePcReqModel
     {
         public uint PcNo { get; set; }
+
+        /// <summary>
+        ///     Слот на экране выбора персонажа. Клиент его присылает, но удаление идёт
+        ///     по PcNo, поэтому сервером поле не используется
+        /// </summary>
         public byte Slot { get; set; }
     }
 }

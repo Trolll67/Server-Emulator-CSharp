@@ -61,9 +61,12 @@ namespace Server.Game.Services
             pc.PositionCur = new Vector3(detail.PosX, detail.PosY, detail.PosZ);
             // TODO GUILD __int64 __fastcall CPc::__FetchPcBase(CPc *this, unsigned int pPcNo)
 
-            pc.CalcAbility();
             pc.Detail = new GPcDetail();
             pc.Detail.SetChaotic(detail.Chaotic);
+
+            // The parm goes first: _SetDefaultInfo fills the base regeneration, the attack distance
+            // and the speeds of the character, and GPc.CalcAbility reads them. Detail is replaced
+            // before that call, otherwise the new one would wipe the rates written by Transformed
             pc._SetDefaultInfo(parmMon);
 
             foreach (var item in items)
@@ -115,6 +118,13 @@ namespace Server.Game.Services
 
                 pc.Equip.Add(equip);
             }
+
+            // The ability is built last, over the parm and the worn equipment: it sums the bonuses of
+            // the items with +=, so the equipment has to be in place. Reset before the call for the
+            // same reason as in ExpSystem: GPc.CalcAbility, unlike GChar.CalcAbility, does not clear
+            // the ability itself and a second call would double the bonuses
+            pc.Ability.Reset();
+            pc.CalcAbility();
 
             //TODO Добавить в бд pc направление взгляда
         }

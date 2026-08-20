@@ -288,6 +288,15 @@ namespace Server.Game.Models.Game
             Ability.DDv = 1;
             Ability.MDv = 1;
             Ability.RDv = 1;
+
+            // Base regeneration of the class, exactly as GChar.CalcAbility takes it: AddRegenHp and
+            // AddRegenMp are filled by _SetDefaultInfo from the parm of the class. The assignment
+            // goes before the equipment, the worn items add their own regeneration to this base
+            Ability.HpRegen = AddRegenHp;
+            Ability.MpRegen = AddRegenMp;
+            Ability.HwHpRegen = AddHwRegenHp;
+            Ability.HwMpRegen = AddHwRegenMp;
+
             Ability.AddDDWhenCritical += AddDDWhenCritical;
             Ability.SubDDWhenCritical += SubDDWhenCritical;
             Ability.EnemySubCriticalHit += EnemySubCriticalHit;

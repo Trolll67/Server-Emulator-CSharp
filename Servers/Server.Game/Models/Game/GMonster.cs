@@ -34,6 +34,11 @@ namespace Server.Game.Models.Game
             VisibleUnitGames = new List<GMonster>();
         }
 
+        /// <summary>
+        ///     Hp in a packet for a monster whose bar the client must not draw
+        /// </summary>
+        public const short HpHidden = -1;
+
         public List<GDropGroup> DropGroup { get; set; }
         //FnlApi::CArrayEx<FnlApp::CGoods,10> __mStomach;
         //FnlApi::CArrayEx<CAgroHistory,4> __mAgroList;
@@ -47,6 +52,48 @@ namespace Server.Game.Models.Game
         public List<GameSession> VisibleCharacterGames { get; set; }
         public List<GPublicItem> VisibleItemGames { get; set; }
         public List<GMonster> VisibleUnitGames { get; set; }
+
+        /// <summary>
+        ///     Hp of the monster the way the packets carry it: a percent of the full hp, not an absolute
+        ///     value. The client draws the bar as fifteen segments of that percent, so an absolute hp would
+        ///     keep the bar full until the monster drops under a hundred points - and a monster of the
+        ///     first levels carries tens of thousands of them.
+        ///     <para>
+        ///     A monster whose parameter row keeps the bar off gets <see cref="HpHidden"/> instead of a
+        ///     number - whatever its hp is, full or none. A monster that is already down and a monster with
+        ///     a broken parm (the maximum is not positive) give 0.
+        ///     </para>
+        ///     <para>
+        ///     The hp comes as an argument instead of being read from <c>Simple.Hp</c>: the swing pass
+        ///     reports the value from before the hit, the display packets - the current one. The maximum is
+        ///     always <c>ParmMon.Hp</c>, the same source <see cref="_SetDefaultInfo"/> fills the hp from
+        ///     </para>
+        /// </summary>
+        /// <param name="hp">Hp to report</param>
+        /// <returns>Percent of the full hp, 0 for a monster that is down, <see cref="HpHidden"/> for a hidden bar</returns>
+        public short GetHpDisplayed(int hp)
+        {
+            if (!ParmMon.IsShowHp)
+            {
+                return HpHidden;
+            }
+
+            short maxHp = ParmMon.Hp;
+
+            if (hp <= 0 || maxHp <= 0)
+            {
+                return 0;
+            }
+
+            // Hp above the maximum - an overheal or a parm changed under a living monster - draws the
+            // same full bar, so it is held at a hundred and never leaves the range of a percent
+            if (hp >= maxHp)
+            {
+                return 100;
+            }
+
+            return (short)(hp * 100 / maxHp);
+        }
 
         /// <summary>
         ///     Build the monster ability from its Detail. Idempotent: the base call resets the ability

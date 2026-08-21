@@ -28,6 +28,18 @@ namespace Server.Game.Services
         private uint _uniqueIdentifiersCounter;
 
         /// <summary>
+        ///     Generation of the last handout of every number that has ever been handed out. The
+        ///     number itself is reused after the entity is gone, and the generation is the only
+        ///     thing by which the client tells the new entity from the one it has seen under the
+        ///     same number a moment ago, so it lives next to the handout and not in the entity.
+        ///     A record outlives the entity on purpose: clearing it when the number is released
+        ///     would make the next handout of that number look like the first one and undo the
+        ///     whole point of the counter. The set of keys is bounded by the peak number of live
+        ///     entities, because the numbers themselves are reused
+        /// </summary>
+        private Dictionary<uint, uint> _uniqueIdentifierGenerations;
+
+        /// <summary>
         ///     Connections in the game
         /// </summary>
         private Dictionary<UniqueId, GameSession> _connections;
@@ -49,6 +61,7 @@ namespace Server.Game.Services
         {
             _uniqueIdentifiers = new Queue<uint>();
             _uniqueIdentifiersCounter = 1;
+            _uniqueIdentifierGenerations = new Dictionary<uint, uint>();
 
             _connections = new Dictionary<UniqueId, GameSession>();
             _items = new Dictionary<UniqueId, GPublicItem>();
@@ -64,10 +77,7 @@ namespace Server.Game.Services
         {
             lock (_lockObject)
             {
-                var uniqueIdentifier = GetUniqueIdentifier();
-
-                gameSession.Pc.UniqueId = new UniqueId(UniqueIdentifierType.Player);
-                gameSession.Pc.UniqueId.Id = uniqueIdentifier;
+                gameSession.Pc.UniqueId = CreateUniqueIdentifier(UniqueIdentifierType.Player);
 
                 _connections.Add(gameSession.Pc.UniqueId, gameSession);
             }
@@ -139,10 +149,7 @@ namespace Server.Game.Services
         {
             lock (_lockObject)
             {
-                var uniqueIdentifier = GetUniqueIdentifier();
-
-                item.UniqueId = new UniqueId(UniqueIdentifierType.Item);
-                item.UniqueId.Id = uniqueIdentifier;
+                item.UniqueId = CreateUniqueIdentifier(UniqueIdentifierType.Item);
 
                 _items.Add(item.UniqueId, item);
             }
@@ -201,10 +208,7 @@ namespace Server.Game.Services
         {
             lock (_lockObject)
             {
-                var uniqueIdentifier = GetUniqueIdentifier();
-
-                unit.UniqueId = new UniqueId((UniqueIdentifierType)1);
-                unit.UniqueId.Id = uniqueIdentifier;
+                unit.UniqueId = CreateUniqueIdentifier(UniqueIdentifierType.Monster);
 
                 _units.Add(unit.UniqueId, unit);
             }
@@ -284,10 +288,30 @@ namespace Server.Game.Services
         #endregion
 
         /// <summary>
+        ///     Create unique identifier of the given class. The only place where a number is handed
+        ///     out, so that the generation of the number is bumped exactly once per handout
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        private UniqueId CreateUniqueIdentifier(UniqueIdentifierType type)
+        {
+            lock (_lockObject)
+            {
+                var number = GetUniqueIdentifier();
+
+                return new UniqueId(type)
+                {
+                    Id = number,
+                    Seq = GetNextGeneration(number)
+                };
+            }
+        }
+
+        /// <summary>
         ///     Get unique identifier
         /// </summary>
         /// <returns></returns>
-        public uint GetUniqueIdentifier()
+        private uint GetUniqueIdentifier()
         {
             if (_uniqueIdentifiers.Count == 0)
             {
@@ -296,6 +320,30 @@ namespace Server.Game.Services
             }
 
             return _uniqueIdentifiers.Dequeue();
+        }
+
+        /// <summary>
+        ///     Get the generation of the next handout of the number: one for the first handout, one
+        ///     more than the previous one for every next, wrapping around the width of the field
+        /// </summary>
+        /// <param name="uniqueIdentifier"></param>
+        /// <returns></returns>
+        private uint GetNextGeneration(uint uniqueIdentifier)
+        {
+            uint generation;
+
+            if (_uniqueIdentifierGenerations.TryGetValue(uniqueIdentifier, out var previousGeneration))
+            {
+                generation = (previousGeneration + 1) % UniqueId.SeqCount;
+            }
+            else
+            {
+                generation = UniqueId.FirstSeq;
+            }
+
+            _uniqueIdentifierGenerations[uniqueIdentifier] = generation;
+
+            return generation;
         }
 
         /// <summary>

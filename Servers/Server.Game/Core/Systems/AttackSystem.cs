@@ -1,4 +1,5 @@
-﻿using Packets.Server.Game.Models.Send.Attack;
+﻿using Database.DataModel.Enums;
+using Packets.Server.Game.Models.Send.Attack;
 using Server.Game.Models.Game;
 using System;
 
@@ -6,48 +7,79 @@ namespace Server.Game.Core.Systems
 {
     /// <summary>
     ///     Combat characteristics of one side of a swing, taken off the character at the moment the
-    ///     swing is calculated. The names repeat the fields of GPcAbility/GPcDetail so a value can
-    ///     be traced back to the place that fills it. Both a player and a monster fit in here: a
-    ///     monster keeps its numbers in the very same Detail/Ability once its abilities are
-    ///     calculated, which is the business of the spawn path and not of this system
+    ///     swing is calculated. One and the same snapshot answers for both roles a character can
+    ///     play: the attacking half (accuracy, damage, dice of the weapon in hand, critical hit) and
+    ///     the defending half (evasion, armour, resistance to critical hits). The role decides which
+    ///     half is read, so a swing takes the accuracy of the attacker against the evasion of the
+    ///     target and never mixes the two up.
+    ///     <para>
+    ///     A player and a monster both fit in here, but they are not read the same way: the evasion
+    ///     and the critical resistance of a monster live in its parm row, while a player keeps them
+    ///     in its calculated characteristics. The armour is taken off the characteristics for
+    ///     everyone - a monster gets it filled from the parm when its abilities are built. The
+    ///     asymmetry is written out as an explicit branch on purpose: it is how the original reads
+    ///     the two, not an oversight to be straightened out
+    ///     </para>
     /// </summary>
     public readonly struct CombatSnapshot
     {
         /// <summary>
-        ///     Melee, range and magic attack, GPcAbility.DDv/RDv/MDv
+        ///     Whether the weapon in the hand of this side puts its swing on the range way. Read of
+        ///     the attacker only: the way is chosen by the one who swings, and the target answers on
+        ///     that same way with its own evasion and armour
+        /// </summary>
+        public bool IsRange { get; init; }
+
+        /// <summary>
+        ///     Whether this side is a player. Only the unreachable PvP branch asks for it in this
+        ///     phase - the target of a swing is always a monster
+        /// </summary>
+        public bool IsPlayer { get; init; }
+
+        /// <summary>
+        ///     Damage dice of the weapon in the hand, already picked for the way the swing goes
+        ///     through. An unarmed character rolls the dice of its default weapon, so there is no
+        ///     such thing as a swing without dice
+        /// </summary>
+        public GDice AttackDice { get; init; }
+
+        /// <summary>
+        ///     Accuracy of this side as an attacker on its own way, GPcAbility.DHit/RHit plus the
+        ///     accuracy of the weapon in the hand. The accuracy of an item is summed into the
+        ///     characteristics of its wearer as well, so a weapon counts twice here - that is how
+        ///     the original lands a swing, and evening it out would put us off the balance of the
+        ///     items. A monster is not counted twice: its own accuracy is zero and everything comes
+        ///     off the default weapon
+        /// </summary>
+        public int Hit { get; init; }
+
+        /// <summary>
+        ///     The same accuracy against a player, GPcAbility.PvPDHIT/PvPRHIT plus the weapon. Never
+        ///     used in this phase: nobody fills the PvP fields and the target of a swing is always a
+        ///     monster
+        /// </summary>
+        public int PvPHit { get; init; }
+
+        /// <summary>
+        ///     Damage this side adds to every swing of its own, GPcAbility.DDD/RDD, picked for the
+        ///     way the swing goes through. A monster carries a zero here and hits with the dice of
+        ///     its default weapon alone
+        /// </summary>
+        public int Damage { get; init; }
+
+        /// <summary>
+        ///     Evasion of this side as a target, GPcAbility.DDv/RDv or the same numbers of the parm
+        ///     row of a monster. Both ways are kept, because the way is chosen by the attacker
         /// </summary>
         public short DDv { get; init; }
         public short RDv { get; init; }
-        public short MDv { get; init; }
 
         /// <summary>
-        ///     Melee, range and magic defence, GPcAbility.DPv/RPv/MPv
+        ///     Armour of this side as a target, GPcAbility.DPv/RPv. Taken off the characteristics
+        ///     for a player and a monster alike
         /// </summary>
         public short DPv { get; init; }
         public short RPv { get; init; }
-        public short MPv { get; init; }
-
-        /// <summary>
-        ///     Melee, range and magic accuracy, GPcAbility.DHit/RHit/MHit
-        /// </summary>
-        public short DHit { get; init; }
-        public short RHit { get; init; }
-        public short MHit { get; init; }
-
-        /// <summary>
-        ///     Melee, range and magic evasion, GPcAbility.DDD/RDD/MDD
-        /// </summary>
-        public short DDD { get; init; }
-        public short RDD { get; init; }
-        public short MDD { get; init; }
-
-        /// <summary>
-        ///     Damage of the weapon itself, GPcDetail.MinD/MaxD. For a monster both come from the
-        ///     parm (ParmMonster.MinD/MaxD); for a player the weapon does not fill them yet, so the
-        ///     roll is a zero and the whole damage comes out of the attack values
-        /// </summary>
-        public short MinD { get; init; }
-        public short MaxD { get; init; }
 
         /// <summary>
         ///     Chance of a critical hit of this side, in points, GPcAbility.CriticalHit
@@ -55,20 +87,37 @@ namespace Server.Game.Core.Systems
         public short CriticalHit { get; init; }
 
         /// <summary>
-        ///     How many points this side takes off the critical chance of whoever attacks it,
-        ///     GPcAbility.EnemySubCriticalHit
+        ///     How many points this side takes off the critical chance of whoever attacks it
         /// </summary>
         public short EnemySubCriticalHit { get; init; }
 
         /// <summary>
-        ///     Damage this side adds to its own critical hit, GPcAbility.AddDDWhenCritical
+        ///     Damage this side adds to its own critical hits
         /// </summary>
         public short AddDDWhenCritical { get; init; }
 
         /// <summary>
-        ///     Damage this side takes off a critical hit landed on it, GPcAbility.SubDDWhenCritical
+        ///     Damage this side takes off a critical hit landed on it
         /// </summary>
         public short SubDDWhenCritical { get; init; }
+
+        /// <summary>
+        ///     Evasion this side answers a swing with, on the way the attacker swings
+        /// </summary>
+        /// <param name="isRange">Way of the attacker, CombatSnapshot.IsRange of the other side</param>
+        public short GetEvasion(bool isRange)
+        {
+            return isRange ? RDv : DDv;
+        }
+
+        /// <summary>
+        ///     Armour this side answers a swing with, on the way the attacker swings
+        /// </summary>
+        /// <param name="isRange">Way of the attacker, CombatSnapshot.IsRange of the other side</param>
+        public short GetArmor(bool isRange)
+        {
+            return isRange ? RPv : DPv;
+        }
 
         /// <summary>
         ///     Snapshot of a character, a player or a monster alike. The values are copied, so the
@@ -83,33 +132,43 @@ namespace Server.Game.Core.Systems
             }
 
             GPcAbility ability = character.Ability;
-            GPcDetail detail = character.Detail;
+            GWeapon weapon = character.GetWeaponInHand();
+
+            // The numbers are read off the row the character wears right now, the class - off the row
+            // it was built with: a transformed player walks the world with the row of a monster, and
+            // it still keeps its evasion in its own characteristics
+            ParmMonster parm = character.ParmMonCur ?? character.ParmMon;
+            ParmMonster parmBase = character.ParmMon ?? character.ParmMonCur;
+
+            // A player keeps everything in its characteristics; everything else that walks the world
+            // - a monster above all - keeps its evasion and its answer to critical hits in the parm
+            // row it was built from
+            bool isPlayer = parm == null || parmBase == null || parmBase.GbjClass == GbjClassEnum.Pc;
+
+            bool isRange = weapon.IsRange;
+            int weaponHit = weapon.AttackHit;
 
             return new CombatSnapshot
             {
-                DDv = ability.DDv,
-                RDv = ability.RDv,
-                MDv = ability.MDv,
+                IsRange = isRange,
+                IsPlayer = isPlayer,
+
+                AttackDice = weapon.AttackDice,
+                Hit = (isRange ? ability.RHit : ability.DHit) + weaponHit,
+                PvPHit = (isRange ? ability.PvPRHIT : ability.PvPDHIT) + weaponHit,
+                Damage = isRange ? ability.RDD : ability.DDD,
+
+                DDv = isPlayer ? ability.DDv : parm.DDv,
+                RDv = isPlayer ? ability.RDv : parm.RDv,
 
                 DPv = ability.DPv,
                 RPv = ability.RPv,
-                MPv = ability.MPv,
-
-                DHit = ability.DHit,
-                RHit = ability.RHit,
-                MHit = ability.MHit,
-
-                DDD = ability.DDD,
-                RDD = ability.RDD,
-                MDD = ability.MDD,
-
-                MinD = detail.MinD,
-                MaxD = detail.MaxD,
 
                 CriticalHit = ability.CriticalHit,
-                EnemySubCriticalHit = ability.EnemySubCriticalHit,
                 AddDDWhenCritical = ability.AddDDWhenCritical,
-                SubDDWhenCritical = ability.SubDDWhenCritical
+
+                EnemySubCriticalHit = isPlayer ? ability.EnemySubCriticalHit : parm.EnemySubCriticalHit,
+                SubDDWhenCritical = isPlayer ? ability.SubDDWhenCritical : parm.SubDDWhenCritical
             };
         }
     }
@@ -138,88 +197,81 @@ namespace Server.Game.Core.Systems
     }
 
     /// <summary>
-    ///     Way the swing goes through: melee, range or magic. One and the same channel decides
-    ///     whether the swing lands and how much it takes off the target, so the accuracy of one way
-    ///     of attacking never lands the damage of another one
-    /// </summary>
-    public enum AttackChannel
-    {
-        /// <summary>
-        ///     DHit against DDD, DDv against DPv
-        /// </summary>
-        Melee = 0,
-
-        /// <summary>
-        ///     RHit against RDD, RDv against RPv
-        /// </summary>
-        Range = 1,
-
-        /// <summary>
-        ///     MHit against MDD, MDv against MPv
-        /// </summary>
-        Magic = 2
-    }
-
-    /// <summary>
     ///     Mathematics of a single swing: whether it lands, whether it is critical and how much
     ///     damage it deals. The system knows nothing about sessions, packets and services - it is
-    ///     given two snapshots of characteristics and answers with a result, while the caller
-    ///     decides whose health to lower and what to send (the same split as in MoveSystem).
-    ///     TODO: the formulas of the original (FieldW.exe) are not extracted yet, so everything
-    ///     below is the semantics of the draft this file used to hold - the hit chance out of the
-    ///     difference between accuracy and evasion, the critical chance out of the difference
-    ///     between the critical values, the damage out of the weapon roll and the attack minus the
-    ///     defence - with the numbers picked by hand. Every threshold is a named constant here, so
-    ///     the formulas can be replaced in one place once the real ones are known (A1)
+    ///     given two characters, reads a snapshot off each of them and answers with a result, while
+    ///     the caller decides whose health to lower and what to send (the same split as in
+    ///     MoveSystem).
+    ///     <para>
+    ///     A swing of a weapon goes one of two ways: a range weapon in the hand puts it on the range
+    ///     way, everything else - a melee weapon, a spear, an empty hand - on the melee way. There is
+    ///     no magic way here at all; magic is the business of skills, which are not a swing
+    ///     </para>
     /// </summary>
     public class AttackSystem
     {
         /// <summary>
-        ///     Chance to land a swing when accuracy and evasion are equal. Empirical value, not the
-        ///     original: it comes from the draft this file used to hold
+        ///     Highest percent a swing can land with. Even an attacker whose accuracy is far above
+        ///     the evasion of the target misses one swing out of twenty
         /// </summary>
-        public const double BaseHitChance = 0.905;
+        public const int MaxHitPercent = 95;
 
         /// <summary>
-        ///     Upper bound of the hit chance: an attacker with any accuracy still misses sometimes.
-        ///     Empirical value, not the original
+        ///     Draw of the hit: a number from zero to one below this, compared against the percent.
+        ///     There is no lower bound - an attacker whose accuracy is nothing against the evasion of
+        ///     the target lands nothing
         /// </summary>
-        public const double MaxHitChance = 0.98;
+        public const int HitRollRange = 100;
 
         /// <summary>
-        ///     Lower bound of the hit chance: an attacker with hopeless accuracy still lands a swing
-        ///     sometimes. Empirical value, not the original
+        ///     Lowest number the critical draw can come out as. It is the bound of the draw and not
+        ///     the bound of the threshold: the two happen to be the same number, but they answer for
+        ///     different things and move apart the moment one of them is changed
         /// </summary>
-        public const double MinHitChance = 0.10;
+        public const int MinCriticalRoll = 1;
 
         /// <summary>
-        ///     What one point of accuracy above the evasion of the target is worth. Empirical value,
-        ///     not the original
+        ///     Highest number the critical draw can come out as: the draw is a number from
+        ///     MinCriticalRoll to this
         /// </summary>
-        public const double HitChancePerPoint = 0.01;
+        public const int CriticalRollRange = 200;
 
         /// <summary>
-        ///     What one point of accuracy below the evasion of the target costs. Missing accuracy
-        ///     weighs more than spare accuracy, exactly as in the draft. Empirical value, not the
-        ///     original
+        ///     Threshold the critical draw has to reach when neither side has anything to do with
+        ///     critical hits. Together with the range it gives one critical hit in two hundred
+        ///     swings, and every point of the critical value moves the threshold by one
         /// </summary>
-        public const double MissChancePerPoint = 0.015;
+        public const int CriticalThresholdBase = 200;
 
         /// <summary>
-        ///     What one point of the critical value above the critical defence of the target is
-        ///     worth. Empirical value, not the original
+        ///     Lowest the critical threshold can be pushed to. A threshold of one is reached by every
+        ///     draw, so an attacker with enough critical value hits critically always - there is no
+        ///     upper bound on the chance
         /// </summary>
-        public const double CriticalChancePerPoint = 0.01;
+        public const int MinCriticalThreshold = 1;
 
         /// <summary>
-        ///     Upper bound of the critical chance: a critical hit stays an event and does not become
-        ///     the usual outcome of a swing. Empirical value, not the original
+        ///     What a critical hit does to the damage of the swing: it doubles it, and only then the
+        ///     critical addition of the attacker and the critical resistance of the target are
+        ///     counted
         /// </summary>
-        public const double MaxCriticalChance = 0.50;
+        public const int CriticalDamageMultiplier = 2;
 
         /// <summary>
-        ///     Damage of a swing that landed but was eaten by the defence of the target: a hit is
-        ///     always felt. Empirical value, not the original
+        ///     Part of the armour of the target that reaches the damage: the armour is halved before
+        ///     it is taken off
+        /// </summary>
+        public const int ArmorDivider = 2;
+
+        /// <summary>
+        ///     Draw that decides where an odd half of the armour goes: zero or one, so an armour of
+        ///     eleven takes off five or six points, half of the swings each
+        /// </summary>
+        public const int ArmorOddRollRange = 2;
+
+        /// <summary>
+        ///     Damage of a swing that landed but was eaten by the armour of the target: a hit is
+        ///     always felt
         /// </summary>
         public const int MinDamage = 1;
 
@@ -238,6 +290,28 @@ namespace Server.Game.Core.Systems
         ///     Calculate one swing of one character against another. Neither side is changed: the
         ///     health is lowered by the caller out of AttackResult.Damage
         /// </summary>
+        /// <param name="offense">Attacking character</param>
+        /// <param name="defense">Target of the swing</param>
+        public AttackResult Attack(GChar offense, GChar defense)
+        {
+            return Attack(CombatSnapshot.Of(offense), CombatSnapshot.Of(defense), _random);
+        }
+
+        /// <summary>
+        ///     The same swing with an explicit source of randomness, for a probe that needs the draws
+        ///     to repeat
+        /// </summary>
+        /// <param name="offense">Attacking character</param>
+        /// <param name="defense">Target of the swing</param>
+        /// <param name="random">Source of randomness of this swing</param>
+        public AttackResult Attack(GChar offense, GChar defense, Random random)
+        {
+            return Attack(CombatSnapshot.Of(offense), CombatSnapshot.Of(defense), random);
+        }
+
+        /// <summary>
+        ///     Swing of two snapshots taken beforehand
+        /// </summary>
         /// <param name="offense">Characteristics of the attacker</param>
         /// <param name="defense">Characteristics of the target</param>
         public AttackResult Attack(CombatSnapshot offense, CombatSnapshot defense)
@@ -246,10 +320,14 @@ namespace Server.Game.Core.Systems
         }
 
         /// <summary>
-        ///     The same swing with an explicit source of randomness: with the same seed and the same
-        ///     snapshots the answer is always the same. The draws are always taken in this order -
-        ///     the hit, then the critical, then the weapon - and a critical hit takes no weapon draw
-        ///     at all, because it always rolls the top damage of the weapon
+        ///     Swing of two snapshots with an explicit source of randomness: with the same seed and
+        ///     the same snapshots the answer is always the same. The draws are always taken in this
+        ///     order - the critical hit, then the hit, then the dice of the weapon one by one, then
+        ///     the odd half of the armour - and a swing that misses takes no further draw at all.
+        ///     <para>
+        ///     The critical draw is made before the hit draw and does not depend on it, but a miss
+        ///     beats a critical hit: a swing that did not land deals nothing
+        ///     </para>
         /// </summary>
         /// <param name="offense">Characteristics of the attacker</param>
         /// <param name="defense">Characteristics of the target</param>
@@ -261,137 +339,93 @@ namespace Server.Game.Core.Systems
                 throw new ArgumentNullException(nameof(random));
             }
 
-            AttackChannel channel = GetAttackChannel(offense, defense, out int hitMargin);
+            bool isCritical = random.Next(MinCriticalRoll, CriticalRollRange + 1) >= GetCriticalThreshold(offense, defense);
 
-            if (random.NextDouble() >= GetHitChance(hitMargin))
+            if (random.Next(HitRollRange) >= GetHitPercent(offense, defense))
             {
                 return new AttackResult(TypeHit.Miss, 0);
             }
 
-            bool isCritical = random.NextDouble() < GetCriticalChance(offense, defense);
-
-            int damage = GetDamage(offense, defense, channel, isCritical, random);
+            int damage = GetDamage(offense, defense, isCritical, random);
 
             return new AttackResult(isCritical ? TypeHit.Crit : TypeHit.Hit, damage);
         }
 
         /// <summary>
-        ///     Chance of the swing to land, from MinHitChance to MaxHitChance
+        ///     Percent of the swings that land: the accuracy of the attacker against the evasion of
+        ///     the target, as a ratio and not as a difference, held under MaxHitPercent. A target
+        ///     that evades nothing is hit as often as anything can be hit; an attacker whose accuracy
+        ///     is far below the evasion gets a zero and lands nothing at all, which is a proper
+        ///     outcome and not a floor to be raised. The levels of the two sides do not count here -
+        ///     a swing of a weapon knows nothing about them
         /// </summary>
         /// <param name="offense">Characteristics of the attacker</param>
         /// <param name="defense">Characteristics of the target</param>
-        public static double GetHitChance(CombatSnapshot offense, CombatSnapshot defense)
+        public static int GetHitPercent(CombatSnapshot offense, CombatSnapshot defense)
         {
-            GetAttackChannel(offense, defense, out int hitMargin);
+            int evasion = defense.GetEvasion(offense.IsRange);
 
-            return GetHitChance(hitMargin);
+            if (evasion <= 0)
+            {
+                return MaxHitPercent;
+            }
+
+            // Against a player the accuracy is taken off the PvP fields instead. The branch is
+            // written out but never walked in this phase: the target of a swing is always a monster
+            // and nobody fills those fields yet
+            int hit = defense.IsPlayer ? offense.PvPHit : offense.Hit;
+
+            int percent = hit * 100 / evasion;
+
+            return percent > MaxHitPercent ? MaxHitPercent : percent;
         }
 
         /// <summary>
-        ///     Chance of the swing to land, out of the accuracy the attacker has above the evasion
-        ///     of the target
-        /// </summary>
-        /// <param name="hitMargin">Answer of GetAttackChannel for these two sides</param>
-        public static double GetHitChance(int hitMargin)
-        {
-            if (hitMargin >= 0)
-            {
-                double chance = BaseHitChance + hitMargin * HitChancePerPoint;
-
-                return chance > MaxHitChance ? MaxHitChance : chance;
-            }
-            else
-            {
-                double chance = BaseHitChance + hitMargin * MissChancePerPoint;
-
-                return chance < MinHitChance ? MinHitChance : chance;
-            }
-        }
-
-        /// <summary>
-        ///     The way the attacker goes through: the one whose accuracy beats the evasion of the
-        ///     target by the most points, together with that difference. The draft compared the
-        ///     three the same way, but through an if/else chain that could not see the magic
-        ///     difference once the range one lost to the melee one.
-        ///     TODO: the original picks the way of attacking by the weapon in hand and not by the
-        ///     best of the three; this is the first thing to revise once the real formulas are
-        ///     known (A1)
+        ///     Number the critical draw has to reach for the swing to be a critical one: the base
+        ///     threshold plus what the target takes off critical hits minus the critical value of the
+        ///     attacker, never below MinCriticalThreshold. The lower the threshold, the more of the
+        ///     draws reach it
         /// </summary>
         /// <param name="offense">Characteristics of the attacker</param>
         /// <param name="defense">Characteristics of the target</param>
-        /// <param name="hitMargin">By how many points the accuracy beats the evasion</param>
-        public static AttackChannel GetAttackChannel(CombatSnapshot offense, CombatSnapshot defense, out int hitMargin)
+        public static int GetCriticalThreshold(CombatSnapshot offense, CombatSnapshot defense)
         {
-            AttackChannel channel = AttackChannel.Melee;
+            int threshold = CriticalThresholdBase + defense.EnemySubCriticalHit - offense.CriticalHit;
 
-            hitMargin = offense.DHit - defense.DDD;
-
-            int rangeMargin = offense.RHit - defense.RDD;
-            if (rangeMargin > hitMargin)
-            {
-                channel = AttackChannel.Range;
-                hitMargin = rangeMargin;
-            }
-
-            int magicMargin = offense.MHit - defense.MDD;
-            if (magicMargin > hitMargin)
-            {
-                channel = AttackChannel.Magic;
-                hitMargin = magicMargin;
-            }
-
-            return channel;
+            return threshold < MinCriticalThreshold ? MinCriticalThreshold : threshold;
         }
 
         /// <summary>
-        ///     By how many points the accuracy of the attacker beats the evasion of the target on
-        ///     the way it attacks through
+        ///     Damage of a swing that landed: the roll of the weapon plus the damage of the attacker,
+        ///     doubled when the swing is critical, and the armour of the target taken off the whole
+        ///     of it once at the very end. The dice are rolled on a critical hit as well - a critical
+        ///     hit doubles what was rolled and does not replace the roll
         /// </summary>
         /// <param name="offense">Characteristics of the attacker</param>
         /// <param name="defense">Characteristics of the target</param>
-        public static int GetHitMargin(CombatSnapshot offense, CombatSnapshot defense)
-        {
-            GetAttackChannel(offense, defense, out int hitMargin);
-
-            return hitMargin;
-        }
-
-        /// <summary>
-        ///     Chance of a landed swing to be a critical one, from zero to MaxCriticalChance
-        /// </summary>
-        /// <param name="offense">Characteristics of the attacker</param>
-        /// <param name="defense">Characteristics of the target</param>
-        public static double GetCriticalChance(CombatSnapshot offense, CombatSnapshot defense)
-        {
-            int margin = offense.CriticalHit - defense.EnemySubCriticalHit;
-
-            if (margin <= 0)
-            {
-                return 0;
-            }
-
-            double chance = margin * CriticalChancePerPoint;
-
-            return chance > MaxCriticalChance ? MaxCriticalChance : chance;
-        }
-
-        /// <summary>
-        ///     Damage of a swing that landed: the roll of the weapon plus what the attack values
-        ///     leave after the defence of the target, and the critical addition on top of it
-        /// </summary>
-        /// <param name="offense">Characteristics of the attacker</param>
-        /// <param name="defense">Characteristics of the target</param>
-        /// <param name="channel">Way the swing goes through, the answer of GetAttackChannel</param>
         /// <param name="isCritical">Whether the swing is a critical hit</param>
-        /// <param name="random">Source of the weapon roll</param>
-        public static int GetDamage(CombatSnapshot offense, CombatSnapshot defense, AttackChannel channel, bool isCritical, Random random)
+        /// <param name="random">Source of the draws of the dice and of the odd half of the armour</param>
+        public static int GetDamage(CombatSnapshot offense, CombatSnapshot defense, bool isCritical, Random random)
         {
-            int damage = GetWeaponDamage(offense, isCritical, random) + GetAttackPower(offense, defense, channel);
+            if (random == null)
+            {
+                throw new ArgumentNullException(nameof(random));
+            }
+
+            // Places where the original adds more to the same sum: a bonus against the race of the
+            // target, the beads of both sides, elemental damage, the flat and the percent modifiers
+            // of an instant damage change and the modifiers of a skill. None of them has data behind
+            // it here, so every one of them is a zero and the sum comes out the same
+            int raceBonus = 0;
+
+            int damage = raceBonus + offense.AttackDice.Roll(random) + offense.Damage;
 
             if (isCritical)
             {
-                damage += GetCriticalDamage(offense, defense);
+                damage = GetCriticalDamage(offense, defense, damage);
             }
+
+            damage -= GetArmorTaken(defense.GetArmor(offense.IsRange), random);
 
             if (damage < MinDamage)
             {
@@ -399,9 +433,10 @@ namespace Server.Game.Core.Systems
             }
 
             // The health of both sides is bounded by a short - GPcAbility.MaxHp for a player,
-            // ParmMonster.Hp for a monster - and 5132 reports what is left of it in a short as
-            // well, so a swing is never allowed to carry more than a short can hold: rubbish in the
-            // parm must not turn into a health that wraps around on the way to the client
+            // ParmMonster.Hp for a monster - and 5132 reports what is left of it in a short as well,
+            // so a swing is never allowed to carry more than a short can hold. This is our own guard
+            // against rubbish in the parm and not a rule of the original: without it a health that
+            // wraps around would reach the client
             if (damage > short.MaxValue)
             {
                 return short.MaxValue;
@@ -411,68 +446,32 @@ namespace Server.Game.Core.Systems
         }
 
         /// <summary>
-        ///     What the attack value of the attacker leaves after the defence of the target on the
-        ///     way the swing goes through. Only that one way counts: the accuracy that landed the
-        ///     swing and the damage it deals belong together, so a melee hit does not carry the
-        ///     magic attack of the attacker as well. A way that cannot get through the defence deals
-        ///     nothing instead of healing the target
+        ///     Damage of a critical hit: the usual damage doubled, plus what the attacker adds to its
+        ///     critical hits, minus what the target takes off them. A target that resists critical
+        ///     hits harder than the attacker hits them takes the usual damage and never less, so a
+        ///     critical hit is never worse than a plain one
         /// </summary>
         /// <param name="offense">Characteristics of the attacker</param>
         /// <param name="defense">Characteristics of the target</param>
-        /// <param name="channel">Way the swing goes through, the answer of GetAttackChannel</param>
-        public static int GetAttackPower(CombatSnapshot offense, CombatSnapshot defense, AttackChannel channel)
+        /// <param name="damage">Damage of the same swing without the critical hit</param>
+        private static int GetCriticalDamage(CombatSnapshot offense, CombatSnapshot defense, int damage)
         {
-            int power;
+            int critical = damage * CriticalDamageMultiplier + offense.AddDDWhenCritical - defense.SubDDWhenCritical;
 
-            switch (channel)
-            {
-                case AttackChannel.Range:
-                    power = offense.RDv - defense.RPv;
-                    break;
-                case AttackChannel.Magic:
-                    power = offense.MDv - defense.MPv;
-                    break;
-                default:
-                    power = offense.DDv - defense.DPv;
-                    break;
-            }
-
-            return power > 0 ? power : 0;
+            return critical > damage ? critical : damage;
         }
 
         /// <summary>
-        ///     Roll of the weapon of the attacker, MinD to MaxD inclusive. A critical hit takes the
-        ///     top of the weapon without a draw, the way the draft took the top attack values on a
-        ///     critical hit
+        ///     How much of the armour of the target the swing loses: half of it, and the odd point of
+        ///     an odd armour by a draw. The draw is made on every swing that landed, whether the
+        ///     armour is odd or not, so the order of the draws does not depend on the numbers of the
+        ///     target
         /// </summary>
-        /// <param name="offense">Characteristics of the attacker</param>
-        /// <param name="isCritical">Whether the swing is a critical hit</param>
-        /// <param name="random">Source of the roll</param>
-        private static int GetWeaponDamage(CombatSnapshot offense, bool isCritical, Random random)
+        /// <param name="armor">Armour of the target on the way the swing goes through</param>
+        /// <param name="random">Source of the draw of the odd point</param>
+        private static int GetArmorTaken(int armor, Random random)
         {
-            int minDamage = offense.MinD > 0 ? offense.MinD : 0;
-            int maxDamage = offense.MaxD > minDamage ? offense.MaxD : minDamage;
-
-            if (isCritical || minDamage == maxDamage)
-            {
-                return maxDamage;
-            }
-
-            return random.Next(minDamage, maxDamage + 1);
-        }
-
-        /// <summary>
-        ///     What a critical hit adds on top of the usual damage: what the attacker adds to its
-        ///     critical hits minus what the target takes off them. A target that resists critical
-        ///     hits harder than the attacker hits them takes the usual damage and not less
-        /// </summary>
-        /// <param name="offense">Characteristics of the attacker</param>
-        /// <param name="defense">Characteristics of the target</param>
-        private static int GetCriticalDamage(CombatSnapshot offense, CombatSnapshot defense)
-        {
-            int damage = offense.AddDDWhenCritical - defense.SubDDWhenCritical;
-
-            return damage > 0 ? damage : 0;
+            return armor / ArmorDivider + random.Next(ArmorOddRollRange) * (armor % ArmorDivider);
         }
     }
 }

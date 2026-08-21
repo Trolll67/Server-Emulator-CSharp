@@ -127,10 +127,15 @@ namespace Database.DataModel.Models
             ItemEquipTypeEnum equipTypeEnum = ItemEquipTypeEnum.NotEquipped;
             switch (this.Type)
             {
+                // Every weapon goes to the hand of the weapon, the bow and the spear included
                 case ItemTypeEnum.Weapon:
+                case ItemTypeEnum.Bow:
+                case ItemTypeEnum.Spear:
                     equipTypeEnum = ItemEquipTypeEnum.Weapon;
                     break;
+                // Arrows are worn the way a shield is - in the other hand
                 case ItemTypeEnum.Shield:
+                case ItemTypeEnum.Arrow:
                     equipTypeEnum = ItemEquipTypeEnum.Shield;
                     break;
                 case ItemTypeEnum.Armor:
@@ -156,9 +161,6 @@ namespace Database.DataModel.Models
                     break;
                 case ItemTypeEnum.Cloak:
                     equipTypeEnum = ItemEquipTypeEnum.Cloak;
-                    break;
-                case ItemTypeEnum.Arrow:
-                    equipTypeEnum = ItemEquipTypeEnum.Shield;
                     break;
                 case ItemTypeEnum.ExpertnessMaterial:
                     equipTypeEnum = ItemEquipTypeEnum.ExpertnessMaterial;

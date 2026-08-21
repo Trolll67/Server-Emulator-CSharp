@@ -184,8 +184,8 @@ namespace Server.Game.Services.Game
             }
 
             // The attacker plays the swing itself, the neighbours are the ones who see it happen.
-            // HpAttacked carries what is left of the hp of the monster (A3)
-            short hpAttacked = GetHpAttacked(hp);
+            // HpAttacked carries the hp of the monster as a percent, not as an absolute value
+            short hpAttacked = GetHpAttacked(hp, target.ParmMon.Hp);
 
             _attackFactory.SendAttacked(client, client.Pc.UniqueId, target.UniqueId, result.TypeHit, client.Pc.PositionCur, hpAttacked);
 
@@ -305,23 +305,27 @@ namespace Server.Game.Services.Game
         }
 
         /// <summary>
-        ///     Hp of the monster the way 5132 carries it: a short, so a monster with an hp bigger than a
-        ///     short can hold does not wrap around into a negative one on the way to the client
+        ///     Hp of the monster the way 5132 carries it: a percent of the full hp, from 0 to 100.
+        ///     The client draws the bar of the target as fifteen segments of that percent, so an
+        ///     absolute hp would keep the bar full until the monster drops under a hundred points.
+        ///     The percent is built the same way the packets that show a monster build it, see
+        ///     VisibleFactory.GetHpPercent
         /// </summary>
         /// <param name="hp">Current hp of the monster</param>
-        private static short GetHpAttacked(int hp)
+        /// <param name="maxHp">Full hp of the monster, from the parameter table</param>
+        private static short GetHpAttacked(int hp, short maxHp)
         {
-            if (hp <= 0)
+            if (hp <= 0 || maxHp <= 0)
             {
                 return 0;
             }
 
-            if (hp > short.MaxValue)
+            if (hp >= maxHp)
             {
-                return short.MaxValue;
+                return 100;
             }
 
-            return (short)hp;
+            return (short)(hp * 100 / maxHp);
         }
     }
 }

@@ -38,6 +38,11 @@ namespace Server.Game.Services.Game
         /// </summary>
         public const int MinimumAttackRateMilliseconds = 500;
 
+        /// <summary>
+        ///     Hp the packet carries for a target whose hp must not be shown to the client
+        /// </summary>
+        private const short HpHidden = -1;
+
         private readonly IAttackFactory _attackFactory;
         private readonly AttackSystem _attackSystem;
         private readonly ExpSystem _expSystem;
@@ -185,7 +190,7 @@ namespace Server.Game.Services.Game
 
             // The attacker plays the swing itself, the neighbours are the ones who see it happen.
             // HpAttacked carries the hp of the monster as a percent, not as an absolute value
-            short hpAttacked = GetHpAttacked(hp, target.ParmMon.Hp);
+            short hpAttacked = GetHpAttacked(target, hp);
 
             _attackFactory.SendAttacked(client, client.Pc.UniqueId, target.UniqueId, result.TypeHit, client.Pc.PositionCur, hpAttacked);
 
@@ -305,21 +310,32 @@ namespace Server.Game.Services.Game
         }
 
         /// <summary>
-        ///     Hp of the monster the way 5132 carries it: a percent of the full hp, from 0 to 100.
-        ///     The client draws the bar of the target as fifteen segments of that percent, so an
-        ///     absolute hp would keep the bar full until the monster drops under a hundred points.
-        ///     The percent is built the same way the packets that show a monster build it, see
-        ///     VisibleFactory.GetHpPercent
+        ///     Hp of the target the way 5132 carries it: a percent of the full hp, not an absolute
+        ///     value. The client draws the bar of the target as fifteen segments of that percent, so
+        ///     an absolute hp would keep the bar full until the target drops under a hundred points -
+        ///     and a monster of the first levels carries tens of thousands of them.
+        ///     A target whose hp must stay hidden - a monster whose parameter row has the flag off -
+        ///     gets <see cref="HpHidden"/> instead of a number, and a target that is already down
+        ///     gets a zero
         /// </summary>
-        /// <param name="hp">Current hp of the monster</param>
-        /// <param name="maxHp">Full hp of the monster, from the parameter table</param>
-        private static short GetHpAttacked(int hp, short maxHp)
+        /// <param name="target">Target of the swing</param>
+        /// <param name="hp">Current hp of the target</param>
+        private static short GetHpAttacked(GMonster target, int hp)
         {
+            if (!target.ParmMon.IsShowHp)
+            {
+                return HpHidden;
+            }
+
+            short maxHp = target.Ability.MaxHp;
+
             if (hp <= 0 || maxHp <= 0)
             {
                 return 0;
             }
 
+            // The full bar is fifteen segments of a percent, so anything above a hundred draws the
+            // same way; the value is held there to keep an overhealed target off a broken bar
             if (hp >= maxHp)
             {
                 return 100;

@@ -9,9 +9,9 @@ namespace Server.Game.Core.Factories
         /// <summary>
         ///     5189: an accepted move of a character. Everything comes from the state of the mover
         ///     the server already applied, the position of the request itself is never repeated.
-        ///     The packet is meant for the neighbours of the mover - the mover walks on its own side
-        ///     and is only told when the server refuses the move - so the caller is the one who
-        ///     leaves it out of the receivers
+        ///     The packet goes to everyone who sees the move, the mover included: the neighbours
+        ///     walk the character on their side, and the mover gets the answer to its own request.
+        ///     There is no rule that leaves the initiator out of the receivers
         /// </summary>
         /// <param name="clientTo">Session the packet is sent to</param>
         /// <param name="clientFrom">Session of the character that moved</param>
@@ -38,9 +38,8 @@ namespace Server.Game.Core.Factories
 
         /// <summary>
         ///     5326: a refused move, the character is put back to the position the server holds.
-        ///     Unlike 5189 this packet is not hidden from the character that asked to move -
-        ///     stopping it is the whole point - so the caller sends it to the neighbours and to
-        ///     the mover itself
+        ///     Like 5189 it goes to the neighbours and to the character that asked to move -
+        ///     stopping that one is the whole point of the packet
         /// </summary>
         /// <param name="clientTo">Session the packet is sent to</param>
         /// <param name="clientFrom">Session of the character that was stopped</param>

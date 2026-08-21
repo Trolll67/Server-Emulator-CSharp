@@ -116,8 +116,13 @@ namespace Server.Game.Core.Handlers
                 client.Pc.AttackedUniqueIdentifier = null;
             }
 
-            // The mover itself is left out on purpose: it walks on its own side and waits only to be
-            // stopped, an echo of its own move makes it jump back and forth
+            // The confirmation goes to everyone who sees the move, the mover among them: the
+            // original does not leave the initiator out, and its client expects the answer to its
+            // own request. A second copy is impossible - the list of visible characters is built
+            // without the owner of the list (VisibleGameService.VisibleConnections), so the direct
+            // send below is the only one the mover gets
+            _characterActionFactory.SendMovedCharacters(client, client);
+
             foreach (var visibleCharacterGame in client.Pc.VisibleCharacterGames)
             {
                 _characterActionFactory.SendMovedCharacters(visibleCharacterGame, client);
@@ -300,7 +305,7 @@ namespace Server.Game.Core.Handlers
                     client.Pc.Simple.PcNo, moveResult, distanceSq, positionFrom, positionTo);
             }
 
-            // Unlike the accepted move, the refusal is not hidden from the mover: stopping it is the
+            // The refusal goes to the mover as well as to its neighbours: stopping the mover is the
             // whole point of the packet, and with a full rollback nothing else is sent to it
             _characterActionFactory.SendStopMoveCharacter(client, client, flag);
 

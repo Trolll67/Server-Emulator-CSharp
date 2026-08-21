@@ -23,6 +23,12 @@ namespace Server.Game.Services.GameServices
         /// </summary>
         private const int TickIntervalMilliseconds = 100;
 
+        /// <summary>
+        ///     How many objects one packet of the appeared ones carries. The original keeps an array
+        ///     of exactly this many blocks in the packet, so a longer list has to be cut into several
+        /// </summary>
+        private const int PublicBlocksPerPacket = 45;
+
         private readonly GameSetting _gameSetting;
         private readonly IVisibleFactory _visibleFactory;
         private readonly IdentificationService _identificationService;
@@ -86,10 +92,11 @@ namespace Server.Game.Services.GameServices
                     // Get appear connections
                     var appearConnections = lastVisibleConnections.Except(connection.Pc.VisibleCharacterGames);
 
-                    var count = appearConnections.Count() % 45;
-                    for (int i = 0; i < count; i++)
+                    var appearConnectionList = appearConnections.ToList();
+
+                    for (int i = 0; i < GetPacketCount(appearConnectionList.Count); i++)
                     {
-                        _visibleFactory.SendDisplayedCharacters(appearConnections.Skip(i * 45).Take(45).ToList(), connection);
+                        _visibleFactory.SendDisplayedCharacters(appearConnectionList.Skip(i * PublicBlocksPerPacket).Take(PublicBlocksPerPacket).ToList(), connection);
                     }
 
                     // Get disappear connections
@@ -146,10 +153,11 @@ namespace Server.Game.Services.GameServices
                     // Get appear items
                     var appearItems = lastVisibleItems.Except(connection.Pc.VisibleItemGames);
 
-                    var count = appearItems.Count() % 45;
-                    for (int i = 0; i < count; i++)
+                    var appearItemList = appearItems.ToList();
+
+                    for (int i = 0; i < GetPacketCount(appearItemList.Count); i++)
                     {
-                        _visibleFactory.SendDisplayedItems(connection, appearItems.Skip(i * 45).Take(45).ToList());
+                        _visibleFactory.SendDisplayedItems(connection, appearItemList.Skip(i * PublicBlocksPerPacket).Take(PublicBlocksPerPacket).ToList());
                     }
 
                     // Get disappear items
@@ -215,10 +223,11 @@ namespace Server.Game.Services.GameServices
                     // Get appear units
                     var appearUnits = lastVisibleUnits.Except(connection.Pc.VisibleUnitGames);
 
-                    var count = appearUnits.Count() % 45;
-                    for (int i = 0; i < count; i++)
+                    var appearUnitList = appearUnits.ToList();
+
+                    for (int i = 0; i < GetPacketCount(appearUnitList.Count); i++)
                     {
-                        _visibleFactory.SendDisplayedUnit(connection, appearUnits.Skip(i * 45).Take(45).ToList());
+                        _visibleFactory.SendDisplayedUnit(connection, appearUnitList.Skip(i * PublicBlocksPerPacket).Take(PublicBlocksPerPacket).ToList());
                     }
 
                     // Get disappear units
@@ -255,5 +264,17 @@ namespace Server.Game.Services.GameServices
                 _logger.LogError(ex, "Can not update visible units");
             }
         }
+
+        /// <summary>
+        ///     How many packets a list of the given length takes. A remainder of the division used to
+        ///     stand here instead, and it both lost every full packet (a round forty five objects gave
+        ///     no packet at all) and sent empty ones for a list shorter than one packet
+        /// </summary>
+        /// <param name="count">How many objects have appeared</param>
+        private static int GetPacketCount(int count)
+        {
+            return (count + PublicBlocksPerPacket - 1) / PublicBlocksPerPacket;
+        }
+
     }
 }

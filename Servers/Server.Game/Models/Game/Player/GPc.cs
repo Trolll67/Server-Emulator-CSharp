@@ -282,6 +282,11 @@ namespace Server.Game.Models.Game
 
         public new void CalcAbility()
         {
+            // Everything below is summed over a cleared ability: the bonuses of the worn items go
+            // in with +=, so a second call - a level up, a change of the equipment - has to give
+            // the same numbers as the first one instead of doubling them
+            Ability.Reset();
+
             Ability.Str = Simple.CalcStr();
             Ability.Dex = Simple.CalcDex();
             Ability.Int = Simple.CalcInt();
@@ -333,20 +338,29 @@ namespace Server.Game.Models.Game
                 Ability.MpRegen += item.MpRegen;
                 addHpByItem += item.HpPlus;
                 addMpByItem += item.Mpplus;
+
+                // Damage of the character off the equipment: the flat part of the dice of every
+                // worn item goes into the damage of its own way. The item that is itself the weapon
+                // of that way is left out - a weapon in the hand puts its flat part into the roll
+                // it makes on every swing, and taking it here as well would count it twice
+                // TODO a blessed melee weapon gives one point of critical on top of that; the
+                // status of a worn item is read nowhere yet
+                if (!item.IsMeleeWeapon)
+                {
+                    Ability.DDD += (short)item.DDdDice.Plus;
+                }
+
+                if (!item.IsRangeWeapon)
+                {
+                    Ability.RDD += (short)item.RDdDice.Plus;
+                }
+
+                if (!item.IsMagicWeapon)
+                {
+                    Ability.MDD += (short)item.MDdDice.Plus;
+                }
+
                 #region TODO
-                //if (item.IsMeleeWeapon(item))
-                //{
-                //    if (item.IsAttackable(item) && v4.__List[0].mStatus == eItemStatusBless)
-                //        ++this._mAbility.mCriticalHit;
-                //}
-                //else
-                //{
-                //    this._mAbility.mDDD += item.__mDDd.__mZ;
-                //}
-                //if (!FnlApp::CParmItemSmall::IsRange(item))
-                //    this._mAbility.mRDD += item.__mRDd.__mZ;
-                //if (item.__mTevel.__mMem.mType != 12)
-                //    this._mAbility.mMDD += item.__mMDd.__mZ;
                 //CPc::__EquipPanaltyAbility(this, item.__mParmNo);
                 //v7 = item.__mSlain;
                 //v8 = (__int64) & item.__mSlain[item.__mSlainCnt];
@@ -434,6 +448,18 @@ namespace Server.Game.Models.Game
                 //}
                 #endregion
             }
+
+            // The item in the weapon slot is what the character swings with: its dice, its accuracy
+            // and the way a swing goes through are read off WeaponEquip on every hit. An empty slot
+            // clears the field and the swing falls back to the default weapon of the class.
+            // The slot an item is worn in (EquipPos) is filled by nothing on the way a character is
+            // loaded, so the slot the item type belongs to is taken when it is missing
+            var weaponEquip = Equip.FirstOrDefault(x =>
+                (x.Item.EquipPos ?? x.Item.EquipType) == ItemEquipTypeEnum.Weapon);
+
+            Weapon = weaponEquip?.Item;
+            WeaponEquip = weaponEquip?.Item.CreateWeapon();
+
             /*LOWORD(v19) = this->_mAbInf.__mArray[213].__mBusySlot;
             if ((unsigned __int16)v19 <= 0x15u )
             {

@@ -119,11 +119,9 @@ namespace Server.Game.Services
                 pc.Equip.Add(equip);
             }
 
-            // The ability is built last, over the parm and the worn equipment: it sums the bonuses of
-            // the items with +=, so the equipment has to be in place. Reset before the call for the
-            // same reason as in ExpSystem: GPc.CalcAbility, unlike GChar.CalcAbility, does not clear
-            // the ability itself and a second call would double the bonuses
-            pc.Ability.Reset();
+            // The ability is built last, over the parm and the worn equipment: it sums the bonuses
+            // of the items, so the equipment has to be in place before the call. Clearing the
+            // ability is the job of CalcAbility itself, so calling it twice does not double them
             pc.CalcAbility();
 
             //TODO Добавить в бд pc направление взгляда

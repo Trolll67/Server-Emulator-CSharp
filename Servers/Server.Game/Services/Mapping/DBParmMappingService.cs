@@ -1,5 +1,4 @@
-﻿using Database.DataModel.Enums;
-using Database.DataModel.Models;
+﻿using Database.DataModel.Models;
 using Database.Fnl.Parm;
 using Packets.Server.Game.Structures;
 using Server.Game.Models.Game;
@@ -102,6 +101,8 @@ namespace Server.Game.Services
             itemGame.Id = item.Id;
 
             itemGame.Type = item.Type;
+            // The slot an item type belongs to is decided by Item.GetEquipType and nowhere else:
+            // this mapper used to keep a second copy of the same layout, and the two drifted apart
             itemGame.EquipType = item.GetEquipType();
             itemGame.Name = item.Name;
 
@@ -113,20 +114,19 @@ namespace Server.Game.Services
             itemGame.MPv = item.MPv;
             itemGame.RPv = item.RPv;
 
-            var ddd = GetDdFromSting(item.DDd);
+            // The three damage strings of the row turn into three sets of dice as they are - the
+            // count of the dice, the faces and the flat addition. The parsing lives on the item
+            // model itself, because the other way a worn item is built (GItem out of the parm row,
+            // DBGameMappingService) never goes through this mapper and would otherwise be left
+            // without dice
             itemGame.DHit = item.DHit;
-            itemGame.DDdMin = ddd[0];
-            itemGame.DDdMax = ddd[1];
+            itemGame.DDdDice = GItem.ParseDice(item.DDd);
 
-            var rdd = GetDdFromSting(item.RDd);
             itemGame.RHit = item.RHit;
-            itemGame.RDdMin = rdd[0];
-            itemGame.RDdMax = rdd[1];
+            itemGame.RDdDice = GItem.ParseDice(item.RDd);
 
-            var mdd = GetDdFromSting(item.MDd);
             itemGame.MHit = item.MHit;
-            itemGame.MDdMin = mdd[0];
-            itemGame.MDdMax = mdd[1];
+            itemGame.MDdDice = GItem.ParseDice(item.MDd);
 
             itemGame.Critical = item.Critical;
             itemGame.EnemySubCriticalHit = item.EnemySubCriticalHit;
@@ -334,92 +334,5 @@ namespace Server.Game.Services
         //    unitSaleGame.Price = unitSaleBalance.Price;
         //}
         #endregion
-
-        private ItemEquipTypeEnum? MapEquipType(ItemTypeEnum type)
-        {
-            ItemEquipTypeEnum? equipType = null;
-            switch (type)
-            {
-                case ItemTypeEnum.Weapon:
-                    equipType = ItemEquipTypeEnum.Weapon;
-                    break;
-                case ItemTypeEnum.Shield:
-                    equipType = ItemEquipTypeEnum.Shield;
-                    break;
-                case ItemTypeEnum.Armor:
-                    equipType = ItemEquipTypeEnum.Armor;
-                    break;
-                case ItemTypeEnum.Ring:
-                    equipType = ItemEquipTypeEnum.Ring1;
-                    break;
-                case ItemTypeEnum.Amulet:
-                    equipType = ItemEquipTypeEnum.Amulet;
-                    break;
-                case ItemTypeEnum.Boot:
-                    equipType = ItemEquipTypeEnum.Boot;
-                    break;
-                case ItemTypeEnum.Glove:
-                    equipType = ItemEquipTypeEnum.Glove;
-                    break;
-                case ItemTypeEnum.Cap:
-                    equipType = ItemEquipTypeEnum.Cap;
-                    break;
-                case ItemTypeEnum.Belt:
-                    equipType = ItemEquipTypeEnum.Belt;
-                    break;
-                case ItemTypeEnum.Cloak:
-                    equipType = ItemEquipTypeEnum.Cloak;
-                    break;
-                case ItemTypeEnum.Arrow:
-                    equipType = ItemEquipTypeEnum.Shield;
-                    break;
-                case ItemTypeEnum.ExpertnessMaterial:
-                    equipType = ItemEquipTypeEnum.ExpertnessMaterial;
-                    break;
-                case ItemTypeEnum.SoulMaterial:
-                    equipType = ItemEquipTypeEnum.SoulMaterial;
-                    break;
-                case ItemTypeEnum.DefenseMaterial:
-                    equipType = ItemEquipTypeEnum.DefenseMaterial;
-                    break;
-                case ItemTypeEnum.AttackMaterial:
-                    equipType = ItemEquipTypeEnum.AttackMaterial;
-                    break;
-                case ItemTypeEnum.LifeMaterial:
-                    equipType = ItemEquipTypeEnum.LifeMaterial;
-                    break;
-                case ItemTypeEnum.EventAMaterial:
-                    equipType = ItemEquipTypeEnum.EventAMaterial;
-                    break;
-                case ItemTypeEnum.EventBMaterial:
-                    equipType = ItemEquipTypeEnum.EventBMaterial;
-                    break;
-                case ItemTypeEnum.EventCMaterial:
-                    equipType = ItemEquipTypeEnum.EventCMaterial;
-                    break;
-                case ItemTypeEnum.Servant:
-                    equipType = ItemEquipTypeEnum.Servant;
-                    break;
-                default:
-                    break;
-            }
-
-            return equipType;
-        }
-
-        private int[] GetDdFromSting(string dd)
-        {
-            var d = dd.ToLower().Split('d', '+');
-            var ddd = new int[3];
-
-            ddd[0] = int.Parse(d[0]);
-            ddd[1] = int.Parse(d[1]);
-            ddd[2] = int.Parse(d[2]);
-
-            ddd[0] = ddd[0] + ddd[2];
-            ddd[1] = ddd[1] + ddd[2];
-
-            return new int[2] { ddd[0], ddd[1] };
-        }
     }
 }

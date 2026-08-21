@@ -89,9 +89,9 @@ namespace Server.Game.Models.Game
         public const int ItemTypeMeleeWeapon = 1;
 
         /// <summary>
-        ///     Item type of a range weapon, the only type that puts a swing on the range way. The
-        ///     name of the same number in ItemTypeEnum does not say so, and the enumeration is left
-        ///     alone on purpose - the way a swing goes through is decided here and nowhere else
+        ///     Item type of a range weapon, the only type that puts a swing on the range way.
+        ///     The same number is named in ItemTypeEnum, and the two are kept in step by hand:
+        ///     the way a swing goes through is decided here and nowhere else
         /// </summary>
         public const int ItemTypeRangeWeapon = 18;
 
@@ -138,8 +138,8 @@ namespace Server.Game.Models.Game
 
         /// <summary>
         ///     Whether an item of this type puts a swing on the range way. Asked of the numeric
-        ///     item type and not of the enumeration, because the names in the enumeration do not
-        ///     match the numbers the item table gives to weapons
+        ///     item type so that the combat code does not depend on the data model enumeration;
+        ///     the numbers themselves are the ones the item table gives to weapons
         /// </summary>
         /// <param name="itemType">Numeric item type of the item in the hand</param>
         public static bool IsRangeType(int itemType)

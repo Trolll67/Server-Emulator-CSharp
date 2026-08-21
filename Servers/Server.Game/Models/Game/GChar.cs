@@ -16,12 +16,27 @@ namespace Server.Game.Models.Game
             Detail = new GPcDetail();
             Ability = new GPcAbility();
             Simple = new GPcSimple();
+            // A character always holds something: until the parm row is read the default weapon is
+            // an empty one, so a swing rolls a zero instead of falling over a missing weapon
+            WeaponDef = new GWeapon();
             //ParmMon = new ParmMonster();
             //ParmMonCur = new ParmMonster();
         }
         public float _DistAttack { get; set; }
 
         public GItem Weapon { get; set; }
+
+        /// <summary>
+        ///     Default weapon, built out of the parm row of the character. A monster hits with it
+        ///     always, a player hits with it while the weapon slot is empty
+        /// </summary>
+        public GWeapon WeaponDef { get; private set; }
+
+        /// <summary>
+        ///     Combat properties of the item in the weapon slot, filled next to Weapon by the
+        ///     calculation of the characteristics. Empty means an empty hand
+        /// </summary>
+        public GWeapon WeaponEquip { get; set; }
         public GPcDetail Detail { get; set; }
         public GPcAbility Ability { get; set; }
         public GPcSimple Simple { get; set; }
@@ -123,6 +138,17 @@ namespace Server.Game.Models.Game
         private void Attack(GChar target)
         {
 
+        }
+
+        /// <summary>
+        ///     Weapon in the hand: the equipped one when there is one, the default one otherwise.
+        ///     Everything a swing asks of a weapon - the dice, the accuracy, the way it goes
+        ///     through - is asked of the answer of this one, so an unarmed character needs no
+        ///     special case anywhere else
+        /// </summary>
+        public GWeapon GetWeaponInHand()
+        {
+            return WeaponEquip ?? WeaponDef;
         }
 
         public void CalcSpeed()
@@ -233,7 +259,10 @@ namespace Server.Game.Models.Game
 
             if (ParmMon == ParmMonCur)
             {
-                //FnlApp::CParmItem::SetDefWeapon(&this->_mWeaponDef, v55->__mDistMelee, v55->__mHit, v55->__mMinD, v55->__mMaxD);
+                // The default weapon is rebuilt out of the current parm row: the accuracy and the
+                // damage spread of the row are everything it takes. The row of a player class is
+                // shaped the same way as the row of a monster, so one place covers both
+                WeaponDef = GWeapon.CreateDefault(ParmMonCur.Hit, ParmMonCur.MinD, ParmMonCur.MaxD);
 
                 if (ParmMon.GbjClass == GbjClassEnum.Mon)
                 {

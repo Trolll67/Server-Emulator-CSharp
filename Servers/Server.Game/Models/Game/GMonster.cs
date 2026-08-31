@@ -40,10 +40,8 @@ namespace Server.Game.Models.Game
         public const short HpHidden = -1;
 
         public List<GDropGroup> DropGroup { get; set; }
-        //FnlApi::CArrayEx<FnlApp::CGoods,10> __mStomach;
-        //FnlApi::CArrayEx<CAgroHistory,4> __mAgroList;
-        //FnlApi::CFlag<9, unsigned char> __mMonFlag;
-        //unsigned int __mTickLastDie;
+        // TODO: the monster does not yet keep its stomach, its aggro history, its flags
+        // and the time of its last death
 
         public int Respawn { get; set; }
         public Vector3 PositionDefault { get; set; }

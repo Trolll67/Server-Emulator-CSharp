@@ -176,75 +176,11 @@ namespace Server.Game.Models.Game
         #endregion
 
         #region TODO
-        //CPersonalShop MyPShop;
-        //wchar_t MacroStr[11];
-        //ENeedMoney NeedMoney;
-        //FnlApp::CInvenObj Inven;
-        //FnlApp::CPcEquip Equip;
-        //FnlApi::CArrayEx<CAgroHistory,4> AgroList;
-        //FnlApp::CPcTeleport Teleport;
-        //CExchange Exchange;
-        //std::multimap<unsigned long,CFriend> Friend;
-        //std::multimap<unsigned long,CChatFilter> ChatFilter;
-        //CScriptObj Script;
-        //FnlApp::CVector SpdHackPos;
-        //CAdminInfo AdminInfo;
-        //FnlApi::CTime NeedMoneyEndOrStxTm;
-        //CPc::<unnamed_type_NeedMoneyInfo> NeedMoneyInfo;
-        //ESpecialEffectLevel SpecialEffectLevel;
-        //ESpecialEffectType SpecialEffectType;
-        //CCSAuth2 mSecurityInfo;
-        //FnlApi::CLocker mLockerScript;
-        //std::map<unsigned short,unsigned long> mTrProcTickList;
-        //FnlApi::CTime LoginTime;
-        //FnlFw::CUnique MacroAdmin;
-        //EAddictionState PreventAddictionState;
-        //SGoldItemEffectStatus ChargeItemInfo[16];
-        //FnlApp::CPcSetItemEquip SetEquip;
-        //FnlApi::CFlag<257,unsigned short> PcFlag;
-        //FnlApp::CVector TeamBattleEnterPos;
-        //FnlApp::CPcSummon Summons;
-        //SChaosRankingPoint RankingPoint;
-        //FnlApi::CHashMap<int,FnlApi::CHashMap<int,unsigned char> > CAbCntMap;
-        //FnlFw::CUnique OreadTotem;
-        //CSpdHackChecker SpdHackChk;
-        //FnlApi::CArrayCircular<FnlFw::CBullet> SerializeQueue;
-        //FnlApi::CAuthAcquire SerializeQueueAcquire;
-        //FnlFw::CUnique TalkingNpc;
-        //FnlApp::EUTGWMatchGroup UTGWGroupInfo;
-        //FnlApp::CPrivateSerialGenerator SerialGenerator;
-        //CSkillTreeInven SkillTreeInven;
-        //CSkillPackInven SkillPackInven;
-        //CPassiveAbInflame PassiveAbInflame;
-        //CSkillParmModifier SkillParmModifier;
-        //CPcAbilityModifier PcAbilityModifier;
-        //EAccountingType AccountingType;
-        //CCnsmInfo CnsmInfo;
-        //FnlApp::CBeadInven BeadInven;
-        //FnlApp::CBeadEquip BeadEquip;
-        //CActiveBead ActiveBead;
-        //std::deque<unsigned short> CheckAutoStomach;
-        //std::map<unsigned __int64,int> StoreItemIDList;
-        //std::map<unsigned __int64,int> GuildStoreItemIDList;
-        //FnlApp::CVector FreeVector;
-        //CAchievementMgr AchievementMgr;
-        //NAchieve::SAbility AchieveBaseAbility;
-        //NAchieve::SAbility AchieveTransformAbility;
-        //std::set<int> QuestMakingProc;
-        //FnlApi::CHashMap<int,CPc::SQuestMaking> QuestMakingInfo;
-        //ELimitPlayState LimitPlayState;
-        //FnlApi::CTime LimitCheckTime;
-        //std::set<int> RegionQuestProc;
-        //FnlApp::CServantInvenObj ServantInven;
-        //FnlApi::CHashMap<unsigned __int64,CSkillTreeInven> ServantSkillTreeInvenList;
-        //FnlApi::CHashMap<unsigned __int64,CSkillPackInven> ServantSkillPackInvenList;
-        //FnlApp::CServantItem *ServantItem;
-        //CSkillTreeInven *ServantSkillTreeInven;
-        //CSkillPackInven *ServantSkillPackInven;
-        //FnlApp::CServantSubInven ServantSubInven;
-        //FnlApp::CServantGatheringInfo ServantGatheringInfo;
-        //_SYSTEMTIME ArenaPanaltyTm;
-        //CPc::CStorePassword StorePassword;
+        // Subsystems of the character the model does not carry yet: personal shop, macros,
+        // inventory and equipment as live objects, aggro history, teleports, exchange,
+        // friends and chat filters, admin state, set-item bonuses, summons and servants,
+        // skill trees, beads, achievements, quests, arena and ranking state. Each of them
+        // arrives together with the mechanic that needs it
         #endregion
 
         public ErrorEnum EquipItem(ulong serialNo)
@@ -254,17 +190,8 @@ namespace Server.Game.Models.Game
                 return ErrorEnum.CharAlreadyDie;
             }
 
-            //if (this->_mModInf.__mArray[13].mCnt && this->_mModInf.__mArray[13].mTickStx + 10000 < v6)
-            //{
-            //    v5 = eErrNoCharParalyzed_104;
-            //    goto LABEL_121;
-            //}
-
-            //if (this->_mModInf.__mArray[50].mCnt)
-            //{
-            //    v5 = eErrNoCharSwoon_104;
-            //    goto LABEL_121;
-            //}
+            // TODO: a paralyzed or stunned character refuses to use an item with its own
+            // error code - waits for abnormal states
 
             var item = Inventory.Items.FirstOrDefault(x => x.SerialNumber == serialNo);
             if (item == null)
@@ -360,93 +287,9 @@ namespace Server.Game.Models.Game
                     Ability.MDD += (short)item.MDdDice.Plus;
                 }
 
-                #region TODO
-                //CPc::__EquipPanaltyAbility(this, item.__mParmNo);
-                //v7 = item.__mSlain;
-                //v8 = (__int64) & item.__mSlain[item.__mSlainCnt];
-                //if (v6 != (FnlApp::CParmItem*)-936i64 && v7 != (const FnlApp::CParmSlain**)v8 )
-                //{
-                //    do
-                //    {
-                //        if (*v7)
-                //            FnlApp::CPcAbility::ChangeSlain(&this->_mAbility, *v7);
-                //        ++v7;
-                //    }
-                //    while (v7 != (const FnlApp::CParmSlain**)v8 );
-                //}
-                //v9 = v6->__mProtect;
-                //v10 = (__int64) & v6->__mProtect[v6->__mProtectCnt];
-                //if (v6 != (FnlApp::CParmItem*)-1024i64 && v9 != (const FnlApp::CParmProtect**)v10 )
-                //{
-                //    do
-                //    {
-                //        if (*v9)
-                //            FnlApp::CPcAbility::ChangeProtect(&this->_mAbility, *v9);
-                //        ++v9;
-                //    }
-                //    while (v9 != (const FnlApp::CParmProtect**)v10 );
-                //}
-                //v11 = v6->__mAttributeAdd;
-                //v12 = (__int64) & v6->__mAttributeAdd[v6->__mAttributeAddCnt];
-                //if (v6 != (FnlApp::CParmItem*)-760i64 && v11 != (const FnlApp::CParmAttribute**)v12 )
-                //{
-                //    do
-                //    {
-                //        if (*v11)
-                //            FnlApp::CPcAbility::ChangeAttrAdd(&this->_mAbility, *v11);
-                //        ++v11;
-                //    }
-                //    while (v11 != (const FnlApp::CParmAttribute**)v12 );
-                //}
-                //v13 = v6->__mAttributeResist;
-                //v14 = (__int64) & v6->__mAttributeResist[v6->__mAttributeResistCnt];
-                //if (v6 != (FnlApp::CParmItem*)-848i64 && v13 != (const FnlApp::CParmAttribute**)v14 )
-                //{
-                //    do
-                //    {
-                //        if (*v13)
-                //            FnlApp::CPcAbility::ChangeAttrResist(&this->_mAbility, *v13);
-                //        ++v13;
-                //    }
-                //    while (v13 != (const FnlApp::CParmAttribute**)v14 );
-                //}
-                //v15 = v6->__mAbnormalAdd;
-                //v16 = (__int64) & v6->__mAbnormalAdd[v6->__mAbnormalAddCnt];
-                //if (v6 != (FnlApp::CParmItem*)-1112i64 && v15 != (const FnlApp::CParmAbnormalAdd**)v16 )
-                //{
-                //    do
-                //    {
-                //        if (*v15)
-                //            FnlApp::CPcAbility::ChangeAbnAdd(&this->_mAbility, *v15);
-                //        ++v15;
-                //    }
-                //    while (v15 != (const FnlApp::CParmAbnormalAdd**)v16 );
-                //}
-                //v17 = v6->__mAbnormalResist;
-                //v18 = (__int64) & v6->__mAbnormalResist[v6->__mAbnormalResistCnt];
-                //if (v17)
-                //{
-                //    if (v17 == (const FnlApp::CParmAbnormalResist**)v18 )
-                //    {
-                //        itemsHp = v41;
-                //    }
-                //    else
-                //    {
-                //        do
-                //        {
-                //            if (*v17)
-                //                FnlApp::CPcAbility::ChangeAbnResist(&this->_mAbility, *v17);
-                //            ++v17;
-                //        }
-                //        while (v17 != (const FnlApp::CParmAbnormalResist**)v18 );
-                //        itemsHp = v41;
-                //    }
-                //}
-                //else
-                //{
-                //    itemsHp = v41;
-                //}
-                #endregion
+                // TODO: the rest of what a worn item gives is not applied yet - equip
+                // penalties, bonuses against a race, wards, elemental attack and resistance,
+                // inflicting and resisting abnormal states. Each waits for its mechanic
             }
 
             // The item in the weapon slot is what the character swings with: its dice, its accuracy
@@ -460,14 +303,7 @@ namespace Server.Game.Models.Game
             Weapon = weaponEquip?.Item;
             WeaponEquip = weaponEquip?.Item.CreateWeapon();
 
-            /*LOWORD(v19) = this->_mAbInf.__mArray[213].__mBusySlot;
-            if ((unsigned __int16)v19 <= 0x15u )
-            {
-                v19 = (__int16)v19;
-                v20 = (v19 & 0x8000u) != 0i64 ? &this->_mAbInf.__mArray[213].__mAbParm.__mArray[22] : &this->_mAbInf.__mArray[213].__mAbParm.__mArray[v19];
-                if (*v20)
-                    FnlApp::CPcAbility::ChangeAbnormal(&this->_mAbility);
-            }*/
+            // TODO: an abnormal state active on the character re-applies its ability change here
             Ability.DDv += AddDDV;
             Ability.MDv += AddMDV;
             Ability.RDv += AddRDV;
@@ -496,15 +332,11 @@ namespace Server.Game.Models.Game
             Ability.MPv += Ability.HidMPv;
             Ability.RPv += Ability.HidRPv;
             Ability.CriticalHit += (short)(AddCriticalHit + Ability.Dex / 10);
-            //pAddHpByItem = itemsHp + LOWORD(this->__mAchieveBaseAbility.mHP); TODO
-            if (ParmMon == ParmMonCur)
+            // TODO: achievement bonuses to max hp are not applied - neither the base ones nor
+            // the ones of the transformed shape
+            if (ParmMon != ParmMonCur)
             {
-                //if (this->_mAbInf.__mArray[18].__mAbParm.__mArray[20])
-                //    pAddHpByItem += this->__mAddTransformMaxHP + LOWORD(this->__mAchieveTransformAbility.mHP);
-            }
-            else
-            {
-                addHpByItem += AddTransformMaxHP; // + AchieveTransformAbility.HP); TODO
+                addHpByItem += AddTransformMaxHP;
             }
 
             CalcMaxHp(addHpByItem);
@@ -533,16 +365,8 @@ namespace Server.Game.Models.Game
 
                 Ability.MaxMp = (short)(addMpByItem + addTransMaxMp + Simple.Level + AddMp + 2 * (Ability.Int + 15));
             }
-            //TODO Ability.MaxMp += LOWORD(this->__mAchieveBaseAbility.mMP);
-            //if (ParmMon == ParmMonCur)
-            //{
-            //    //if (this->_mAbInf.__mArray[18].__mAbParm.__mArray[20])
-            //    //    pAddHpByItem += this->__mAddTransformMaxHP + LOWORD(this->__mAchieveTransformAbility.mHP);
-            //}
-            //else
-            //{
-            //    Ability.MaxMp += LOWORD(this->__mAchieveTransformAbility.mMP);
-            //}
+            // TODO: achievement bonuses to max mp are not applied - neither the base ones nor
+            // the ones of the transformed shape
 
             if (Simple.Level > 100u)
                 Ability.MaxMp += (short)(10 * (Simple.Level - 100));
@@ -668,9 +492,7 @@ namespace Server.Game.Models.Game
             if (Simple.Level > 100 )
                 maxWeight += 400 * (Simple.Level - 100);
 
-            // TODO
-            //if ( this->_mParmMon != this->_mParmMonCur || this->_mAbInf.__mArray[18].__mAbParm.__mArray[20] )
-            //  maxWeight += AchieveTransformAbility.WP;
+            // TODO: the achievement bonus of the transformed shape does not raise the weight cap yet
 
             Inventory.SetMaxWeight(maxWeight);
         }
@@ -705,22 +527,8 @@ namespace Server.Game.Models.Game
                 var v8 = 7 * Simple.Level;
                 Ability.MaxHp = (short)(addHpByItem + AddHp + v7 + v8 + 40);
             }
-            // ХЗ нужно ли делать
-            /*if (FnlFw::CParm::__mSingleton->__mSvrInfo == 1)
-            {
-                v9 = this->_mFlag.__mFlag;
-                if (!_bittest((const int*)&v9, 0xEu)
-                  && !_bittest((const int*)&v9, 0x13u)
-                  && !_bittest((const int*)&v9, 0x19u)
-                  && !_bittest((const int*)&v9, 0x1Au) )
-                {
-                    this->_mAbility.mMaxHp += 1500;
-                }
-            }
-            this->_mAbility.mMaxHp += this->__mInstAddMaxHP;
-            v10 = this->_mSimple.mLevel;
-            if (v10 > 0x64u)
-                this->_mAbility.mMaxHp += 25 * (v10 - 100);*/
+            // TODO: extras on top of max hp are not applied - a server-wide event bonus,
+            // instant modifiers and the growth past the level cap
         }
 
         public void CalcPvPHitRate(short strRate, short dexRate)

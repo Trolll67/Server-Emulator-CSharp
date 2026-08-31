@@ -59,7 +59,7 @@ namespace Server.Game.Services
             pc.Simple.SetStomach(detail.Stomach);
 
             pc.PositionCur = new Vector3(detail.PosX, detail.PosY, detail.PosZ);
-            // TODO GUILD __int64 __fastcall CPc::__FetchPcBase(CPc *this, unsigned int pPcNo)
+            // TODO: the guild of the character is not loaded yet
 
             pc.Detail = new GPcDetail();
             pc.Detail.SetChaotic(detail.Chaotic);

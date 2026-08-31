@@ -20,10 +20,9 @@ namespace Database.Fnl.Parm
 
         /// <summary>
         ///     Column ordinals of the dbo.UspGetFamilyEx result set.
-        ///     RTRIM([mMajorIp]) is selected twice: the original binds the first copy as the client
-        ///     address (__mPcIp) and the second one as the internal address (__mSvrIp), see
-        ///     FnlFw::CSqlParmSvr::__PrepareSelectFamily. In the shipped TblParmSvr both are mMajorIp,
-        ///     so only the first one is mapped
+        ///     RTRIM([mMajorIp]) is selected twice: the original binds the first copy as the
+        ///     client-facing address and the second one as the internal one. In the shipped
+        ///     TblParmSvr both come from the same column, so only the first one is mapped
         /// </summary>
         private const int FamilySvrNo = 0;
         private const int FamilyType = 1;

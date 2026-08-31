@@ -36,7 +36,7 @@ namespace Server.Game.Core.Factories
         {
             InformationCharacterModel informationCharactersModel = new InformationCharacterModel
             {
-                // Поле __mAuth пакета: клиент получает уровень доступа аккаунта из UspLoginUser
+                // Клиент получает уровень доступа аккаунта из UspLoginUser
                 Auth = client.Sessions?.UserAuth ?? 0
             };
 

@@ -9,7 +9,7 @@ namespace Database.Fnl.Account
     {
         /// <summary>
         ///     The Chinese variant is the one the original channel uses everywhere outside Korea:
-        ///     it prepares _KR only when CParm reports the country as Korea, and _CN in every other
+        ///     it prepares _KR only when the server config reports the country as Korea, and _CN in every other
         ///     case. _KR additionally requires TblUser.mAccountGuid, and on the live FNLAccount it is
         ///     zero for every row, so it would reject any login with eErrNoAuthInvalid. The base
         ///     UspCertifyUser is never called by the original at all

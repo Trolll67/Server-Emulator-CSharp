@@ -5,8 +5,8 @@ using Server.Game.Models.Settings;
 namespace Server.Game.Core.Systems
 {
     /// <summary>
-    ///     Outcome of a movement check. The values repeat the return codes of CPc::Ran so the
-    ///     answer of the original and the answer of this system can be compared as they are
+    ///     Outcome of a movement check. The values repeat the return codes of the original
+    ///     move check, so its answer and the answer of this system compare as they are
     /// </summary>
     public enum MoveResult
     {
@@ -30,10 +30,10 @@ namespace Server.Game.Core.Systems
     }
 
     /// <summary>
-    ///     Validation of a character move, after CMap::MovedFps and CPc::Ran of the original.
+    ///     Validation of a character move, after the two move checks of the original.
     ///     The system knows nothing about sessions and packets: it answers whether a move from one
     ///     position to another is allowed, and the caller decides what to send and what to apply.
-    ///     TODO: the sliding speed detector (CSpdHackChecker::AddPos/IsSpdHack, positions collected
+    ///     TODO: the sliding speed detector of the original (positions collected
     ///     over time and compared with the running speed, a teleport back to the last valid position
     ///     when it fires) is not ported yet; it reports its refusals as DistanceViolation.
     ///     The fields it needs are already on the character - GChar.SpdHackMaxDist, filled by
@@ -46,8 +46,8 @@ namespace Server.Game.Core.Systems
     public class MoveSystem
     {
         /// <summary>
-        ///     Hard limit of a single move. CMap::MovedFps compares the squared 2D distance with
-        ///     4 000 000, that is 2000 units, and this limit is not configurable in the original
+        ///     Hard limit of a single move. The original compares the squared 2D distance with
+        ///     4 000 000, that is 2000 units, and this limit is not configurable there
         /// </summary>
         public const float MaxDistancePerMove = 2000f;
 
@@ -94,13 +94,13 @@ namespace Server.Game.Core.Systems
                 return MoveResult.Forbidden;
             }
 
-            // CPc::Ran answers 0 at once when the position did not change: no side effects at all
+            // The original accepts at once when the position did not change: no side effects at all
             if (to.Equals(from))
             {
                 return MoveResult.Accepted;
             }
 
-            // CMap::MovedFps refuses a target outside the rectangle of the map
+            // A target outside the rectangle of the map is refused
             if (!IsInsideMap(mapNo, to))
             {
                 return MoveResult.DistanceViolation;
@@ -108,13 +108,13 @@ namespace Server.Game.Core.Systems
 
             float distanceSq = GetDistance2DSq(from, to);
 
-            // A jump across the map with one packet, the limit of CMap::MovedFps
+            // A jump across the map with one packet, the hard limit of the original
             if (distanceSq >= MaxDistancePerMove * MaxDistancePerMove)
             {
                 return MoveResult.DistanceViolation;
             }
 
-            // The threshold of one tick, the limit of CPc::Ran. With the default of 500 it is the
+            // The threshold of one tick, the second limit of the original. With the default of 500 it is the
             // stricter of the two and the limit above never fires on its own; with a configured
             // value above 2000 it is the other way round and this check becomes unreachable. Both
             // are kept to stay close to the original, where they live in different places and
@@ -160,12 +160,11 @@ namespace Server.Game.Core.Systems
         }
 
         /// <summary>
-        ///     Whether the way from one position to another is blocked. Extension point: the original
-        ///     answers it with CMap::IsNotMoveablePc and with the height revision, both over the
-        ///     collision volumes of the map, which the server does not have. Note that the original
-        ///     splits the answer - impassability is refused by CMap::MovedFps with code 3, the height
-        ///     revision by CPc::Ran with code 1 - while this single point stands for both and keeps
-        ///     the code of a forbidden move
+        ///     Whether the way from one position to another is blocked. Extension point: the
+        ///     original answers it with an impassability check and with the height revision, both
+        ///     over the collision volumes of the map, which the server does not have. Note that
+        ///     the original splits the answer into two different codes - while this single point
+        ///     stands for both and keeps the code of a forbidden move
         /// </summary>
         /// <param name="mapNo">Map the character is on</param>
         /// <param name="from">Position the server holds for the character</param>

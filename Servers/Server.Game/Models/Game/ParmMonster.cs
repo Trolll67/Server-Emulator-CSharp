@@ -135,25 +135,8 @@ namespace Server.Game.Models.Game
 
         public List<GDropGroup> DropGroups { get; set; }
 
-        //FnlApi::CFlag<9, unsigned char> Flag;
-        //const CAi* Ai;
-        //FnlApi::CArrayEx<bool,20> Eqable;
-        //FnlApi::CHashMap<unsigned long, int> NPCCharValue;
-        //const CDialog* Dialog;
-
-        //uint SlainCnt;
-        //const FnlApp::CParmSlain* Slain[10];
-        //uint ProtectCnt;
-        //const FnlApp::CParmProtect* Protect[10];
-        //uint DropGroupCnt;
-        //std::pair<FnlApp::CParmDropGroup const *,int> DropGroup[10];
-        //uint AttributeAddCnt;
-        //const FnlApp::CParmAttribute* AttributeAdd[10];
-        //uint AttributeResistCnt;
-        //const FnlApp::CParmAttribute* AttributeResist[10];
-        //uint AbnormalAddCnt;
-        //const FnlApp::CParmAbnormalAdd* AbnormalAdd[10];
-        //uint AbnormalResistCnt;
-        //const FnlApp::CParmAbnormalResist* AbnormalResist[10];
+        // TODO: parts of the monster parm the model does not read yet - flags, AI hook,
+        // dialog, per-monster equip rules, bonuses against a race, wards, elemental attack
+        // and resistance, inflicting and resisting abnormal states
     }
 }

@@ -18,7 +18,7 @@ namespace Packets.Server.Game.Models.Send.Character
         }
 
         /// <summary>
-        ///     TblUser.mUserAuth, поле __mAuth структуры CTrLoginUserAck: 0 - аккаунт не активирован,
+        ///     Уровень доступа аккаунта, TblUser.mUserAuth: 0 - аккаунт не активирован,
         ///     1 - обычный игрок, выше - персонал. Приходит из UspLoginUser
         /// </summary>
         public byte Auth { get; set; }

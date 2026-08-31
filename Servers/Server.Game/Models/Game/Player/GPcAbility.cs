@@ -42,13 +42,9 @@ namespace Server.Game.Models.Game
 		public short PvPDHIT { get; set; }
 		public short PvPRHIT { get; set; }
 		public short PvPMHIT { get; set; }
-		//FnlApi::CArrayEx<FnlApp::CParmSlain const*, 14> mSlain;
-		//FnlApi::CArrayEx<FnlApp::CParmProtect const*, 14> mProtect;
-		//FnlApi::CArrayEx<FnlApp::CParmAttribute const*, 8> mAttrAdd;
-		//FnlApi::CArrayEx<FnlApp::CParmAttribute const*, 8> mAttrResist;
-		//FnlApi::CArrayEx<FnlApp::CParmAbnormalAdd const*, 373> mAbnAdd;
-		//FnlApi::CArrayEx<FnlApp::CParmAbnormalResist const*, 373> mAbnResist;
-		//FnlApi::CHashMap<int, enum FnlApp::EEquipAbnormalType> mAbnormal;
+		// TODO: the ability does not yet keep the lists a worn set grants - bonuses against
+		// a race, wards, elemental attack and resistance, inflicting and resisting abnormal
+		// states; Reset below clears them once they exist
 
 
 		public void Reset()
@@ -87,24 +83,6 @@ namespace Server.Game.Models.Game
 			PvPDHIT = 0;
 			PvPRHIT = 0;
 			PvPMHIT = 0;
-			//v1 = &this->mSlain.__mArray[this->mSlain.__mSz];
-			//for (i = this->mSlain.__mArray; i != v1; ++i)
-			//	*i = 0i64;
-			//v3 = &this->mProtect.__mArray[this->mProtect.__mSz];
-			//for (j = this->mProtect.__mArray; j != v3; ++j)
-			//	*j = 0i64;
-			//v5 = &this->mAttrAdd.__mArray[this->mAttrAdd.__mSz];
-			//for (k = this->mAttrAdd.__mArray; k != v5; ++k)
-			//	*k = 0i64;
-			//v7 = &this->mAttrResist.__mArray[this->mAttrResist.__mSz];
-			//for (l = this->mAttrResist.__mArray; l != v7; ++l)
-			//	*l = 0i64;
-			//v9 = &this->mAbnAdd.__mArray[this->mAbnAdd.__mSz];
-			//for (m = this->mAbnAdd.__mArray; m != v9; ++m)
-			//	*m = 0i64;
-			//v11 = &this->mAbnResist.__mArray[this->mAbnResist.__mSz];
-			//for (n = this->mAbnResist.__mArray; n != v11; ++n)
-			//	*n = 0i64;
 		}
 	}
 }

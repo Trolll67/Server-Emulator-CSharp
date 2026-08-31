@@ -16,7 +16,7 @@ namespace Packets.Server.Game.Parsers.Send.Character
         {
             FormationPackage formationPackage = new FormationPackage();
 
-            // Первый байт полезной нагрузки CTrLoginUserAck - mAuth, сразу за ним начинается
+            // Первый байт полезной нагрузки - уровень доступа аккаунта, сразу за ним начинается
             // массив персонажей: выравнивания между ними на проводе нет
             formationPackage.AddByte(model.Auth);
 

@@ -32,16 +32,10 @@ namespace Server.Game.Services.Game
 
         /// <summary>
         ///     Shortest pause between two swings of one character, in milliseconds. GChar.AttackRate is
-        ///     read as milliseconds (A2, unchecked against the original), and a parm without an attack
-        ///     rate gives a zero that would otherwise let a character swing on every pass. Empirical
-        ///     value, not the original
+        ///     read as milliseconds, and a parm without an attack rate gives a zero that would otherwise
+        ///     let a character swing on every pass. Empirical value, not the original
         /// </summary>
         public const int MinimumAttackRateMilliseconds = 500;
-
-        /// <summary>
-        ///     Hp the packet carries for a target whose hp must not be shown to the client
-        /// </summary>
-        private const short HpHidden = -1;
 
         private readonly IAttackFactory _attackFactory;
         private readonly AttackSystem _attackSystem;
@@ -166,7 +160,7 @@ namespace Server.Game.Services.Game
                 return;
             }
 
-            AttackResult result = _attackSystem.Attack(CombatSnapshot.Of(client.Pc), CombatSnapshot.Of(target));
+            AttackResult result = _attackSystem.Attack(client.Pc, target);
 
             // Current hp of the monster lives in Simple, which is replaced as a whole by the respawn:
             // taken into a local, the damage lands either on the monster we hit or on nobody at all.
@@ -174,7 +168,8 @@ namespace Server.Game.Services.Game
             // the same field from its own thread, and everything in between is a window where a
             // regenerated hp rolls the damage of the swing back
             GPcSimple simple = target.Simple;
-            int hp = simple.Hp;
+            int hpBefore = simple.Hp;
+            int hp = hpBefore;
 
             if (result.Damage > 0)
             {
@@ -188,10 +183,14 @@ namespace Server.Game.Services.Game
                 simple.Hp = hp;
             }
 
-            // The attacker plays the swing itself, the neighbours are the ones who see it happen.
-            // HpAttacked carries the hp of the monster as a percent, not as an absolute value
-            short hpAttacked = GetHpAttacked(target, hp);
+            // The packet carries the hp the target had before the swing: the bar of the client is
+            // always one hit behind, which is why the first swing draws the bar the target had when
+            // the fight started, without a branch of its own. A swing that left the target at zero
+            // is the exception - an empty bar is drawn at once. The percent itself is the business
+            // of the monster
+            short hpAttacked = target.GetHpDisplayed(hp > 0 ? hpBefore : 0);
 
+            // The attacker plays the swing itself, the neighbours are the ones who see it happen
             _attackFactory.SendAttacked(client, client.Pc.UniqueId, target.UniqueId, result.TypeHit, client.Pc.PositionCur, hpAttacked);
 
             foreach (var visibleCharacterGame in client.Pc.VisibleCharacterGames)
@@ -242,15 +241,16 @@ namespace Server.Game.Services.Game
             int chaotic = client.Pc.Detail.Chaotic;
             ChaoticStatusType chaoticStatus = (ChaoticStatusType)client.Pc.Detail.ChaoticStatus;
 
+            // Experience and the levels it brings, with everything the client has to be told about
+            // them, go before the death of the monster: that is the order the original sends them in
+            _expSystem.KillUnit(client, target);
+
             _attackFactory.SendDeadAttack(client, client.Pc.UniqueId, target.UniqueId, chaotic, chaoticStatus);
 
             foreach (var visibleCharacterGame in client.Pc.VisibleCharacterGames)
             {
                 _attackFactory.SendDeadAttack(visibleCharacterGame, client.Pc.UniqueId, target.UniqueId, chaotic, chaoticStatus);
             }
-
-            // Experience and the levels it brings, with everything the client has to be told about them
-            _expSystem.KillUnit(client, target);
 
             // The corpse stays in the world until GarbageGameService takes it away and UnitGameService
             // brings the monster back - nothing of that is done here
@@ -307,41 +307,6 @@ namespace Server.Game.Services.Game
             }
 
             return attackRate;
-        }
-
-        /// <summary>
-        ///     Hp of the target the way 5132 carries it: a percent of the full hp, not an absolute
-        ///     value. The client draws the bar of the target as fifteen segments of that percent, so
-        ///     an absolute hp would keep the bar full until the target drops under a hundred points -
-        ///     and a monster of the first levels carries tens of thousands of them.
-        ///     A target whose hp must stay hidden - a monster whose parameter row has the flag off -
-        ///     gets <see cref="HpHidden"/> instead of a number, and a target that is already down
-        ///     gets a zero
-        /// </summary>
-        /// <param name="target">Target of the swing</param>
-        /// <param name="hp">Current hp of the target</param>
-        private static short GetHpAttacked(GMonster target, int hp)
-        {
-            if (!target.ParmMon.IsShowHp)
-            {
-                return HpHidden;
-            }
-
-            short maxHp = target.Ability.MaxHp;
-
-            if (hp <= 0 || maxHp <= 0)
-            {
-                return 0;
-            }
-
-            // The full bar is fifteen segments of a percent, so anything above a hundred draws the
-            // same way; the value is held there to keep an overhealed target off a broken bar
-            if (hp >= maxHp)
-            {
-                return 100;
-            }
-
-            return (short)(hp * 100 / maxHp);
         }
     }
 }

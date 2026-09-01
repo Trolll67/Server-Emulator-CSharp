@@ -127,10 +127,15 @@ namespace Database.DataModel.Models
             ItemEquipTypeEnum equipTypeEnum = ItemEquipTypeEnum.NotEquipped;
             switch (this.Type)
             {
-                // Every weapon goes to the hand of the weapon, the bow and the spear included
+                // Every weapon goes to the hand of the weapon, the bow and the spear included.
+                // A book and a staff are the weapons of the magic way and are taken to go there
+                // as well - the slot of magic weapons is not confirmed against the original yet,
+                // but with any other slot a mage cannot carry a staff at all
                 case ItemTypeEnum.Weapon:
                 case ItemTypeEnum.Bow:
                 case ItemTypeEnum.Spear:
+                case ItemTypeEnum.Book:
+                case ItemTypeEnum.Stick:
                     equipTypeEnum = ItemEquipTypeEnum.Weapon;
                     break;
                 // Arrows are worn the way a shield is - in the other hand

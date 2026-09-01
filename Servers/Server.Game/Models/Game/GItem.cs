@@ -56,7 +56,11 @@ namespace Server.Game.Models.Game
             MoveRate = parmItem.MoveRate;
             AddMoveRateWhenTransform = parmItem.AddMoveRateWhenTransform;
             AddShortAttackRange = parmItem.AddShortAttackRange;
+            // The reach of the item: the weapon in the hand gives it to the attack distance of
+            // the character, so it has to survive the copy off the parm row
+            Range = parmItem.Range;
             UseLevel = parmItem.UseLevel;
+            UseClass = parmItem.UseClass;
             UseInAttack = parmItem.UseInAttack;
             IsConfirm = parmItem.IsConfirm;
 
@@ -105,7 +109,9 @@ namespace Server.Game.Models.Game
             MoveRate = model.MoveRate;
             AddMoveRateWhenTransform = model.AddMoveRateWhenTransform;
             AddShortAttackRange = model.AddShortAttackRange;
+            Range = model.Range;
             UseLevel = model.UseLevel;
+            UseClass = model.UseClass;
             UseInAttack = model.UseInAttack;
 
             SerialNumber = model.SerialNumber;
@@ -158,12 +164,15 @@ namespace Server.Game.Models.Game
         public const int MaxDiceFaces = 1000;
 
         /// <summary>
-        ///     Whether the item is a weapon of the melee way: the usual one or a spear. The types
-        ///     of weapons are asked of GWeapon, because the way a swing goes through is decided
-        ///     there and in one place only
+        ///     Whether the item is a weapon of the melee way: the usual one, a spear, or the magic
+        ///     weapon - a book or a staff swings on the melee path when it is the thing in the hand,
+        ///     so its dice must stay out of the flat melee damage of the worn gear or every swing
+        ///     would count them twice. The types of weapons are asked of GWeapon, because the way a
+        ///     swing goes through is decided there and in one place only
         /// </summary>
         public bool IsMeleeWeapon => (int)Type == GWeapon.ItemTypeMeleeWeapon
-            || (int)Type == GWeapon.ItemTypeSpearWeapon;
+            || (int)Type == GWeapon.ItemTypeSpearWeapon
+            || IsMagicWeapon;
 
         /// <summary>
         ///     Whether the item is a weapon of the range way
@@ -174,7 +183,7 @@ namespace Server.Game.Models.Game
         ///     Whether the item is a weapon of the magic way. Nothing swings it - the magic dice
         ///     are rolled by skills only - but the character still keeps them apart from the rest
         /// </summary>
-        public bool IsMagicWeapon => Type == ItemTypeEnum.Book;
+        public bool IsMagicWeapon => Type == ItemTypeEnum.Book || Type == ItemTypeEnum.Stick;
 
         /// <summary>
         ///     Combat properties of the item, the ones a swing asks of the weapon in the hand:

@@ -91,6 +91,12 @@ namespace Server.Game.Services
 
             foreach (var itemEquip in equips)
             {
+                // The slot of the row holds the same numbers as ItemEquipTypeEnum. A row out of
+                // that range is broken: the item would end up in a slot nobody ever looks at, so
+                // the row is dropped instead
+                if (itemEquip.Slot < 0 || itemEquip.Slot >= (int)ItemEquipTypeEnum.NotEquipped)
+                    continue;
+
                 // Worn items normally already live in the inventory result set; reuse that
                 // instance so equip and inventory share it. Fall back to the parm template when
                 // the inventory result set does not carry the worn item
@@ -106,6 +112,11 @@ namespace Server.Game.Services
                     item.ItemBind = (ItemBindTypeEnum)itemEquip.BindingType;
                 }
 
+                // The slot the item is worn in comes from the row and not from the type of the
+                // item: two rings are told apart by nothing else, and every "what is worn in
+                // slot X" lookup - the looks of the character and the ability - reads it
+                item.EquipPos = (ItemEquipTypeEnum)itemEquip.Slot;
+
                 var equip = new GPcEquip()
                 {
                     IsConfirm = item.IsConfirm ? 1 : 0,
@@ -113,7 +124,11 @@ namespace Server.Game.Services
                     IsSeal = false,
                     SerialNo = item.SerialNumber,
                     Status = item.Status,
-                    Item = item
+                    Item = item,
+                    // The slot of the record is named explicitly: the fallback onto the slot of the
+                    // item is a safety net, not a place to live - the item field is mutable and a
+                    // record must not move slots behind the back of everybody who published it
+                    Pos = (ItemEquipTypeEnum)itemEquip.Slot
                 };
 
                 pc.Equip.Add(equip);

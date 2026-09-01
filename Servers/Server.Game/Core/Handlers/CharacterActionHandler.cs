@@ -169,10 +169,10 @@ namespace Server.Game.Core.Handlers
             // Only a dead character is raised. Without this check 5141 of a living character heals
             // it down or up to a half of its maximum and teleports it to the respawn point, which
             // is a free heal and a free town portal for anyone who sends the packet by hand.
-            // Note that nothing writes GPc.DeadTime yet: monsters do not fight back, so a player
-            // cannot die at all in this phase and the whole path below stays unreached until the
-            // unit intelligence is ported. It is written now because the half of the branch was
-            // there already, and it was never seen on a live client
+            // GPc.DeadTime is written by the death of a character (PlayerDeathSystem, called by the
+            // intelligence of the monsters), so the path below is walked by every player a monster
+            // kills. The picture on a live client - the death screen and the raise after it - is
+            // still unchecked
             if (client.Pc.DeadTime == null)
             {
                 return;

@@ -9,6 +9,7 @@ namespace Server.Game.Core.Factories.Interfaces
         void SendInformationAbilityCharacteristics(GameSession client);
 
         void SendHealthPointCharacteristics(GameSession client);
+        void SendHealthPointCharacteristics(GameSession client, int hp, int mp);
 
         void SendSpeedCharacteristics(GameSession client, GameSession clientTo);
 

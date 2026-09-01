@@ -169,6 +169,25 @@ namespace Server.Game.Models.Game
         }
 
         /// <summary>
+        ///     Move rate the walks of the monster are cut by. It is taken from the row of the shape
+        ///     the monster wears right now and not from the one it was born with: a transformed
+        ///     monster moves the way its shape does, and everything that walks a monster or tells
+        ///     the neighbours about the walk has to take the number out of one and the same place.
+        ///     A monster without a parm row at all does not move
+        /// </summary>
+        public short GetMoveRateOrg()
+        {
+            ParmMonster parm = ParmMonCur ?? ParmMon;
+
+            if (parm == null)
+            {
+                return 0;
+            }
+
+            return parm.MoveRateOrg;
+        }
+
+        /// <summary>
         ///     Remember a hit the monster has taken: the damage goes into the aggro history, and a
         ///     monster that was fighting nobody starts fighting the one who hit it.
         ///     <para>
@@ -250,7 +269,14 @@ namespace Server.Game.Models.Game
         ///     is the state of a monster that has just been spawned, so the same call serves the end
         ///     of a fight, the death of the monster and its respawn
         /// </summary>
-        public void ResetFight()
+        /// <param name="keepAttackDelay">
+        ///     Whether the pause before the next swing survives the reset. A monster that gives a
+        ///     fight up is still the same monster: it has just swung, and somebody who hits it again
+        ///     right away must not be paid with a free swing out of turn. A monster that is put back
+        ///     into the world is another one - it has never swung, and the reset gives it the empty
+        ///     moment of a monster that has just been born
+        /// </param>
+        public void ResetFight(bool keepAttackDelay = false)
         {
             lock (Aggro.SyncRoot)
             {
@@ -265,8 +291,12 @@ namespace Server.Game.Models.Game
                 // at and may swing on the nearest pass instead of waiting out the rate of a fight
                 // that is over
                 AiTickDateTime = default;
-                AttackDateTime = default;
                 LastFightDateTime = default;
+
+                if (!keepAttackDelay)
+                {
+                    AttackDateTime = default;
+                }
             }
         }
 

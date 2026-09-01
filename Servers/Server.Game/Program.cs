@@ -167,6 +167,7 @@ namespace Server.Game
                     services.AddHostedService<AttackGameService>();
                     services.AddHostedService<BuffGameService>();
                     services.AddHostedService<GarbageGameService>();
+                    services.AddHostedService<MonsterAiGameService>();
                     services.AddHostedService<RecoveryGameService>();
                     services.AddHostedService<UnitGameService>();
                     services.AddHostedService<VisibleGameService>();

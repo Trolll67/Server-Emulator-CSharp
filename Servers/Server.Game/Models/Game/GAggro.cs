@@ -209,12 +209,7 @@ namespace Server.Game.Models.Game
         /// <param name="right">The other identifier</param>
         private static bool IsSame(UniqueId left, UniqueId right)
         {
-            if (left == null || right == null)
-            {
-                return false;
-            }
-
-            return left.Id == right.Id && left.Seq == right.Seq;
+            return UniqueId.IsSame(left, right);
         }
     }
 }

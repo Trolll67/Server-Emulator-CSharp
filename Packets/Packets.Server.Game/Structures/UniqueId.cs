@@ -46,6 +46,24 @@ namespace Packets.Server.Game.Structures
             IsSeq = 1;
         }
 
+        /// <summary>
+        ///     Whether two identifiers name one and the same entity. The number alone is not enough:
+        ///     it is handed out again as soon as the one that held it is gone, so the class and the
+        ///     generation of the handout are checked with it - that is what tells a newcomer from
+        ///     the entity somebody still remembers by its number
+        /// </summary>
+        /// <param name="left">One identifier</param>
+        /// <param name="right">The other identifier</param>
+        public static bool IsSame(UniqueId left, UniqueId right)
+        {
+            if (left == null || right == null)
+            {
+                return false;
+            }
+
+            return left.Id == right.Id && left.Class == right.Class && left.Seq == right.Seq;
+        }
+
         public void Read(FormationPackage formationPackage)
         {
             uint number = formationPackage.ReadUInteger();

@@ -41,10 +41,19 @@ namespace Server.Game.Core.Factories
 
         public void SendHealthPointCharacteristics(GameSession client)
         {
+            SendHealthPointCharacteristics(client, client.Pc.Simple.Hp, client.Pc.Simple.Mp);
+        }
+
+        /// <summary>
+        ///     The overload for a caller that has just counted the health itself: the number it
+        ///     decided on goes out, not whatever another thread wrote to the model in between
+        /// </summary>
+        public void SendHealthPointCharacteristics(GameSession client, int hp, int mp)
+        {
             HealthPointCharacteristicModel healthPointCharacteristicsModel = new HealthPointCharacteristicModel
             {
-                Hp = client.Pc.Simple.Hp,
-                Mp = client.Pc.Simple.Mp
+                Hp = hp,
+                Mp = mp
             };
 
             client.Send(healthPointCharacteristicsModel);

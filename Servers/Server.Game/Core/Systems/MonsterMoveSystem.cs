@@ -43,15 +43,30 @@ namespace Server.Game.Core.Systems
         private const float MillisecondsPerSecond = 1000f;
 
         /// <summary>
-        ///     Speed a monster walks with, in units per second. It is half of the move rate of the
-        ///     parm row, and exactly this number goes into the speed field of 5190: the client
-        ///     interpolates the walk with it, so the number the packet carries and the number the
-        ///     steps are cut by have to be the very same one
+        ///     Speed a monster strolls with, in units per second: half of the move rate of the parm
+        ///     row. That is the pace of a monster that walks around its own spot with nobody to
+        ///     fight - nothing puts a monster on such a walk yet, the wandering pass is written
+        ///     later, and the two speeds of a monster are kept next to each other so that neither
+        ///     of them is looked for anywhere else
         /// </summary>
         /// <param name="moveRateOrg">ParmMonster.MoveRateOrg of the monster</param>
-        public static float GetMoveSpeed(short moveRateOrg)
+        public static float GetWalkSpeed(short moveRateOrg)
         {
             return moveRateOrg / 2f;
+        }
+
+        /// <summary>
+        ///     Speed a monster runs with, in units per second: the whole move rate of the parm row.
+        ///     A monster runs after the one it fights and runs back to its spot once the fight is
+        ///     over. Whichever of the two speeds the monster really goes with is the one that goes
+        ///     into the speed field of 5190: the client interpolates the walk with it, so the
+        ///     number the packet carries and the number the steps are cut by have to be the very
+        ///     same one
+        /// </summary>
+        /// <param name="moveRateOrg">ParmMonster.MoveRateOrg of the monster</param>
+        public static float GetRunSpeed(short moveRateOrg)
+        {
+            return moveRateOrg;
         }
 
         /// <summary>
@@ -60,7 +75,7 @@ namespace Server.Game.Core.Systems
         /// </summary>
         /// <param name="from">Position the server holds for the monster, never null</param>
         /// <param name="to">Point the monster walks to</param>
-        /// <param name="speed">Walking speed in units per second, <see cref="GetMoveSpeed"/></param>
+        /// <param name="speed">Speed of the walk in units per second, <see cref="GetWalkSpeed"/> or <see cref="GetRunSpeed"/></param>
         /// <param name="intervalMilliseconds">Length of the tick the step is cut for</param>
         /// <returns>The new position and whether the target is reached</returns>
         public MonsterMoveStep Step(Vector3 from, Vector3 to, float speed, int intervalMilliseconds)

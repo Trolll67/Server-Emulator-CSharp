@@ -9,11 +9,50 @@ namespace Packets.Server.Game.Structures
         {
             UniqueIdentifier = new UniqueId(UniqueIdentifierType.Monster);
             Position = new Vector3();
+            PointPosition = new Vector3();
         }
 
+        /// <summary>
+        ///     State of a monster that is down. Its point is empty - a corpse walks nowhere
+        /// </summary>
+        public const short StateDead = 0;
+
+        /// <summary>
+        ///     State of a monster that stands where the packet puts it
+        /// </summary>
+        public const short StateStanding = 1;
+
+        /// <summary>
+        ///     State of a monster that walks somewhere without a fight: around its own spot or back
+        ///     to it. The point of the walk is <see cref="PointPosition"/>
+        /// </summary>
+        public const short StateWalking = 3;
+
+        /// <summary>
+        ///     State of a monster that fights: it either runs up to the one it fights - the point of
+        ///     the run is <see cref="PointPosition"/> - or already stands in front of it and swings
+        /// </summary>
+        public const short StateAngry = 5;
+
+        /// <summary>
+        ///     What the monster is busy with at the moment it is drawn: <see cref="StateDead"/>,
+        ///     <see cref="StateStanding"/>, <see cref="StateWalking"/> or <see cref="StateAngry"/>.
+        ///     A monster that is drawn walking is walked by the client from <see cref="Position"/>
+        ///     to <see cref="PointPosition"/> at once, without a walk packet of its own - that is
+        ///     how somebody a monster has run up to sees it running and not standing. The name is
+        ///     the one the field carried while only life and death were told apart
+        /// </summary>
         public short AliveOrDead { get; set; }
         public short AttackRate { get; set; }
         public short MoveRate { get; set; }
+
+        /// <summary>
+        ///     Point the monster is walking to, zero for a monster that stands. It is read only for
+        ///     the states that mean a walk, so a standing monster carries zeros here and not the
+        ///     place it walked to last
+        /// </summary>
+        public Vector3 PointPosition { get; set; }
+
         public UniqueId UniqueIdentifier { get; set; }
         public uint ParmNo { get; set; }
         public Vector3 Position { get; set; }
@@ -33,7 +72,8 @@ namespace Packets.Server.Game.Structures
             AliveOrDead = formationPackage.ReadShort();
             AttackRate = formationPackage.ReadShort();
             MoveRate = formationPackage.ReadShort();
-            formationPackage.ReadBytes(14);
+            formationPackage.ReadBytes(2);
+            PointPosition.Read(formationPackage);
             UniqueIdentifier.Read(formationPackage);
             ParmNo = formationPackage.ReadUInteger();
             Position.Read(formationPackage);
@@ -55,7 +95,8 @@ namespace Packets.Server.Game.Structures
             formationPackage.AddShort(AliveOrDead);
             formationPackage.AddShort(AttackRate);
             formationPackage.AddShort(MoveRate);
-            formationPackage.AddZeroBytes(14);
+            formationPackage.AddZeroBytes(2);
+            PointPosition.Write(formationPackage);
             UniqueIdentifier.Write(formationPackage);
             formationPackage.AddUInteger(ParmNo);
             Position.Write(formationPackage);

@@ -398,7 +398,6 @@ namespace Server.Game.Core.Factories
             {
                 MonsterApiModel npc = new MonsterApiModel
                 {
-                    AliveOrDead = (byte)(monster.DeadTime == null ? 1 : 0),
                     AttackRate = monster.Detail.AttackRate,
                     Reputation = monster.Detail.Chaotic,
                     DirectionSight = monster.DirectionSight,
@@ -416,6 +415,8 @@ namespace Server.Game.Core.Factories
                     TransformationId = monster.ParmMon.ParmNo
                 };
 
+                SetAction(npc, monster);
+
                 displayedNpcMonsterModel.NpcMonsters.Add(npc);
             }
 
@@ -428,7 +429,6 @@ namespace Server.Game.Core.Factories
             {
                 Monster = new MonsterApiModel()
                 {
-                    AliveOrDead = (byte)(monster.DeadTime == null ? 1 : 0),
                     AttackRate = monster.Detail.AttackRate,
                     Reputation = monster.Detail.Chaotic,
                     DirectionSight = monster.DirectionSight,
@@ -447,7 +447,67 @@ namespace Server.Game.Core.Factories
                 }
             };
 
+            SetAction(enteredMonAckModel.Monster, monster);
+
             client.Send(enteredMonAckModel);
+        }
+
+        /// <summary>
+        ///     Action block of an appearance packet: what the monster is doing and where it is going.
+        ///     Everybody who is drawn a monster is drawn it the same way, so both packets about a
+        ///     monster fill the block here.
+        ///     <para>
+        ///     The state of the AI is read under the lock of the model - the AI pass writes it on
+        ///     its own thread. The point of the walk is NOT guarded by that lock: the AI writes it
+        ///     outside of the hold, and the read is safe only because every walk gets a fresh point
+        ///     of its own that is never changed afterwards - a reference comes out whole or null,
+        ///     never half-written, though the pair of state and point may be one tick apart
+        ///     </para>
+        /// </summary>
+        /// <param name="model">Monster of the packet, its action block still empty</param>
+        /// <param name="monster">Monster of the world the block is filled from</param>
+        private static void SetAction(MonsterApiModel model, GMonster monster)
+        {
+            MonsterAiState aiState;
+            Vector3 pointPosition;
+
+            lock (monster.Aggro.SyncRoot)
+            {
+                aiState = monster.AiState;
+                pointPosition = monster._PosTo;
+            }
+
+            // A monster that is down is down, whatever it was busy with when it fell: the corpse
+            // stands in the world until the garbage pass takes it, and it walks nowhere
+            if (monster.DeadTime != null)
+            {
+                model.AliveOrDead = MonsterApiModel.StateDead;
+                return;
+            }
+
+            if (aiState == MonsterAiState.Angry)
+            {
+                // Angry both while it runs after the one it fights and while it stands in front of
+                // it and swings: the player a monster has run up to has to see it as it is at once,
+                // without waiting for the next walk packet about it
+                model.AliveOrDead = MonsterApiModel.StateAngry;
+            }
+            else if (pointPosition != null)
+            {
+                // Walking without a fight: the walk around the spot and the way home are one and the
+                // same walk for the client, and it is the point that makes it a walk - a monster
+                // without one stands, whatever the AI is going to do with it on its nearest tick
+                model.AliveOrDead = MonsterApiModel.StateWalking;
+            }
+            else
+            {
+                model.AliveOrDead = MonsterApiModel.StateStanding;
+            }
+
+            if (pointPosition != null)
+            {
+                model.PointPosition = pointPosition;
+            }
         }
 
         public void SendExitMap(GameSession client, UniqueId uniqueItemDrop, ExitMapWhy exitMapWhy)

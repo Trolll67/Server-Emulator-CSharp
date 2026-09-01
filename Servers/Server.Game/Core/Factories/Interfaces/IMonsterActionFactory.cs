@@ -5,6 +5,8 @@ namespace Server.Game.Core.Factories.Interfaces
 {
     public interface IMonsterActionFactory
     {
-        void SendMoveToPoint(GameSession clientTo, UniqueId SessionGameId, Vector3 Position, Vector3 PointPosition, byte Flag, float Velocity);
+        void SendMoveToPoint(GameSession clientTo, UniqueId sessionGameId, Vector3 position, Vector3 pointPosition, byte flag, float velocity);
+
+        void SendStopMoveMonster(GameSession clientTo, UniqueId sessionGameId, Vector3 position);
     }
 }

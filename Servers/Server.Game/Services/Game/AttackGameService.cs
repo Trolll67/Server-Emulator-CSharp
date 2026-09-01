@@ -202,6 +202,15 @@ namespace Server.Game.Services.Game
             // pulled up to the minimum, otherwise the pass would swing on every tick
             client.Pc.AttackDateTime = now.AddMilliseconds(GetAttackRate(client.Pc.AttackRate));
 
+            // A swing that took hp off is remembered by the monster it landed on: a miss leaves no
+            // trace, and a monster this swing has put down is left out - a corpse has nobody to
+            // fight back. The register is written from this pass and read by the pass of the AI on
+            // a thread of its own, and the two meet on the lock the model takes inside the call
+            if (result.Damage > 0 && hp > 0)
+            {
+                target.RegisterDamage(client.Pc.UniqueId, result.Damage);
+            }
+
             // Only a swing that took hp off can kill: a monster may stand at zero hp and be alive
             // (a parm without hp at all, a negative regeneration that took it under zero), and a miss
             // against such a monster must not kill it over and over and pay the experience every time
@@ -295,11 +304,13 @@ namespace Server.Game.Services.Game
         }
 
         /// <summary>
-        ///     Pause between two swings of the character, in milliseconds: the attack rate built by
-        ///     CalcSpeed out of the parm and the equipment, never shorter than the minimum
+        ///     Pause between two swings of one attacker, in milliseconds: the attack rate built by
+        ///     CalcSpeed out of the parm and the equipment, never shorter than the minimum. The
+        ///     monsters swing by the very same rule, so the swing pass of the players and the
+        ///     intelligence of the monsters ask this one and the same question
         /// </summary>
         /// <param name="attackRate">GChar.AttackRate of the attacker</param>
-        private static int GetAttackRate(short attackRate)
+        public static int GetAttackRate(short attackRate)
         {
             if (attackRate < MinimumAttackRateMilliseconds)
             {

@@ -4,6 +4,7 @@ using Packets.Server.Game.Models.Send.Character;
 using Server.Game.Core.Factories.Interfaces;
 using Server.Game.Models.Game;
 using Server.Game.Network;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Server.Game.Core.Factories
@@ -58,202 +59,74 @@ namespace Server.Game.Core.Factories
                     Position = pc.PositionCur
                 });
 
-                Equipment equipment = new Equipment();
-
-                var weapon = pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Weapon);
-                if (weapon != null)
-                {
-                    equipment.Weapon = new Item
-                    {
-                        Id = (ulong)weapon.Item.SerialNumber,
-                        ItemId = weapon.Item.Id
-                    };
-                }
-
-                var shield = pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Shield);
-                if (shield != null)
-                {
-                    equipment.Shield = new Item
-                    {
-                        Id = (ulong)shield.Item.SerialNumber,
-                        ItemId = shield.Item.Id
-                    };
-                }
-
-                var armor = pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Armor);
-                if (armor != null)
-                {
-                    equipment.Armor = new Item
-                    {
-                        Id = (ulong)armor.Item.SerialNumber,
-                        ItemId = armor.Item.Id
-                    };
-                }
-
-                var ring1 = pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Ring1);
-                if (ring1 != null)
-                {
-                    equipment.FirstRing = new Item
-                    {
-                        Id = (ulong)ring1.Item.SerialNumber,
-                        ItemId = ring1.Item.Id
-                    };
-                }
-
-                var ring2 = pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Ring2);
-                if (ring2 != null)
-                {
-                    equipment.SecondRing = new Item
-                    {
-                        Id = (ulong)ring2.Item.SerialNumber,
-                        ItemId = ring2.Item.Id
-                    };
-                }
-
-                var amulet = pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Amulet);
-                if (amulet != null)
-                {
-                    equipment.Necklace = new Item
-                    {
-                        Id = (ulong)amulet.Item.SerialNumber,
-                        ItemId = amulet.Item.Id
-                    };
-                }
-
-                var boot = pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Boot);
-                if (boot != null)
-                {
-                    equipment.Boots = new Item
-                    {
-                        Id = (ulong)boot.Item.SerialNumber,
-                        ItemId = boot.Item.Id
-                    };
-                }
-
-                var glove = pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Glove);
-                if (glove != null)
-                {
-                    equipment.Gloves = new Item
-                    {
-                        Id = (ulong)glove.Item.SerialNumber,
-                        ItemId = glove.Item.Id
-                    };
-                }
-
-                var cap = pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Cap);
-                if (cap != null)
-                {
-                    equipment.Helmet = new Item
-                    {
-                        Id = (ulong)cap.Item.SerialNumber,
-                        ItemId = cap.Item.Id
-                    };
-                }
-
-                var belt = pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Belt);
-                if (belt != null)
-                {
-                    equipment.Belt = new Item
-                    {
-                        Id = (ulong)belt.Item.SerialNumber,
-                        ItemId = belt.Item.Id
-                    };
-                }
-
-                var cloak = pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Cloak);
-                if (cloak != null)
-                {
-                    equipment.Cloak = new Item
-                    {
-                        Id = (ulong)cloak.Item.SerialNumber,
-                        ItemId = cloak.Item.Id
-                    };
-                }
-
-                var expertnessMaterial = pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.ExpertnessMaterial);
-                if (expertnessMaterial != null)
-                {
-                    equipment.SphereMastery = new Item
-                    {
-                        Id = (ulong)expertnessMaterial.Item.SerialNumber,
-                        ItemId = expertnessMaterial.Item.Id
-                    };
-                }
-
-                var soulMaterial = pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.SoulMaterial);
-                if (soulMaterial != null)
-                {
-                    equipment.SphereSoul = new Item
-                    {
-                        Id = (ulong)soulMaterial.Item.SerialNumber,
-                        ItemId = soulMaterial.Item.Id
-                    };
-                }
-
-                var defenceMaterial = pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.DefenseMaterial);
-                if (defenceMaterial != null)
-                {
-                    equipment.SphereDefense = new Item
-                    {
-                        Id = (ulong)defenceMaterial.Item.SerialNumber,
-                        ItemId = defenceMaterial.Item.Id
-                    };
-                }
-
-                var attackMaterial = pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.AttackMaterial);
-                if (attackMaterial != null)
-                {
-                    equipment.SphereDestruction = new Item
-                    {
-                        Id = (ulong)attackMaterial.Item.SerialNumber,
-                        ItemId = attackMaterial.Item.Id
-                    };
-                }
-
-                var llifeMaterial = pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.LifeMaterial);
-                if (llifeMaterial != null)
-                {
-                    equipment.SphereLife = new Item
-                    {
-                        Id = (ulong)llifeMaterial.Item.SerialNumber,
-                        ItemId = llifeMaterial.Item.Id
-                    };
-                }
-
-                var eventAMaterial = pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.EventAMaterial);
-                if (eventAMaterial != null)
-                {
-                    equipment.SphereLuck = new Item
-                    {
-                        Id = (ulong)eventAMaterial.Item.SerialNumber,
-                        ItemId = eventAMaterial.Item.Id
-                    };
-                }
-
-                var eventBMaterial = pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.EventBMaterial);
-                if (eventBMaterial != null)
-                {
-                    equipment.SphereReincarnation = new Item
-                    {
-                        Id = (ulong)eventBMaterial.Item.SerialNumber,
-                        ItemId = eventBMaterial.Item.Id
-                    };
-                }
-
-                var eventCMaterial = pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.EventCMaterial);
-                if (eventCMaterial != null)
-                {
-                    equipment.SphereCharacteristics = new Item
-                    {
-                        Id = (ulong)eventCMaterial.Item.SerialNumber,
-                        ItemId = eventCMaterial.Item.Id
-                    };
-                }
-
-                informationCharactersModel.Equipments.Add(equipment);
+                informationCharactersModel.Equipments.Add(CreateEquipment(pc));
             }
 
             client.Send(informationCharactersModel);
+        }
+
+        /// <summary>
+        ///     Worn gear of a character as the selection screen has to draw it: every slot carries
+        ///     the serial of the item in it, because the client tells one worn item from another by
+        ///     the serial and by nothing else.
+        ///     <para>
+        ///     The list of the worn items is taken as one snapshot at the start of the build: an
+        ///     equip operation publishes a new list instead of editing the one already published,
+        ///     so a reference taken once stays still while every slot is read off it
+        ///     </para>
+        /// </summary>
+        /// <param name="pc">Character the gear is collected of</param>
+        private static Equipment CreateEquipment(GPc pc)
+        {
+            List<GPcEquip> worn = pc.Equip;
+
+            return new Equipment
+            {
+                Weapon = ItemOfSlot(worn, ItemEquipTypeEnum.Weapon),
+                Shield = ItemOfSlot(worn, ItemEquipTypeEnum.Shield),
+                Armor = ItemOfSlot(worn, ItemEquipTypeEnum.Armor),
+                FirstRing = ItemOfSlot(worn, ItemEquipTypeEnum.Ring1),
+                SecondRing = ItemOfSlot(worn, ItemEquipTypeEnum.Ring2),
+                Necklace = ItemOfSlot(worn, ItemEquipTypeEnum.Amulet),
+                Boots = ItemOfSlot(worn, ItemEquipTypeEnum.Boot),
+                Gloves = ItemOfSlot(worn, ItemEquipTypeEnum.Glove),
+                Helmet = ItemOfSlot(worn, ItemEquipTypeEnum.Cap),
+                Belt = ItemOfSlot(worn, ItemEquipTypeEnum.Belt),
+                Cloak = ItemOfSlot(worn, ItemEquipTypeEnum.Cloak),
+                SphereMastery = ItemOfSlot(worn, ItemEquipTypeEnum.ExpertnessMaterial),
+                SphereSoul = ItemOfSlot(worn, ItemEquipTypeEnum.SoulMaterial),
+                SphereDefense = ItemOfSlot(worn, ItemEquipTypeEnum.DefenseMaterial),
+                SphereDestruction = ItemOfSlot(worn, ItemEquipTypeEnum.AttackMaterial),
+                SphereLife = ItemOfSlot(worn, ItemEquipTypeEnum.LifeMaterial),
+                SphereLuck = ItemOfSlot(worn, ItemEquipTypeEnum.EventAMaterial),
+                SphereReincarnation = ItemOfSlot(worn, ItemEquipTypeEnum.EventBMaterial),
+                SphereCharacteristics = ItemOfSlot(worn, ItemEquipTypeEnum.EventCMaterial)
+            };
+        }
+
+        /// <summary>
+        ///     Item worn in a slot of a snapshot, null for a slot nobody filled - the packet then
+        ///     writes the slot as zeroes, the length of the block never changes. The slot is asked
+        ///     of the equipment record and not of the item: the
+        ///     item knows nothing about where it ended up, and two rings of one kind are told apart
+        ///     by their records only. The serial comes off the record as well, whole and unchanged
+        ///     since the record was built
+        /// </summary>
+        /// <param name="worn">Snapshot of the worn items</param>
+        /// <param name="pos">Slot to look at</param>
+        private static Item ItemOfSlot(List<GPcEquip> worn, ItemEquipTypeEnum pos)
+        {
+            GPcEquip equip = worn.FirstOrDefault(x => x.Pos == pos);
+            if (equip == null)
+            {
+                return null;
+            }
+
+            return new Item
+            {
+                Id = equip.SerialNo,
+                ItemId = equip.Item.Id
+            };
         }
     }
 }

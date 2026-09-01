@@ -14,145 +14,19 @@ namespace Server.Game.Core.Factories
 {
     public class VisibleFactory : IVisibleFactory
     {
+        /// <summary>
+        ///     5107: everybody who is already on the screen of a session, drawn the way that session
+        ///     has to see them
+        /// </summary>
+        /// <param name="clientsFrom">Sessions of the characters the packet tells about</param>
+        /// <param name="clientTo">Session the packet is sent to</param>
         public void SendDisplayedCharacters(IEnumerable<GameSession> clientsFrom, GameSession clientTo)
         {
             ExistedPcAckModel existedPcAckModel = new ExistedPcAckModel();
 
             foreach (var clientFrom in clientsFrom)
             {
-                PublicPc publicPc = new PublicPc
-                {
-                    AliveOrDead = (byte)(clientFrom.Pc.DeadTime == null ? 1 : 0),
-                    AttackRate = clientFrom.Pc.Detail.AttackRate,
-                    MoveRate = clientFrom.Pc.Detail.MoveRate,
-                    UniqueIdentifier = clientFrom.Pc.UniqueId,
-                    Class = (byte)clientFrom.Pc.Simple.Class,
-                    Gender = clientFrom.Pc.Simple.Sex,
-                    Head = clientFrom.Pc.Simple.Head,
-                    Face = clientFrom.Pc.Simple.Face,
-                    Position = clientFrom.Pc.PositionCur,
-                    Reputation = clientFrom.Pc.Detail.Chaotic,
-                    Name = clientFrom.Pc.Simple.NickName,
-                    Level = (short)clientFrom.Pc.Simple.Level,
-                    ChaoticStatus = (int)clientFrom.Pc.Detail.ChaoticStatus,
-                    PkCnt = 0
-                };
-
-                var weapon = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Weapon);
-                if (weapon != null)
-                {
-                    publicPc.Weapon = weapon.Item.Id;
-                }
-
-                var shield = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Shield);
-                if (shield != null)
-                {
-                    publicPc.Shield = shield.Item.Id;
-                }
-
-                var armor = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Armor);
-                if (armor != null)
-                {
-                    publicPc.Armor = armor.Item.Id;
-                }
-
-                var ring1 = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Ring1);
-                if (ring1 != null)
-                {
-                    publicPc.Ring1 = ring1.Item.Id;
-                }
-
-                var ring2 = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Ring2);
-                if (ring2 != null)
-                {
-                    publicPc.Ring2 = ring2.Item.Id;
-                }
-
-                var amulet = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Amulet);
-                if (amulet != null)
-                {
-                    publicPc.Amulet = amulet.Item.Id;
-                }
-
-                var boot = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Boot);
-                if (boot != null)
-                {
-                    publicPc.Boot = boot.Item.Id;
-                }
-
-                var glove = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Glove);
-                if (glove != null)
-                {
-                    publicPc.Glove = glove.Item.Id;
-                }
-
-                var cap = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Cap);
-                if (cap != null)
-                {
-                    publicPc.Cap = cap.Item.Id;
-                }
-
-                var belt = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Belt);
-                if (belt != null)
-                {
-                    publicPc.Belt = belt.Item.Id;
-                }
-
-                var cloak = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Cloak);
-                if (cloak != null)
-                {
-                    publicPc.Cloak = cloak.Item.Id;
-                }
-
-                var expertnessMaterial = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.ExpertnessMaterial);
-                if (expertnessMaterial != null)
-                {
-                    publicPc.ExpertnessMaterial = expertnessMaterial.Item.Id;
-                }
-
-                var soulMaterial = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.SoulMaterial);
-                if (soulMaterial != null)
-                {
-                    publicPc.SoulMaterial = soulMaterial.Item.Id;
-                }
-
-                var defenceMaterial = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.DefenseMaterial);
-                if (defenceMaterial != null)
-                {
-                    publicPc.DefenceMaterial = defenceMaterial.Item.Id;
-                }
-
-                var attackMaterial = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.AttackMaterial);
-                if (attackMaterial != null)
-                {
-                    publicPc.AttackMaterial = attackMaterial.Item.Id;
-                }
-
-                var llifeMaterial = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.LifeMaterial);
-                if (llifeMaterial != null)
-                {
-                    publicPc.LifeMaterial = llifeMaterial.Item.Id;
-                }
-
-                var eventAMaterial = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.EventAMaterial);
-                if (eventAMaterial != null)
-                {
-                    publicPc.EventAMaterial = eventAMaterial.Item.Id;
-                }
-
-                var eventBMaterial = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.EventBMaterial);
-                if (eventBMaterial != null)
-                {
-                    publicPc.EventBMaterial = eventBMaterial.Item.Id;
-                }
-
-                var eventCMaterial = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.EventCMaterial);
-                if (eventCMaterial != null)
-                {
-                    publicPc.EventCMaterial = eventCMaterial.Item.Id;
-                }
-
-                existedPcAckModel.Character.Add(publicPc);
+                existedPcAckModel.Character.Add(CreatePublicPc(clientFrom.Pc));
             }
 
             clientTo.Send(existedPcAckModel);
@@ -170,162 +44,86 @@ namespace Server.Game.Core.Factories
         /// </param>
         public void SendDisplayedDetailsCharacter(GameSession clientFrom, GameSession clientTo, bool isTeleport = false)
         {
-            PublicPc publicPc = new PublicPc
-            {
-                AliveOrDead = (byte)(clientFrom.Pc.DeadTime == null ? 1 : 0),
-                AttackRate = clientFrom.Pc.Detail.AttackRate,
-                MoveRate = clientFrom.Pc.Detail.MoveRate,
-                UniqueIdentifier = clientFrom.Pc.UniqueId,
-                Class = (byte)clientFrom.Pc.Simple.Class,
-                Gender = clientFrom.Pc.Simple.Sex,
-                Head = clientFrom.Pc.Simple.Head,
-                Face = clientFrom.Pc.Simple.Face,
-                Position = clientFrom.Pc.PositionCur,
-                Reputation = clientFrom.Pc.Detail.Chaotic,
-                Name = clientFrom.Pc.Simple.NickName,
-                Level = (short)clientFrom.Pc.Simple.Level,
-                ChaoticStatus = (int)clientFrom.Pc.Detail.ChaoticStatus,
-                PkCnt = 0
-            };
-
             DisplayedCharacterModel displayedCharactersModel = new DisplayedCharacterModel
             {
                 IsTeleport = isTeleport,
 
-                Character = new PublicPc()
-                {
-                    AliveOrDead = (byte)(clientFrom.Pc.DeadTime == null ? 1 : 0),
-                    AttackRate = clientFrom.Pc.Detail.AttackRate,
-                    MoveRate = clientFrom.Pc.Detail.MoveRate,
-                    UniqueIdentifier = clientFrom.Pc.UniqueId,
-                    Class = (byte)clientFrom.Pc.Simple.Class,
-                    Gender = clientFrom.Pc.Simple.Sex,
-                    Head = clientFrom.Pc.Simple.Head,
-                    Face = clientFrom.Pc.Simple.Face,
-                    Position = clientFrom.Pc.PositionCur,
-                    Reputation = clientFrom.Pc.Detail.Chaotic,
-                    Name = clientFrom.Pc.Simple.NickName,
-                    Level = (short)clientFrom.Pc.Simple.Level,
-                    ChaoticStatus = (int)clientFrom.Pc.Detail.ChaoticStatus,
-                    PkCnt = 0
-                }
+                Character = CreatePublicPc(clientFrom.Pc)
             };
 
-            var weapon = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Weapon);
-            if (weapon != null)
-            {
-                displayedCharactersModel.Character.Weapon = weapon.Item.Id;
-            }
-
-            var shield = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Shield);
-            if (shield != null)
-            {
-                displayedCharactersModel.Character.Shield = shield.Item.Id;
-            }
-
-            var armor = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Armor);
-            if (armor != null)
-            {
-                displayedCharactersModel.Character.Armor = armor.Item.Id;
-            }
-
-            var ring1 = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Ring1);
-            if (ring1 != null)
-            {
-                displayedCharactersModel.Character.Ring1 = ring1.Item.Id;
-            }
-
-            var ring2 = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Ring2);
-            if (ring2 != null)
-            {
-                displayedCharactersModel.Character.Ring2 = ring2.Item.Id;
-            }
-
-            var amulet = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Amulet);
-            if (amulet != null)
-            {
-                displayedCharactersModel.Character.Amulet = amulet.Item.Id;
-            }
-
-            var boot = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Boot);
-            if (boot != null)
-            {
-                displayedCharactersModel.Character.Boot = boot.Item.Id;
-            }
-
-            var glove = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Glove);
-            if (glove != null)
-            {
-                displayedCharactersModel.Character.Glove = glove.Item.Id;
-            }
-
-            var cap = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Cap);
-            if (cap != null)
-            {
-                displayedCharactersModel.Character.Cap = cap.Item.Id;
-            }
-
-            var belt = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Belt);
-            if (belt != null)
-            {
-                displayedCharactersModel.Character.Belt = belt.Item.Id;
-            }
-
-            var cloak = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.Cloak);
-            if (cloak != null)
-            {
-                displayedCharactersModel.Character.Cloak = cloak.Item.Id;
-            }
-
-            var expertnessMaterial = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.ExpertnessMaterial);
-            if (expertnessMaterial != null)
-            {
-                displayedCharactersModel.Character.ExpertnessMaterial = expertnessMaterial.Item.Id;
-            }
-
-            var soulMaterial = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.SoulMaterial);
-            if (soulMaterial != null)
-            {
-                displayedCharactersModel.Character.SoulMaterial = soulMaterial.Item.Id;
-            }
-
-            var defenceMaterial = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.DefenseMaterial);
-            if (defenceMaterial != null)
-            {
-                displayedCharactersModel.Character.DefenceMaterial = defenceMaterial.Item.Id;
-            }
-
-            var attackMaterial = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.AttackMaterial);
-            if (attackMaterial != null)
-            {
-                displayedCharactersModel.Character.AttackMaterial = attackMaterial.Item.Id;
-            }
-
-            var llifeMaterial = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.LifeMaterial);
-            if (llifeMaterial != null)
-            {
-                displayedCharactersModel.Character.LifeMaterial = llifeMaterial.Item.Id;
-            }
-
-            var eventAMaterial = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.EventAMaterial);
-            if (eventAMaterial != null)
-            {
-                displayedCharactersModel.Character.EventAMaterial = eventAMaterial.Item.Id;
-            }
-
-            var eventBMaterial = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.EventBMaterial);
-            if (eventBMaterial != null)
-            {
-                displayedCharactersModel.Character.EventBMaterial = eventBMaterial.Item.Id;
-            }
-
-            var eventCMaterial = clientFrom.Pc.Equip.FirstOrDefault(i => i.Item.EquipPos == ItemEquipTypeEnum.EventCMaterial);
-            if (eventCMaterial != null)
-            {
-                displayedCharactersModel.Character.EventCMaterial = eventCMaterial.Item.Id;
-            }
-
             clientTo.Send(displayedCharactersModel);
+        }
+
+        /// <summary>
+        ///     A character as everybody around has to see it: who it is, where it stands and what it
+        ///     wears. Both appearance packets draw one and the same character in one and the same
+        ///     way, so both are built here.
+        ///     <para>
+        ///     The worn items are read off a single snapshot of the list taken at the start: an
+        ///     equip operation publishes a new list instead of editing the one already published,
+        ///     so a reference taken once stays still under the whole build - the character goes out
+        ///     either in the gear it had before the change or in the gear it has after it, never in
+        ///     a mix of both. The factories are called from the visibility pass, on a thread that
+        ///     owns none of it
+        ///     </para>
+        /// </summary>
+        /// <param name="pc">Character of the world the packet tells about</param>
+        private static PublicPc CreatePublicPc(GPc pc)
+        {
+            List<GPcEquip> worn = pc.Equip;
+
+            return new PublicPc
+            {
+                AliveOrDead = (byte)(pc.DeadTime == null ? 1 : 0),
+                AttackRate = pc.Detail.AttackRate,
+                MoveRate = pc.Detail.MoveRate,
+                UniqueIdentifier = pc.UniqueId,
+                Class = (byte)pc.Simple.Class,
+                Gender = pc.Simple.Sex,
+                Head = pc.Simple.Head,
+                Face = pc.Simple.Face,
+                Position = pc.PositionCur,
+                Reputation = pc.Detail.Chaotic,
+                Name = pc.Simple.NickName,
+                Level = (short)pc.Simple.Level,
+                ChaoticStatus = (int)pc.Detail.ChaoticStatus,
+                PkCnt = 0,
+
+                Weapon = ItemNoOfSlot(worn, ItemEquipTypeEnum.Weapon),
+                Shield = ItemNoOfSlot(worn, ItemEquipTypeEnum.Shield),
+                Armor = ItemNoOfSlot(worn, ItemEquipTypeEnum.Armor),
+                Ring1 = ItemNoOfSlot(worn, ItemEquipTypeEnum.Ring1),
+                Ring2 = ItemNoOfSlot(worn, ItemEquipTypeEnum.Ring2),
+                Amulet = ItemNoOfSlot(worn, ItemEquipTypeEnum.Amulet),
+                Boot = ItemNoOfSlot(worn, ItemEquipTypeEnum.Boot),
+                Glove = ItemNoOfSlot(worn, ItemEquipTypeEnum.Glove),
+                Cap = ItemNoOfSlot(worn, ItemEquipTypeEnum.Cap),
+                Belt = ItemNoOfSlot(worn, ItemEquipTypeEnum.Belt),
+                Cloak = ItemNoOfSlot(worn, ItemEquipTypeEnum.Cloak),
+                ExpertnessMaterial = ItemNoOfSlot(worn, ItemEquipTypeEnum.ExpertnessMaterial),
+                SoulMaterial = ItemNoOfSlot(worn, ItemEquipTypeEnum.SoulMaterial),
+                DefenceMaterial = ItemNoOfSlot(worn, ItemEquipTypeEnum.DefenseMaterial),
+                AttackMaterial = ItemNoOfSlot(worn, ItemEquipTypeEnum.AttackMaterial),
+                LifeMaterial = ItemNoOfSlot(worn, ItemEquipTypeEnum.LifeMaterial),
+                EventAMaterial = ItemNoOfSlot(worn, ItemEquipTypeEnum.EventAMaterial),
+                EventBMaterial = ItemNoOfSlot(worn, ItemEquipTypeEnum.EventBMaterial),
+                EventCMaterial = ItemNoOfSlot(worn, ItemEquipTypeEnum.EventCMaterial)
+            };
+        }
+
+        /// <summary>
+        ///     Number of the item worn in a slot of a snapshot, zero for a slot nobody filled - the
+        ///     client draws nothing on an empty slot. The slot is asked of the equipment record and
+        ///     not of the item: the item knows nothing about where it ended up, and two rings of one
+        ///     kind are told apart by their records only
+        /// </summary>
+        /// <param name="worn">Snapshot of the worn items</param>
+        /// <param name="pos">Slot to look at</param>
+        private static int ItemNoOfSlot(List<GPcEquip> worn, ItemEquipTypeEnum pos)
+        {
+            GPcEquip equip = worn.FirstOrDefault(x => x.Pos == pos);
+
+            return equip?.Item.Id ?? 0;
         }
 
         public void SendDisplayedItems(GameSession client, IEnumerable<GPublicItem> itemGameModels)

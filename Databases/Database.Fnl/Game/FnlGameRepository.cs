@@ -17,6 +17,15 @@ namespace Database.Fnl.Game
         private const string GetPcItemProcedure = "dbo.UspGetPcItem";
         private const string GetListAbnormalProcedure = "dbo.UspGetListAbnormal";
         private const string UpdatePosProcedure = "dbo.UspUpdatePos";
+        private const string EquipProcedure = "dbo.UspEquip";
+
+        /// <summary>
+        ///     Slots dbo.UspEquip accepts: it picks the column of the equipment table by the slot
+        ///     number and has one only for the worn slots, weapon..cloak. Everything above that
+        ///     (materials, servant) lives in other tables and the procedure rejects it
+        /// </summary>
+        private const int EquipSlotFirst = 0;
+        private const int EquipSlotLast = 10;
 
         /// <summary>
         ///     Column ordinals of the dbo.UspListPc result set: a.mSlot, a.mNo
@@ -397,6 +406,32 @@ namespace Database.Fnl.Game
 
             connection.Open();
             command.ExecuteNonQuery();
+        }
+
+        /// <inheritdoc/>
+        public bool Equip(int pcNo, int slot, long serialNo)
+        {
+            // The procedure answers an unknown slot with its own error code, there is no point
+            // in going to the database for one
+            if (slot < EquipSlotFirst || slot > EquipSlotLast)
+            {
+                return false;
+            }
+
+            using SqlConnection connection = _connectionFactory.Create(FnlConnectionNames.FnlGame);
+            using SqlCommand command = StoredProcedure.Create(connection, EquipProcedure);
+
+            // Order and types are taken from sys.parameters of the live procedure
+            StoredProcedure.AddInInt(command, "@pPcNo", pcNo);
+            StoredProcedure.AddInBigInt(command, "@pSerial", serialNo);
+            StoredProcedure.AddInInt(command, "@pWhere", slot);
+
+            connection.Open();
+            command.ExecuteNonQuery();
+
+            // The slot is written by a dynamic UPDATE/INSERT, its failure comes back as the
+            // return code, so only a zero means the slot really changed
+            return StoredProcedure.ReturnValue(command) == 0;
         }
 
         /// <summary>

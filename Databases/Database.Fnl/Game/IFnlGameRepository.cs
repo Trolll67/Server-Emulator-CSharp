@@ -90,5 +90,17 @@ namespace Database.Fnl.Game
         /// <param name="z">Position, @pPosZ real</param>
         /// <param name="stomach">Stomach, @pStomach</param>
         void UpdatePos(int pcNo, int hp, int mp, int mapNo, float x, float y, float z, short stomach);
+
+        /// <summary>
+        ///     Writes one equipment slot of a character (dbo.UspEquip): the procedure puts the serial
+        ///     into the column of that slot. Taking an item off is the same call with a zero serial.
+        ///     A broken connection surfaces as an exception, like in the other methods here
+        /// </summary>
+        /// <param name="pcNo">Character number, @pPcNo</param>
+        /// <param name="slot">Worn slot, weapon..cloak; the procedure knows no other column</param>
+        /// <param name="serialNo">Serial of the item, @pSerial bigint, zero to clear the slot</param>
+        /// <returns>True when the slot is written, false on a slot the procedure has no column for
+        ///     and on a non zero return code</returns>
+        bool Equip(int pcNo, int slot, long serialNo);
     }
 }

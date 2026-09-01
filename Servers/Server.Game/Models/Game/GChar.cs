@@ -98,6 +98,18 @@ namespace Server.Game.Models.Game
         public short AddWeight { get; set; }
         public short AddMoveSpeed { get; set; }
         public short AddAttackSpeed { get; set; }
+
+        /// <summary>
+        ///     What the worn items give to the rate of attack, to the speed of movement and to the
+        ///     weight the character may carry. They are kept apart from the Add fields above, which
+        ///     belong to the character itself: the calculation of the characteristics writes these
+        ///     three whole on every run, so a second run over the same equipment gives the same
+        ///     numbers instead of summing them once more. Nothing but a player fills them - a
+        ///     monster wears nothing
+        /// </summary>
+        public short AddAttackRateByItem { get; set; }
+        public short AddMoveRateByItem { get; set; }
+        public short AddWeightByItem { get; set; }
         public short BaseMoveSpeed { get; set; }
         public short AddHwRegenHp { get; set; }
         public short AddHwRegenMp { get; set; }
@@ -153,8 +165,11 @@ namespace Server.Game.Models.Game
 
         public void CalcSpeed()
         {
-            AttackRate = AddAttackSpeed;
-            MoveRate = BaseMoveSpeed + AddMoveSpeed;
+            // A worn item takes its rate away from the rate of attack - the rate is the pause
+            // between two swings, so the smaller it is the faster the character hits - and adds
+            // its own to the speed of movement
+            AttackRate = (short)(AddAttackSpeed - AddAttackRateByItem);
+            MoveRate = BaseMoveSpeed + AddMoveSpeed + AddMoveRateByItem;
 
             if ((ParmMon.ParmNo == 151 || ParmMon.ParmNo == 952))// ParmItemSmall.IsRange(Weapon.ItemSmall))
                 AttackRate += ParmMon.AttackRateOrg;
@@ -214,38 +229,55 @@ namespace Server.Game.Models.Game
                 // shaped the same way as the row of a monster, so one place covers both
                 WeaponDef = GWeapon.CreateDefault(ParmMonCur.Hit, ParmMonCur.MinD, ParmMonCur.MaxD);
 
-                if (ParmMon.GbjClass == GbjClassEnum.Mon)
-                {
-                    _DistAttack = ParmMonCur.DistMelee;
-                }
-                else if (ParmMon.GbjClass == GbjClassEnum.Pc)
-                {
-                    _DistAttack = ParmMonCur.DistMelee;// Weapon.Range;
-                }
-
                 BaseMoveSpeed = ParmMonCur.MoveRateOrg;
                 Detail.AttackRate = ParmMonCur.AttackRateOrg;
                 Detail.MoveRate = ParmMonCur.MoveRateOrg;
             }
+            // TODO: the transform ability table is not read - the transformed shape keeps the
+            // attack and move rates of the character instead of its own
+
+            CalcDistAttack();
+            _CastingDelay = (uint)ParmMonCur.CastingDelay / 100;
+
+            CalcSpeed();
+        }
+
+        /// <summary>
+        ///     How far the character reaches with what it holds, the size of its body counted in.
+        ///     Out of a transformed shape the reach is the reach of the item in the weapon slot -
+        ///     a bow reaches as far as a bow, a spear as far as a spear - and an empty hand reaches
+        ///     as far as the melee reach of the parm row, which is the only reach a monster ever
+        ///     has. A transformed shape reaches as far as the row of the shape and takes from the
+        ///     item only the addition that belongs to the way the shape attacks.
+        ///     Called by the calculation of the characteristics right after the item of the weapon
+        ///     slot is published, so a change of the weapon in the middle of a fight is seen by the
+        ///     very next swing
+        /// </summary>
+        public void CalcDistAttack()
+        {
+            if (ParmMon == ParmMonCur)
+            {
+                // A row with no reach of its own is read as an unfilled one: the character then
+                // reaches no further than it does bare-handed instead of reaching nowhere at all
+                _DistAttack = Weapon != null && Weapon.Range > 0 ? Weapon.Range : ParmMonCur.DistMelee;
+            }
             else
             {
                 _DistAttack = ParmMonCur.DistMelee;
-                // TODO: the transform ability table is not read - the transformed shape keeps
-                // the attack and move rates of the character instead of its own
-                if (ParmMonCur.AttackType == AttackTypeEnum.Long)
+                if (Weapon != null)
                 {
-                    _DistAttack += Weapon.AddLongAttackRange;
-                }
-                else
-                {
-                    _DistAttack += Weapon.AddShortAttackRange;
+                    if (ParmMonCur.AttackType == AttackTypeEnum.Long)
+                    {
+                        _DistAttack += Weapon.AddLongAttackRange;
+                    }
+                    else
+                    {
+                        _DistAttack += Weapon.AddShortAttackRange;
+                    }
                 }
             }
 
             _DistAttack += ParmMonCur.BodySz;
-            _CastingDelay = (uint)ParmMonCur.CastingDelay / 100;
-
-            CalcSpeed();
         }
 
         private void _CalcWaponDamage(GChar target)

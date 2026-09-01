@@ -93,12 +93,10 @@ namespace Server.Game.Core.Systems
 
             if (levelsGained > 0)
             {
-                // Пересчёт один на все набранные уровни: CalcAbility выставляет новые максимумы
-                // HP/MP (и подрезает по ним текущие), CalcSpeed - скорости от новых характеристик.
-                // Обнуление характеристик делает сама CalcAbility, поэтому повторный вызов на той
-                // же Ability прибавки экипировки не удваивает
+                // Пересчёт один на все набранные уровни: CalcAbility собирает новый набор
+                // характеристик (включая максимумы HP/MP), публикует его подменой ссылки и сама
+                // заканчивается пересчётом скоростей - отдельный вызов не нужен
                 client.Pc.CalcAbility();
-                client.Pc.CalcSpeed();
 
                 client.Pc.Simple.Hp = client.Pc.Ability.MaxHp;
                 client.Pc.Simple.Mp = client.Pc.Ability.MaxMp;

@@ -16,10 +16,10 @@ namespace Server.Game.Services.Game
 {
     /// <summary>
     ///     Intelligence of the monsters: one pass looks at every monster whose own moment has come and
-    ///     decides what it does - stand at home, chase the one that hit it, swing at it or walk back to
-    ///     the place it was spawned at. There is no packet of the client behind any of it: a monster is
-    ///     drawn by its neighbours out of the very same packets a player is - the stop (5326), the walk
-    ///     to a point (5190) and the swing (5132).
+    ///     decides what it does - walk around its spot, go for somebody it saw itself, chase the one
+    ///     that hit it, swing at it or walk back to the place it was spawned at. There is no packet
+    ///     of the client behind any of it: a monster is drawn by its neighbours out of the very same
+    ///     packets a player is - the stop (5326), the walk to a point (5190) and the swing (5132).
     ///     <para>
     ///     Everything the intelligence decides happens on the single thread of this job: the positions
     ///     of the monsters, their walks, their swings and the health they take off their victims are
@@ -51,6 +51,20 @@ namespace Server.Game.Services.Game
         ///     interpolates it out of 5190 come out the same
         /// </summary>
         private const int MoveTickIntervalMilliseconds = 400;
+
+        /// <summary>
+        ///     How often a monster that fights nobody looks around, in milliseconds. That is the whole
+        ///     pace of a monster at rest: it wakes up this often, looks for somebody to hunt and draws
+        ///     a walk around its spot, and everything else it does is a fight or a walk with a pace of
+        ///     its own
+        /// </summary>
+        private const int LookAroundIntervalMilliseconds = 2000;
+
+        /// <summary>
+        ///     How long a monster stands on its spot between two walks around it, in milliseconds -
+        ///     on the average and not exactly (<see cref="IsStrollDrawn"/>)
+        /// </summary>
+        private const int StrollIntervalMilliseconds = 15000;
 
         /// <summary>
         ///     How far from the place it was spawned at a monster is willing to fight, in units. A
@@ -85,9 +99,15 @@ namespace Server.Game.Services.Game
         private const short HpAttackedPlayer = -1;
 
         /// <summary>
-        ///     Flag of 5190 while the monster is walking
+        ///     Flag of 5190 of a monster that strolls, while a run - a chase or the way home -
+        ///     carries zero
         /// </summary>
         private const byte MoveFlagWalking = 1;
+
+        /// <summary>
+        ///     Flag of 5190 of a monster that runs, see <see cref="MoveFlagWalking"/>
+        /// </summary>
+        private const byte MoveFlagRunning = 0;
 
         private readonly AttackSystem _attackSystem;
         private readonly MonsterMoveSystem _monsterMoveSystem;
@@ -101,7 +121,8 @@ namespace Server.Game.Services.Game
 
         /// <summary>
         ///     Source of the draws of the intelligence - which of the remembered attackers a monster
-        ///     turns to next. Touched on the thread of the job only, so a single instance is enough
+        ///     turns to next, when a resting one sets out on a walk and where that walk goes.
+        ///     Touched on the thread of the job only, so a single instance is enough
         /// </summary>
         private readonly Random _random;
 
@@ -162,7 +183,7 @@ namespace Server.Game.Services.Game
 
                     // A monster that swings waits out its attack rate, a monster that walks - its
                     // step, so most of the monsters are skipped by this line alone
-                    if (unit.AiTickDateTime > now)
+                    if (unit.AiTickDateTime > now && !IsWokenByTarget(unit))
                     {
                         continue;
                     }
@@ -173,6 +194,32 @@ namespace Server.Game.Services.Game
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Can not tick monster intelligence");
+            }
+        }
+
+        /// <summary>
+        ///     Whether a monster that waits its own moment out is to be looked at all the same: it has
+        ///     a target and is not fighting yet, so the hit that gave it that target has just landed -
+        ///     on the thread of the swings of the players and not on this one. A monster at rest looks
+        ///     around once in two seconds and one on a walk steps once in four hundred milliseconds,
+        ///     and neither of those pauses may be the pause a monster takes a beating in without
+        ///     answering. A monster that is already fighting keeps its own pace: that pause is its
+        ///     attack rate and its step, and the fight itself is what puts them
+        /// </summary>
+        /// <param name="monster">Living monster the pass would skip</param>
+        private static bool IsWokenByTarget(GMonster monster)
+        {
+            // The reference read costs nothing and almost every monster of the world has no target:
+            // the lock is only taken for the few that do, otherwise the pass would enter it for
+            // everybody it is about to skip, ten times a second
+            if (monster.TargetUniqueId == null)
+            {
+                return false;
+            }
+
+            lock (monster.Aggro.SyncRoot)
+            {
+                return monster.TargetUniqueId != null && monster.AiState != MonsterAiState.Angry;
             }
         }
 
@@ -219,20 +266,268 @@ namespace Server.Game.Services.Game
                     GoHome(monster, now);
                     break;
 
-                // Standing at home with nobody to fight. TODO: the active monsters look for a target
-                // of their own here and the rest walk around their spot - both are written later
+                // Nobody to fight: the monster lives its own life around its spot - it looks for
+                // somebody to hunt and walks about
                 case MonsterAiState.Idle:
-                    // A monster that was killed in the middle of a chase comes back with the point
-                    // it was walking to still written on it: the respawn wipes the fight it died in,
-                    // and the walk is dropped here, silently - the clients have long forgotten the
-                    // walk of a monster that died, and the respawned one is drawn to them anew
-                    if (monster._PosTo != null)
-                    {
-                        monster._PosTo = null;
-                    }
-
+                case MonsterAiState.Stroll:
+                    Live(monster, state, now);
                     break;
             }
+        }
+
+        /// <summary>
+        ///     Tick of a monster that fights nobody: it looks around for somebody to hunt, and while
+        ///     it finds nobody it walks around its spot and stands there
+        /// </summary>
+        /// <param name="monster">Monster with nobody to fight</param>
+        /// <param name="state">State of the monster, read off the model</param>
+        /// <param name="now">Moment of this pass</param>
+        private void Live(GMonster monster, MonsterAiState state, DateTime now)
+        {
+            UniqueId targetUniqueId = LookAround(monster);
+
+            // Found somebody with its own eyes: the fight begins on this very tick and goes exactly
+            // the way the fight of a monster that was hit goes
+            if (targetUniqueId != null)
+            {
+                BeginFight(monster, now);
+
+                Fight(monster, targetUniqueId, now);
+                return;
+            }
+
+            if (state == MonsterAiState.Stroll)
+            {
+                Stroll(monster, now);
+                return;
+            }
+
+            // A leftover walk point is dropped, silently: the fight reset wipes it together with
+            // the fight, so this is only a safety net for a path nobody has thought of
+            if (monster._PosTo != null)
+            {
+                monster._PosTo = null;
+            }
+
+            monster.AiTickDateTime = now.AddMilliseconds(LookAroundIntervalMilliseconds);
+
+            if (!IsStrollDrawn())
+            {
+                return;
+            }
+
+            BeginStroll(monster, now);
+        }
+
+        /// <summary>
+        ///     The monster looks through the players it sees and takes the nearest one it may reach
+        ///     with its eyes. Only the kinds that hunt of their own accord look at all
+        ///     (<see cref="IsHunter"/>): everybody else stands and waits to be touched first.
+        ///     <para>
+        ///     The distance is taken on the plane, exactly the way the chase after the target is cut:
+        ///     somebody standing on a hill above the monster must not be seen further away than
+        ///     somebody standing next to it
+        ///     </para>
+        /// </summary>
+        /// <param name="monster">Monster that fights nobody</param>
+        /// <returns>Target of the monster after the look, null when it has nobody to fight</returns>
+        private static UniqueId LookAround(GMonster monster)
+        {
+            ParmMonster parm = GetParm(monster);
+
+            // A monster of a kind that hunts nobody, one that sees nothing at all and one without a
+            // parm row to read either of those out of: all of them stand
+            if (parm == null || !IsHunter(parm.AiType) || parm.DistSight <= 0f)
+            {
+                return null;
+            }
+
+            GameSession nearest = null;
+            float nearestDistanceSq = 0f;
+
+            foreach (var visibleCharacterGame in monster.VisibleCharacterGames)
+            {
+                // A session that left the world or a corpse is nobody the monster has business with
+                if (visibleCharacterGame?.Pc == null || !visibleCharacterGame.IsInWorld
+                    || visibleCharacterGame.Pc.PositionCur == null || visibleCharacterGame.Pc.DeadTime != null)
+                {
+                    continue;
+                }
+
+                float distanceSq = MoveSystem.GetDistance2DSq(monster.PositionCur, visibleCharacterGame.Pc.PositionCur);
+
+                if (distanceSq > parm.DistSightSq)
+                {
+                    continue;
+                }
+
+                if (nearest != null && distanceSq >= nearestDistanceSq)
+                {
+                    continue;
+                }
+
+                nearest = visibleCharacterGame;
+                nearestDistanceSq = distanceSq;
+            }
+
+            if (nearest == null)
+            {
+                return null;
+            }
+
+            // The target is written by the model and under its lock: a hit may land on the thread of
+            // the swings of the players between the look and this line, and the one that really hurts
+            // the monster is worth more than the one it has only seen
+            return monster.SetTargetBySight(nearest.Pc.UniqueId);
+        }
+
+        /// <summary>
+        ///     The monster sets out on a walk around its spot: a point is drawn inside the range of
+        ///     its parm and the first step towards it is taken at once - that step is the one the
+        ///     neighbours are told about, and the ones after it are silent
+        /// </summary>
+        /// <param name="monster">Monster at rest</param>
+        /// <param name="now">Moment of this pass</param>
+        private void BeginStroll(GMonster monster, DateTime now)
+        {
+            Vector3 pointPosition = GetStrollPoint(monster);
+
+            // Nowhere to walk: a monster without a spot and a monster whose parm leaves it no room
+            // around it stay where they stand
+            if (pointPosition == null)
+            {
+                return;
+            }
+
+            lock (monster.Aggro.SyncRoot)
+            {
+                monster.AiState = MonsterAiState.Stroll;
+            }
+
+            // The point the monster walks to is kept by the walk itself (GChar._PosTo), so the steps
+            // that follow need nothing but the state
+            StrollStep(monster, pointPosition, now);
+        }
+
+        /// <summary>
+        ///     One step of a walk around the spot. The point of the walk is the one the walk itself
+        ///     keeps: a walk that was stopped from anywhere else leaves the monster without a point,
+        ///     and that is a walk that is over
+        /// </summary>
+        /// <param name="monster">Strolling monster</param>
+        /// <param name="now">Moment of this pass</param>
+        private void Stroll(GMonster monster, DateTime now)
+        {
+            if (monster._PosTo == null)
+            {
+                StopStroll(monster, now);
+                return;
+            }
+
+            StrollStep(monster, monster._PosTo, now);
+        }
+
+        /// <summary>
+        ///     The monster walks one step towards the point of its stroll and stands at ease once it
+        ///     is there. A stroll is strolled and not run: the pace is half the move rate of the parm,
+        ///     and the very same number goes out in the packet of the walk
+        /// </summary>
+        /// <param name="monster">Strolling monster</param>
+        /// <param name="pointPosition">Point of the stroll</param>
+        /// <param name="now">Moment of this pass</param>
+        private void StrollStep(GMonster monster, Vector3 pointPosition, DateTime now)
+        {
+            if (!Walk(monster, pointPosition, MonsterMoveSystem.GetWalkSpeed(monster.GetMoveRateOrg()), MoveFlagWalking, now))
+            {
+                return;
+            }
+
+            StopStroll(monster, now);
+        }
+
+        /// <summary>
+        ///     The walk around the spot is over: the neighbours are told where the monster stopped and
+        ///     it stands at rest until it draws the next walk
+        /// </summary>
+        /// <param name="monster">Monster that is done strolling</param>
+        /// <param name="now">Moment of this pass</param>
+        private void StopStroll(GMonster monster, DateTime now)
+        {
+            StopWalk(monster);
+
+            SetIdle(monster);
+
+            monster.AiTickDateTime = now.AddMilliseconds(LookAroundIntervalMilliseconds);
+        }
+
+        /// <summary>
+        ///     A point for a walk around the spot: a place drawn inside the range of the parm around
+        ///     the home of the monster. It is drawn around the home and never around the place the
+        ///     monster stands on - points drawn one from another would carry a monster off its spot
+        ///     step by step, and the range of the parm is the whole leash of a monster that fights
+        ///     nobody
+        /// </summary>
+        /// <param name="monster">Monster that sets out on a walk</param>
+        /// <returns>Point of the walk, null for a monster that has nowhere or no room to walk</returns>
+        private Vector3 GetStrollPoint(GMonster monster)
+        {
+            ParmMonster parm = GetParm(monster);
+
+            if (monster.PositionDefault == null || parm == null || parm.MoveRange <= 0)
+            {
+                return null;
+            }
+
+            // The range of the parm is the width of the whole ground the monster strolls over, home
+            // in the middle - so every axis draws its offset out of half of it. A circle would look
+            // nicer, but the original draws over the box around the home, and walking twice as far
+            // as it would is worse than cornering
+            float halfRange = parm.MoveRange / 2f;
+
+            // The height is the one of the spot: the server has no ground under the monster to take
+            // another one from
+            return new Vector3(
+                monster.PositionDefault.X + (float)(_random.NextDouble() * 2d - 1d) * halfRange,
+                monster.PositionDefault.Y,
+                monster.PositionDefault.Z + (float)(_random.NextDouble() * 2d - 1d) * halfRange);
+        }
+
+        /// <summary>
+        ///     Whether the monster sets out on a walk on this look. The walk is drawn and not counted:
+        ///     a monster at rest is looked at once in <see cref="LookAroundIntervalMilliseconds"/> and
+        ///     one look in every <see cref="StrollIntervalMilliseconds"/> leads to a walk, so a monster
+        ///     walks about once in that time - and a spot full of monsters does not step out all at
+        ///     once, which is what a counter of ticks would give it
+        /// </summary>
+        private bool IsStrollDrawn()
+        {
+            return _random.Next(StrollIntervalMilliseconds) < LookAroundIntervalMilliseconds;
+        }
+
+        /// <summary>
+        ///     Whether the monsters of this kind go for somebody by themselves. Everything else waits
+        ///     to be touched first: the passive kinds, the dummies, the guards of the towns and the
+        ///     rows the players themselves are built out of.
+        ///     TODO: the other kinds that attack of their own accord - the ones that call their
+        ///     neighbours in, the ones that hunt with skills, the guards that go for the chaotic
+        ///     alone - go by rules of their own, and they wait until those rules are written
+        /// </summary>
+        /// <param name="aiType">Kind of the intelligence out of the parm row</param>
+        private static bool IsHunter(AiTypeEnum aiType)
+        {
+            return aiType == AiTypeEnum.eAiActActive;
+        }
+
+        /// <summary>
+        ///     Parm row the intelligence reads the monster out of: the row of the shape it wears right
+        ///     now, the row it was born with while it wears none. That is the very same place its move
+        ///     rate comes from (<see cref="GMonster.GetMoveRateOrg"/>) - a transformed monster hunts
+        ///     and walks the way its shape does
+        /// </summary>
+        /// <param name="monster">Monster to read</param>
+        private static ParmMonster GetParm(GMonster monster)
+        {
+            return monster.ParmMonCur ?? monster.ParmMon;
         }
 
         /// <summary>
@@ -266,6 +561,13 @@ namespace Server.Game.Services.Game
         /// <param name="now">Moment of this pass</param>
         private void Fight(GMonster monster, UniqueId targetUniqueId, DateTime now)
         {
+            // Somebody hits the monster while it runs after the one it has only seen: the hit is
+            // worth more than the sight, and the fight is handed over on the spot
+            if (TakeRevenge(monster, targetUniqueId, now))
+            {
+                return;
+            }
+
             GameSession target = FindTarget(targetUniqueId);
 
             // Killed, logged out or simply gone: one of the attackers the monster still remembers is
@@ -420,7 +722,7 @@ namespace Server.Game.Services.Game
             // and the very same number goes out in the packet of the walk
             Vector3 positionBefore = monster.PositionCur;
 
-            Walk(monster, targetPosition, MonsterMoveSystem.GetRunSpeed(monster.GetMoveRateOrg()), now);
+            Walk(monster, targetPosition, MonsterMoveSystem.GetRunSpeed(monster.GetMoveRateOrg()), MoveFlagRunning, now);
 
             // A step that left the monster where it stood brought the chase nothing either - a parm
             // without a move rate at all is the plain case of it. Without this the monster would
@@ -452,7 +754,7 @@ namespace Server.Game.Services.Game
 
             // The way back is run the same way the chase was: a monster that gave a fight up does
             // not stroll home
-            if (!Walk(monster, monster.PositionDefault, MonsterMoveSystem.GetRunSpeed(monster.GetMoveRateOrg()), now))
+            if (!Walk(monster, monster.PositionDefault, MonsterMoveSystem.GetRunSpeed(monster.GetMoveRateOrg()), MoveFlagRunning, now))
             {
                 return;
             }
@@ -482,7 +784,7 @@ namespace Server.Game.Services.Game
         /// <param name="speed">Speed of the walk in units per second, <see cref="MonsterMoveSystem.GetRunSpeed"/></param>
         /// <param name="now">Moment of this pass</param>
         /// <returns>Whether the point is reached</returns>
-        private bool Walk(GMonster monster, Vector3 pointPosition, float speed, DateTime now)
+        private bool Walk(GMonster monster, Vector3 pointPosition, float speed, byte moveFlag, DateTime now)
         {
             Vector3 positionFrom = monster.PositionCur;
 
@@ -503,7 +805,7 @@ namespace Server.Game.Services.Game
 
                 foreach (var visibleCharacterGame in monster.VisibleCharacterGames)
                 {
-                    _monsterActionFactory.SendMoveToPoint(visibleCharacterGame, monster.UniqueId, positionFrom, monster._PosTo, MoveFlagWalking, speed);
+                    _monsterActionFactory.SendMoveToPoint(visibleCharacterGame, monster.UniqueId, positionFrom, monster._PosTo, moveFlag, speed);
                 }
             }
 
@@ -599,6 +901,43 @@ namespace Server.Game.Services.Game
             }
 
             return target;
+        }
+
+        /// <summary>
+        ///     Hand the fight over from a target the monster has only seen to one that really hurts
+        ///     it. The target of a monster is sticky - a hit from the side never turns it around -
+        ///     but a monster that went hunting by itself has a target that never touched it, and
+        ///     that one is worth exactly as much as the eyes of the monster: anybody who hits it has
+        ///     the better claim. The two are told apart by the aggro history alone - it is the damage
+        ///     that is written there, so a target with a record of its own is one that has hit the
+        ///     monster and a target without one is the target of a hunt
+        /// </summary>
+        /// <param name="monster">Monster in a fight</param>
+        /// <param name="targetUniqueId">Target of the monster, read off the model</param>
+        /// <param name="now">Moment of this pass</param>
+        /// <returns>Whether the fight is handed over and this tick is over with it</returns>
+        private bool TakeRevenge(GMonster monster, UniqueId targetUniqueId, DateTime now)
+        {
+            lock (monster.Aggro.SyncRoot)
+            {
+                // Nobody has hit the monster, or the one it fights is exactly the one who did
+                if (monster.Aggro.Count == 0 || monster.Aggro.Contains(targetUniqueId))
+                {
+                    return false;
+                }
+
+                // The target was replaced between the read of the pass and this line: whatever it is
+                // now, it is looked at on the nearest pass and not decided upon here
+                if (!UniqueId.IsSame(monster.TargetUniqueId, targetUniqueId))
+                {
+                    return false;
+                }
+            }
+
+            // Outside the lock: the packets of the stop go to everybody who sees the monster
+            ChangeTarget(monster, now);
+
+            return true;
         }
 
         /// <summary>

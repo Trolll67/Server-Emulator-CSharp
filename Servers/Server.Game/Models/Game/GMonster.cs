@@ -24,9 +24,7 @@ namespace Server.Game.Models.Game
         Idle,
 
         /// <summary>
-        ///     Walking around its home on its own. Nothing puts a monster in this state yet - the
-        ///     wandering pass is written later - and the value is here so that the state itself does
-        ///     not have to be touched again
+        ///     Walking around its home on its own, at the strolling pace and with no target
         /// </summary>
         Stroll,
 
@@ -232,6 +230,36 @@ namespace Server.Game.Models.Game
         }
 
         /// <summary>
+        ///     Take the one the monster has found with its own eyes: a monster of a kind that hunts
+        ///     gets its target from the pass of the intelligence and not from a hit. The one that is
+        ///     taken is not written into the aggro history - the history holds the damage the monster
+        ///     has taken, and a target that never touched it has nothing to be remembered for. That
+        ///     is what tells the two kinds of target apart afterwards: a target with no record of its
+        ///     own steps aside for anybody who really hits the monster, while one that has hit it is
+        ///     as sticky as ever.
+        ///     <para>
+        ///     A monster that has a target already keeps it: the intelligence reads the target and
+        ///     looks around on one thread, and a hit of the swing pass of the players may land in
+        ///     between - a target that came with damage is worth more than one that came by sight
+        ///     </para>
+        /// </summary>
+        /// <param name="target">Identifier of the one the monster has seen</param>
+        /// <returns>Target of the monster after the call, null when it has nobody to fight</returns>
+        public UniqueId SetTargetBySight(UniqueId target)
+        {
+            lock (Aggro.SyncRoot)
+            {
+                if (target != null && TargetUniqueId == null)
+                {
+                    TargetUniqueId = target;
+                    TargetMoveCnt = 0;
+                }
+
+                return TargetUniqueId;
+            }
+        }
+
+        /// <summary>
         ///     Pick the next target after the one the monster was fighting is gone - killed, out of
         ///     the world or given up on. The one that is gone is forgotten first, so it cannot be
         ///     drawn again, and one of the attackers that are still remembered is drawn at random:
@@ -281,6 +309,11 @@ namespace Server.Game.Models.Game
             lock (Aggro.SyncRoot)
             {
                 Aggro.Clear();
+
+                // The walk dies with the fight: a point left over from a chase would otherwise
+                // survive the respawn and ride into the appearance packet of the reborn monster,
+                // sending it walking to the place its past life died at
+                _PosTo = null;
 
                 TargetUniqueId = null;
                 TargetMoveCnt = 0;

@@ -45,8 +45,7 @@ namespace Server.Game.Core.Systems
         /// <summary>
         ///     Speed a monster strolls with, in units per second: half of the move rate of the parm
         ///     row. That is the pace of a monster that walks around its own spot with nobody to
-        ///     fight - nothing puts a monster on such a walk yet, the wandering pass is written
-        ///     later, and the two speeds of a monster are kept next to each other so that neither
+        ///     fight, and the two speeds of a monster are kept next to each other so that neither
         ///     of them is looked for anywhere else
         /// </summary>
         /// <param name="moveRateOrg">ParmMonster.MoveRateOrg of the monster</param>

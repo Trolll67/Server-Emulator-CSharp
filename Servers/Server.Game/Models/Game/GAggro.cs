@@ -121,6 +121,26 @@ namespace Server.Game.Models.Game
         }
 
         /// <summary>
+        ///     Whether this one is remembered. That is how a target that has hurt the monster is told
+        ///     from one it has only seen: everybody who hits gets a record of its own, and a target a
+        ///     monster went hunting for by itself has none
+        /// </summary>
+        /// <param name="attacker">Identifier to look for</param>
+        /// <returns>Whether the history holds a record of this one</returns>
+        public bool Contains(UniqueId attacker)
+        {
+            if (attacker == null)
+            {
+                return false;
+            }
+
+            lock (_lockObject)
+            {
+                return Find(attacker) != null;
+            }
+        }
+
+        /// <summary>
         ///     Forget one attacker: the target that has died, left the world or was given up on is
         ///     taken out of the history so that it is not picked again
         /// </summary>

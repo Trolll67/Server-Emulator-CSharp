@@ -20,13 +20,13 @@ namespace Server.Game.Models.Game
         /// <summary>
         ///     Slot the item is worn in. The slot belongs to the record and not to the item: two
         ///     rings of one kind are told apart by nothing else, and an item that is only carried
-        ///     must not drag a slot of its own around. A record built without a slot of its own -
-        ///     the loading path, which reads the slot of the database onto the item it loads -
-        ///     falls back to the slot the item carries, and to the slot of its type after that
+        ///     must not drag a slot of its own around. Every path that builds a record - loading
+        ///     and an equip operation alike - names the slot, so a record left without one is a
+        ///     mistake and reads as worn nowhere instead of silently landing in the first slot
         /// </summary>
         public ItemEquipTypeEnum Pos
         {
-            get => _pos ?? Item?.EquipPos ?? Item?.EquipType ?? ItemEquipTypeEnum.NotEquipped;
+            get => _pos ?? ItemEquipTypeEnum.NotEquipped;
             init => _pos = value;
         }
 

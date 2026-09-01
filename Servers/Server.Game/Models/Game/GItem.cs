@@ -115,7 +115,6 @@ namespace Server.Game.Models.Game
             UseInAttack = model.UseInAttack;
 
             SerialNumber = model.SerialNumber;
-            EquipPos = model.EquipPos;
             Count = model.Count;
             IsConfirm = model.IsConfirm;
             EndTick = model.EndTick;
@@ -137,7 +136,6 @@ namespace Server.Game.Models.Game
         public GDice DDdDice { get; set; }
         public GDice RDdDice { get; set; }
         public GDice MDdDice { get; set; }
-        public ItemEquipTypeEnum? EquipPos { get; set; }
         public int Count { get; set; }
         public uint EndTick { get; set; }
         public short UseCount { get; set; }

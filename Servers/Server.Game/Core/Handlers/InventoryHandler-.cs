@@ -97,7 +97,6 @@ namespace Server.Game.Core.Handlers
                 GItem itemGameNew = _databaseBalanceService.GetGItemById(itemGameDropped.Item.Id);
 
                 itemGameNew.Id = (int)_serialNumberService.GetSerialNumberIdentifier();
-                itemGameNew.EquipPos = null;
                 itemGameNew.Count = itemGameDropped.Item.Count;
                 itemGameNew.IsConfirm = itemGameDropped.Item.IsConfirm;
                 itemGameNew.EndTick = itemGameDropped.Item.EndTick;

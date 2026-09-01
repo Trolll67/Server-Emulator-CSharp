@@ -25,18 +25,16 @@ namespace Server.Game.Core.Handlers
         private readonly IInventoryFactory _inventoryFactory;
         private readonly ParmRepository _databaseBalanceService;
         private readonly IdentificationService _identificationService;
-        private readonly CharacterSystem _characterSystem;
         private readonly SerialNumberService _serialNumberService;
         private readonly UnitSystem _unitSystem;
 
-        public ChatHandler(IInventoryFactory inventarFactory, IChatFactory chatFactory, ICharacteristicFactory characteristicFactory, ParmRepository databaseBalanceService, IdentificationService identificationService, CharacterSystem characterSystem, SerialNumberService serialNumberService, UnitSystem unitSystem)
+        public ChatHandler(IInventoryFactory inventarFactory, IChatFactory chatFactory, ICharacteristicFactory characteristicFactory, ParmRepository databaseBalanceService, IdentificationService identificationService, SerialNumberService serialNumberService, UnitSystem unitSystem)
         {
             _inventoryFactory = inventarFactory;
             _chatFactory = chatFactory;
             _characteristicFactory = characteristicFactory;
             _databaseBalanceService = databaseBalanceService;
             _identificationService = identificationService;
-            _characterSystem = characterSystem;
             _serialNumberService = serialNumberService;
             _unitSystem = unitSystem;
         }

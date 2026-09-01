@@ -24,13 +24,11 @@ namespace Server.Game.Core.Handlers
         private readonly ReinforceSystem _reinforceSystem;
         private readonly ParmRepository _databaseBalanceService;
         private readonly GameRepository _databaseService;
-        private readonly CharacterSystem _characterSystem;
         private readonly InventarSystem _inventarSystem;
         private readonly IErrorFactory _errorFactory;
 
-        public ReinforceHandler(ICharacteristicFactory characteristicFactory,InventarSystem inventarSystem, CharacterSystem characterSystem, IReinforceFactory reinforceFactory, ReinforceSystem reinforceSystem, ParmRepository databaseBalanceService, IInventoryFactory inventarFactory, GameRepository databaseService, IErrorFactory errorFactory)
+        public ReinforceHandler(ICharacteristicFactory characteristicFactory,InventarSystem inventarSystem, IReinforceFactory reinforceFactory, ReinforceSystem reinforceSystem, ParmRepository databaseBalanceService, IInventoryFactory inventarFactory, GameRepository databaseService, IErrorFactory errorFactory)
         {
-            _characterSystem = characterSystem;
             _databaseService = databaseService;
             _inventoryFactory = inventarFactory;
             _characteristicFactory = characteristicFactory;

@@ -131,8 +131,6 @@ namespace Server.Game
 
                     // Register systems
                     services.AddTransient<AttackSystem>();
-                    services.AddTransient<CharacterSystem>();
-                    services.AddTransient<EquipSystem>();
                     services.AddTransient<AbnormalSystem>();
                     services.AddTransient<ExpSystem>();
                     services.AddTransient<InventarSystem>();

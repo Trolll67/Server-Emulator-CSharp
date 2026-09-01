@@ -138,6 +138,8 @@ namespace Server.Game
                     services.AddTransient<InventarSystem>();
                     services.AddTransient<ItemUseSystem>();
                     services.AddTransient<MoveSystem>();
+                    services.AddTransient<MonsterMoveSystem>();
+                    services.AddTransient<PlayerDeathSystem>();
                     services.AddTransient<ReinforceSystem>();
                     services.AddTransient<UnitDropSystem>();
                     services.AddTransient<UnitSystem>();

@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Packets.Server.Game.Structures;
 using Server.Game.Core.Systems;
 using Server.Game.Models.Game;
 using Server.Game.Services.Database;
@@ -87,10 +88,19 @@ namespace Server.Game.Services.GameServices
 
                     _identificationService.RemoveUnit(monster);
 
-                    // Restores hp/mp, ability and DeadTime. TODO: return the monster to its spot
-                    // (PositionDefault, DirectionSightDefault) as well
+                    // Restores hp/mp, ability and DeadTime, and drops everything the monster had of
+                    // its last fight: the attackers it remembered, the target it chased, its state
                     monster._SetDefaultInfo(monster.ParmMon);
 
+                    // A monster dies where the chase has taken it, and it comes back to its spot -
+                    // the place it was born at and the way it looked then. The position is a copy:
+                    // the spot must not move with the monster once it walks away from it again
+                    monster.PositionCur = new Vector3(monster.PositionDefault);
+                    monster.DirectionSight = monster.DirectionSightDefault;
+
+                    // The unit is put back into the world only after it stands on its spot: the
+                    // packets about a respawned monster are built out of what the identification
+                    // service hands out, and they must never carry the place it died at
                     _identificationService.AddUnit(monster);
                 }
             }

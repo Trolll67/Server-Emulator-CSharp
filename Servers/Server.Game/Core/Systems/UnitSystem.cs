@@ -50,10 +50,12 @@ namespace Server.Game.Core.Systems
                     pos = new Vector3((float)sGroup.PosX, (float)sGroup.PosZ, (float)sGroup.PosY);
                 }
 
-                // Set default position for unit
+                // Set default position for unit. The current position is a copy: the home point of
+                // the spot must survive whatever moves the monster later
                 monster.PositionDefault = pos;
-                monster.PositionCur = pos;
+                monster.PositionCur = new Vector3(pos);
                 monster.DirectionSight = (float)mSpot.Dir;
+                monster.DirectionSightDefault = (float)mSpot.Dir;
                 monster.Respawn = mSpot.Tick * 1000;
 
                 monsters.Add(monster);

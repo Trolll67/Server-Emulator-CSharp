@@ -15,12 +15,13 @@ namespace Packets.Server.Game.Parsers.Send
         {
             FormationPackage formationPackage = new FormationPackage();
 
-            // Отправляем номер ошибки
+            // Отправляем номер ошибки: эхо опкода запроса, код причины, восемь байт данных
+            // запроса (для отказа на надевание там идентификатор вещи, иначе ноль) и признак
+            // окна - пятнадцать байт нагрузки, семнадцать вместе с опкодом самого пакета
             formationPackage.AddShort((short)model.PacketType);
-            formationPackage.AddUInteger((uint) model.ErrorType);
-            formationPackage.AddZeroBytes(8);
+            formationPackage.AddUInteger(model.ErrorType.Code);
+            formationPackage.AddULong(model.Etc);
             formationPackage.AddByte(model.IsMsgBox ? (byte)1 : (byte)0);
-            
 
             return formationPackage.GetBytes();
         }

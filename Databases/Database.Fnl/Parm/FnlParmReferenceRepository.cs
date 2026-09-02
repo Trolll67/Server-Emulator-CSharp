@@ -412,8 +412,10 @@ namespace Database.Fnl.Parm
             List<DropGroup> groups = new List<DropGroup>();
             Dictionary<int, DropGroup> byId = new Dictionary<int, DropGroup>();
 
-            // DGroup, DDrop, DPercent, DName, DDropType (DName and DDropType have no field on the POCO).
-            // One row per (group, drop item), so rows are folded into the group's Items list
+            // DGroup, DDrop, DPercent, DName, DDropType (DName has no field on the POCO). The name
+            // and the type come off the header row of the group, so they are read once, when the
+            // group is met the first time. One row per (group, drop item), so rows are folded into
+            // the group's Items list
             using SqlDataReader reader = command.ExecuteReader();
 
             while (reader.Read())
@@ -422,7 +424,11 @@ namespace Database.Fnl.Parm
 
                 if (!byId.TryGetValue(groupId, out DropGroup group))
                 {
-                    group = new DropGroup { DropGroupId = groupId };
+                    group = new DropGroup
+                    {
+                        DropGroupId = groupId,
+                        DropGroupType = (DropGroupTypeEnum)ByteOrZero(reader, 4)
+                    };
                     byId.Add(groupId, group);
                     groups.Add(group);
                 }

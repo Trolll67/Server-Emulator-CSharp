@@ -72,7 +72,6 @@ namespace Server.Game.Models.Game
         /// </summary>
         public const short HpHidden = -1;
 
-        public List<GDropGroup> DropGroup { get; set; }
         // TODO: the monster does not yet keep its stomach, its flags and the time of its last death
 
         public int Respawn { get; set; }

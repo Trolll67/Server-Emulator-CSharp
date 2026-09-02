@@ -15,7 +15,6 @@ namespace Server.Game.Models.Game
         {
 
         }
-        public DropGroupTypeEnum DropType { get; set; }
         // TODO: the drop amplification windows of the group are not modeled yet
     }
 }

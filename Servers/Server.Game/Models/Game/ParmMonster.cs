@@ -63,13 +63,24 @@ namespace Server.Game.Models.Game
             QuestMaking = monster.EventQuest;
             Nm = monster.Name;
 
+            // Every group the monster drops from is copied off the reference: the chance of the
+            // group belongs to the link "monster -> group" and the type ("on the ground" or
+            // "into the bag of the killer") to the group itself, and the drop needs both. A link
+            // that points at a group the reference does not hold is skipped - a hole in the parm
+            // must not take the whole monster down
             DropGroups = new List<GDropGroup>();
             foreach (var dropGroup in monster.Drops)
             {
+                if (dropGroup.DropGroup == null)
+                {
+                    continue;
+                }
+
                 GDropGroup dGroup = new GDropGroup
                 {
                     DropGroupId = dropGroup.DropGroupId,
-                    DropType = DropGroupTypeEnum.GroupGround,
+                    Percent = dropGroup.Percent,
+                    DropGroupType = dropGroup.DropGroup.DropGroupType,
                     Items = new List<DropGroupItem>(dropGroup.DropGroup.Items)
                 };
                 DropGroups.Add(dGroup);

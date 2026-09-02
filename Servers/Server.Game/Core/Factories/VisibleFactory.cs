@@ -132,28 +132,7 @@ namespace Server.Game.Core.Factories
 
             foreach (var itemGameModel in itemGameModels)
             {
-                PublicItem item = new PublicItem
-                {
-                    Item = new ItemApiModel()
-                    {
-                        Flag = (byte)(itemGameModel.Item.IsConfirm ? 1 : 0),
-                        SerialNumber = (ulong)itemGameModel.Item.Id,
-                        ItemId = itemGameModel.Item.Id,
-                        Count = itemGameModel.Item.Count,
-                        EndTick = itemGameModel.Item.EndTick,
-                        ItemStatus = (byte)itemGameModel.Item.Status,
-                        UseCount = itemGameModel.Item.UseCount,
-                        EatTime = itemGameModel.Item.EatTime,
-                        TermOfEffectivity = itemGameModel.Item.TermOfValidity,
-                        ItemBind = (byte)itemGameModel.Item.ItemBind,
-                        Restore = itemGameModel.Item.Restore,
-                        Hole = itemGameModel.Item.Hole
-                    },
-                    Position = itemGameModel.Position,
-                    UniqueIdentifier = itemGameModel.UniqueId
-                };
-
-                displayedItemModel.Items.Add(item);
+                displayedItemModel.Items.Add(CreatePublicItem(itemGameModel));
             }
 
             client.Send(displayedItemModel);
@@ -163,29 +142,55 @@ namespace Server.Game.Core.Factories
         {
             EnteredItemAckModel enteredItemModel = new EnteredItemAckModel()
             {
-                Item = new PublicItem
-                {
-                    Item = new ItemApiModel()
-                    {
-                        Flag = (byte)(itemDroppedGame.Item.IsConfirm ? 1 : 0),
-                        SerialNumber = (ulong)itemDroppedGame.Item.Id,
-                        ItemId = itemDroppedGame.Item.Id,
-                        Count = itemDroppedGame.Item.Count,
-                        EndTick = itemDroppedGame.Item.EndTick,
-                        ItemStatus = (byte)itemDroppedGame.Item.Status,
-                        UseCount = itemDroppedGame.Item.UseCount,
-                        EatTime = itemDroppedGame.Item.EatTime,
-                        TermOfEffectivity = itemDroppedGame.Item.TermOfValidity,
-                        ItemBind = (byte)itemDroppedGame.Item.ItemBind,
-                        Restore = itemDroppedGame.Item.Restore,
-                        Hole = itemDroppedGame.Item.Hole
-                    },
-                    UniqueIdentifier = itemDroppedGame.UniqueId,
-                    Position = itemDroppedGame.Position
-                }
+                Item = CreatePublicItem(itemDroppedGame)
             };
 
             client.Send(enteredItemModel);
+        }
+
+        /// <summary>
+        ///     An item of the world as everybody around has to see it. Both packets about an item
+        ///     on the ground draw one and the same item in one and the same way, so both are built
+        ///     here.
+        ///     <para>
+        ///     A thing that is not identified goes out under the fake number of its parm row and
+        ///     with the normal status: the original hides what has really dropped until the thing
+        ///     is identified, and the real number would give it away in the tooltip of the client.
+        ///     The serial number is the one of the thing itself - a thing that fell out of a
+        ///     monster has none and goes out with a zero, a thing a player has thrown away carries
+        ///     the number of its row
+        ///     </para>
+        /// </summary>
+        /// <param name="itemGameModel">Item of the world the packet tells about</param>
+        private static PublicItem CreatePublicItem(GPublicItem itemGameModel)
+        {
+            GItem item = itemGameModel.Item;
+
+            return new PublicItem
+            {
+                Item = new ItemApiModel()
+                {
+                    Flag = (byte)(item.IsConfirm ? 1 : 0),
+                    SerialNumber = item.SerialNumber,
+                    ItemId = item.IsConfirm ? item.Id : item.FakeId,
+                    Count = item.Count,
+                    EndTick = item.EndTick,
+                    ItemStatus = (byte)(item.IsConfirm ? item.Status : ItemStatusEnum.Normal),
+                    UseCount = item.UseCount,
+                    EatTime = item.EatTime,
+                    // The original puts here the minutes left until the term of the thing
+                    // ends, taken from its row in the DB of the player; we do not keep the
+                    // minutes - zero, the way the original has it for a thing without a term.
+                    // Filling it from the minutes of the procedure - together with the general
+                    // repair of EndTick and of the reading of the bag
+                    TermOfEffectivity = 0,
+                    ItemBind = (byte)item.ItemBind,
+                    Restore = item.Restore,
+                    Hole = item.Hole
+                },
+                UniqueIdentifier = itemGameModel.UniqueId,
+                Position = itemGameModel.Position
+            };
         }
 
         public void SendDisplayedUnit(GameSession client, IEnumerable<GMonster> unitGameModels)

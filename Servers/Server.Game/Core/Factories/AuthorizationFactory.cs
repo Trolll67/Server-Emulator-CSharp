@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Database.DataModel.Enums;
+using System;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Options;
 using Packets.Server.Game.Models.Send.Settings;
@@ -105,19 +106,27 @@ namespace Server.Game.Core.Factories
 
             foreach (var item in client.Pc.Inventory.Items)
             {
+                // An item that is not identified goes out under the fake number of its parm row
+                // and with the normal status, the same way the packets of the bag send it: what
+                // has really dropped stays hidden until the item is identified
                 var newItem = new ItemApiModel
                 {
                     SerialNumber = (ulong)item.SerialNumber,
-                    ItemId = item.Id,
-                    
+                    ItemId = item.IsConfirm ? item.Id : item.FakeId,
+
                     Count = item.Count,
 
                     Flag = (byte)(item.IsConfirm ? 1 : 0),
                     EndTick = item.EndTick,
-                    ItemStatus = (byte)item.Status,
+                    ItemStatus = (byte)(item.IsConfirm ? item.Status : ItemStatusEnum.Normal),
                     UseCount = item.UseCount,
                     EatTime = item.EatTime,
-                    TermOfEffectivity = item.TermOfValidity,
+                    // The original puts here the minutes left until the term of the thing
+                    // ends, taken from its row in the DB of the player; we do not keep the
+                    // minutes - zero, the way the original has it for a thing without a term.
+                    // Filling it from the minutes of the procedure - together with the general
+                    // repair of EndTick and of the reading of the bag
+                    TermOfEffectivity = 0,
                     ItemBind = (byte)item.ItemBind,
                     Restore = item.Restore,
                     Hole = item.Hole

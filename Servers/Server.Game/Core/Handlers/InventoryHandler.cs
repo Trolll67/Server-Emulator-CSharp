@@ -202,8 +202,9 @@ namespace Server.Game.Core.Handlers
                 // by conditions of its own and answers with the serial of the row the thing ended
                 // up in, and the bag is brought over to that row whether it merged the thing or
                 // took a row of its own for it - see GPc.ApplyInventoryChange
-                // Страховка: перегрузка сейчас не отказывает; если откажет - база уже записана,
-                // вещь не возвращаем. Вещь уже изъята из мира - освобождаем номер и завершаем без пакетов
+                // Safety net: the overload never refuses right now; if it ever did, the row is
+                // already written and the item is not handed back. The item is already taken off
+                // the ground, so we release its number and stop with no packets
                 if (!client.Pc.ApplyInventoryChange(change, serialNo))
                 {
                     _logger.LogError("Character {PcNo} could not apply inventory change for row {SerialNo} of item {ItemNo}, the row is already written", client.Pc.Simple.PcNo, serialNo, ground.Item.Id);

@@ -284,10 +284,10 @@ namespace Server.Game.Core.Systems
         }
 
         /// <summary>
-        ///     Item of the loot as it lies in the world: no serial number of its own (A3 - the row
-        ///     of the database is created by the pick-up, so the death of a monster costs no
-        ///     query at all), the count and the status of the row of the reference, and a place of
-        ///     its own around the corpse
+        ///     Item of the loot as it lies in the world: no serial number of its own (the row of
+        ///     the database is created by the pick-up, so the death of a monster costs no query
+        ///     at all), the count and the status of the row of the reference, and a place of its
+        ///     own around the corpse
         /// </summary>
         /// <param name="monster">Monster the item falls out of</param>
         /// <param name="item">Item that goes on the ground</param>
@@ -369,8 +369,8 @@ namespace Server.Game.Core.Systems
                 // row the item ended up in, and the bag is brought over to that row whether the
                 // procedure merged the item or took a row of its own for it - see
                 // GPc.ApplyInventoryChange
-                // Страховка: перегрузка сейчас не отказывает; если откажет - база уже записана,
-                // вещь не возвращаем и на землю не кладём
+                // Safety net: the overload never refuses right now; if it ever did, the row is
+                // already written and the item is not handed back, nor put back on the ground
                 if (!client.Pc.ApplyInventoryChange(change, serialNo))
                 {
                     _logger.LogError("Character {PcNo} could not apply inventory change for row {SerialNo} of item {ItemId} of the loot, the row is already written", client.Pc.Simple.PcNo, serialNo, item.Id);
@@ -393,8 +393,9 @@ namespace Server.Game.Core.Systems
         ///     Item built off the row of the loot. It is asked of the parm every time and never
         ///     copied off another item: the parm hands out a fresh one with the whole mapping on
         ///     it - the fake number an unidentified item is drawn under among the rest.
-        ///     The status is the one of the row of the loot, the serial number stays at zero (A3),
-        ///     and the tick the term runs out at carries the raw term of the parm - that is what
+        ///     The status is the one of the row of the loot, the serial number stays at zero (it is
+        ///     assigned only when the item is picked up), and the tick the term runs out at
+        ///     carries the raw term of the parm - that is what
         ///     the original sends for an item that has never been through a bag
         /// </summary>
         /// <param name="row">Row of the loot</param>
@@ -421,7 +422,7 @@ namespace Server.Game.Core.Systems
         ///     has no ground of its own to take another one from. Two zeroes would leave the item
         ///     inside the corpse, so one axis is pushed out by the smallest offset. The original
         ///     clips the place to the map and asks whether it can be walked to; we have neither
-        ///     bound (A4), so the item lies where it fell
+        ///     check, so the item lies where it fell
         /// </summary>
         /// <param name="corpse">Place the monster died at</param>
         private static Vector3 GetGroundPosition(Vector3 corpse)
@@ -454,7 +455,7 @@ namespace Server.Game.Core.Systems
         ///     Count of the money that falls out: the count of the reference with a spread of ten
         ///     percent around it, the way the original spreads it. The spread is never smaller than
         ///     one, so even the smallest heap wanders. The multipliers of the original - the global
-        ///     one, the one of the place of the map and the premium one - are all at one here (A6)
+        ///     one, the one of the place of the map and the premium one - are all at one here
         /// </summary>
         /// <param name="count">Count the row of the loot names</param>
         private static int SpreadMoneyCount(int count)

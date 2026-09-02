@@ -1,4 +1,4 @@
-﻿using Packets.Server.Game.Enums;
+using Packets.Server.Game.Enums;
 using Packets.Server.Game.Structures;
 using Server.Game.Models.Game;
 using Server.Game.Network;
@@ -156,20 +156,82 @@ namespace Server.Game.Services
         }
 
         /// <summary>
-        ///     Remove item
+        ///     Take an item of the world for the one that asks for it. The lookup and the removal
+        ///     are one operation under the lock of the service: two players that reach for one thing
+        ///     at the same moment come here one after the other, so exactly one of them gets it and
+        ///     the other one is told there is nothing lying there any more. A lookup and a removal
+        ///     as two calls would hand a copy of the thing to both.
+        ///     The original works the same way - it sets a flag "the item is taken" atomically and
+        ///     clears it when the pick-up fails; a caller of ours whose pick-up fails puts the item
+        ///     back with <see cref="ReturnItem"/>, which leaves it the identifier it already has.
+        ///     The number of the item is not released here: the item is out of the world but the
+        ///     caller still holds it under that number and may put it back at any moment, and a
+        ///     number handed to somebody else in that window would name two things at once. It
+        ///     stays with the item until the caller says the item is gone for good and lets it go
+        ///     with <see cref="ReleaseItem"/> - every caller of this one ends in exactly one of the
+        ///     two
         /// </summary>
-        /// <param name="item"></param>
-        public void RemoveItem(GPublicItem item)
+        /// <param name="uniqueIdentifier">Identifier of the item the request names</param>
+        /// <param name="item">Item that has been taken, none when the caller did not get it</param>
+        /// <returns>True when the item is gone out of the world and belongs to the caller</returns>
+        public bool TryTakeItem(UniqueId uniqueIdentifier, out GPublicItem item)
         {
             lock (_lockObject)
             {
-                var uniqueIdentifier = _items.FirstOrDefault(c => c.Value == item).Key;
+                var uniqueIdentifierItem = _items.Keys.FirstOrDefault(c => UniqueId.IsSame(c, uniqueIdentifier));
 
-                if (uniqueIdentifier != null)
+                if (uniqueIdentifierItem == null)
                 {
-                    RemoveUniqueIdentifier(uniqueIdentifier.Id);
-                    _items.Remove(uniqueIdentifier);
+                    item = null;
+                    return false;
                 }
+
+                item = _items[uniqueIdentifierItem];
+
+                _items.Remove(uniqueIdentifierItem);
+
+                return true;
+            }
+        }
+
+        /// <summary>
+        ///     Put an item back into the world under the identifier it already carries - the way
+        ///     back of <see cref="TryTakeItem"/> for a pick-up that did not go through. The world
+        ///     has to be left exactly as it was: everybody around has already been told about the
+        ///     item under that identifier and names it by it, while the pass of the visibility
+        ///     compares the lists of what is seen and would not see anything change here, so an
+        ///     item handed a new number would stay unreachable for the clients until it leaves and
+        ///     enters the range of sight again.
+        ///     The free numbers are not touched at all: the number never left the item - the take
+        ///     does not release it - and the generation is left alone as well, it belongs to the
+        ///     handout the item still lives under
+        /// </summary>
+        /// <param name="item">Item that has been taken and is going back on the ground</param>
+        public void ReturnItem(GPublicItem item)
+        {
+            lock (_lockObject)
+            {
+                _items.Add(item.UniqueId, item);
+            }
+        }
+
+        /// <summary>
+        ///     Let the number of an item that has left the world for good go back to the free ones -
+        ///     the other end of <see cref="TryTakeItem"/>, the one <see cref="ReturnItem"/> is not.
+        ///     It is the caller that knows when the item is gone, and it says so by this call: the
+        ///     pick-up once the row of the item is written and the bag holds it, the garbage pass
+        ///     once the item is taken out of the world - whether the row of a rotten item could be
+        ///     deleted or not, the item itself is out of the world either way.
+        ///     The generation of the number is left alone: it belongs to the handouts of the number
+        ///     and outlives every one of them, so that the next entity under this number is told
+        ///     from the item that has just been carried off
+        /// </summary>
+        /// <param name="item">Item that has been taken and is never going back</param>
+        public void ReleaseItem(GPublicItem item)
+        {
+            lock (_lockObject)
+            {
+                RemoveUniqueIdentifier(item.UniqueId.Id);
             }
         }
 
@@ -186,7 +248,10 @@ namespace Server.Game.Services
         }
 
         /// <summary>
-        ///     Get item by unique identifier
+        ///     Get item by unique identifier. The number alone does not name an item: it is handed
+        ///     out again as soon as the item that held it is gone, so the whole identifier is
+        ///     compared - the same rule <see cref="TryTakeItem"/> takes the item by, because a
+        ///     caller that looks an item up and then takes it must not get two different things
         /// </summary>
         /// <param name="uniqueIdentifier"></param>
         /// <returns></returns>
@@ -194,7 +259,7 @@ namespace Server.Game.Services
         {
             lock (_lockObject)
             {
-                return _items.FirstOrDefault(c => c.Key.Id == uniqueIdentifier.Id).Value;
+                return _items.FirstOrDefault(c => UniqueId.IsSame(c.Key, uniqueIdentifier)).Value;
             }
         }
         #endregion

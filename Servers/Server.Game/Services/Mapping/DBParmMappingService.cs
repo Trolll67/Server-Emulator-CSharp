@@ -162,12 +162,27 @@ namespace Server.Game.Services
             itemGame.MoveRate = item.MoveRate;
             itemGame.AddMoveRateWhenTransform = item.AddMoveRateWhenTransform;
 
-            itemGame.AddShortAttackRange = item.Range;
+            // The reach of the row is the whole reach of the way the item fights - a bow reaches
+            // as far as a bow - and it belongs to the reach of the item. The two additions of the
+            // reach are what a transformed shape takes off the item on top of the reach of its own
+            // row, and each of them has its own column: the reach used to be written over the
+            // short addition here, so every item built this way carried a made-up addition and no
+            // reach at all
+            itemGame.Range = item.Range;
+            itemGame.AddShortAttackRange = item.AddShortAttackRange;
+            itemGame.AddLongAttackRange = item.AddLongAttackRange;
 
             itemGame.UseLevel = item.UseLevel;
 
             itemGame.UseClass = item.UseClass;
             itemGame.UseInAttack = item.UseInAttack;
+
+            // The term of validity is kept in days, the way the parm holds it and the way the
+            // store procedure of the bag takes it. The fake number stands in for the number of the
+            // item while the item is not identified, so it travels with the item to the ground
+            itemGame.TermOfValidity = item.TermOfValidity;
+            itemGame.IsConfirm = item.IsConfirm;
+            itemGame.FakeId = item.FakeId;
         }
 
         /// <summary>

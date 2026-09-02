@@ -56,6 +56,7 @@ namespace Server.Game.Models.Game
             MoveRate = parmItem.MoveRate;
             AddMoveRateWhenTransform = parmItem.AddMoveRateWhenTransform;
             AddShortAttackRange = parmItem.AddShortAttackRange;
+            AddLongAttackRange = parmItem.AddLongAttackRange;
             // The reach of the item: the weapon in the hand gives it to the attack distance of
             // the character, so it has to survive the copy off the parm row
             Range = parmItem.Range;
@@ -65,6 +66,13 @@ namespace Server.Game.Models.Game
             IsConfirm = parmItem.IsConfirm;
 
             TermOfValidity = parmItem.TermOfValidity;
+            // The fake number stands in for the number of the item while the item is not
+            // identified, and every packet about such an item sends it instead of the real one:
+            // without it here an item of the bag would go out to the client under a zero number
+            FakeId = parmItem.FakeId;
+            // Whether the item is a charged one goes as a parameter of the store procedure of the
+            // bag, so it has to survive the copy off the parm row as well
+            IsCharge = parmItem.IsCharge;
         }
         public GItem(GItem model)
             : base()
@@ -109,6 +117,7 @@ namespace Server.Game.Models.Game
             MoveRate = model.MoveRate;
             AddMoveRateWhenTransform = model.AddMoveRateWhenTransform;
             AddShortAttackRange = model.AddShortAttackRange;
+            AddLongAttackRange = model.AddLongAttackRange;
             Range = model.Range;
             UseLevel = model.UseLevel;
             UseClass = model.UseClass;
@@ -117,6 +126,12 @@ namespace Server.Game.Models.Game
             SerialNumber = model.SerialNumber;
             Count = model.Count;
             IsConfirm = model.IsConfirm;
+            // A copy of an item carries the same fake number and the same status as the item it
+            // was taken off: the status is read by the merge of the stacks and by the packets of
+            // the item, and the fake number by every packet about an item that is not identified
+            FakeId = model.FakeId;
+            Status = model.Status;
+            IsCharge = model.IsCharge;
             EndTick = model.EndTick;
             UseCount = model.UseCount;
             EatTime = model.EatTime;

@@ -40,14 +40,16 @@ namespace Server.Game.Services.Game
         private readonly IAttackFactory _attackFactory;
         private readonly AttackSystem _attackSystem;
         private readonly ExpSystem _expSystem;
+        private readonly UnitDropSystem _unitDropSystem;
         private readonly IdentificationService _identificationService;
         private readonly PeriodicScheduler _periodicScheduler;
         private readonly ILogger<AttackGameService> _logger;
 
-        public AttackGameService(AttackSystem attackSystem, ExpSystem expSystem, IdentificationService identificationService, IAttackFactory attackFactory, PeriodicScheduler periodicScheduler, ILogger<AttackGameService> logger)
+        public AttackGameService(AttackSystem attackSystem, ExpSystem expSystem, UnitDropSystem unitDropSystem, IdentificationService identificationService, IAttackFactory attackFactory, PeriodicScheduler periodicScheduler, ILogger<AttackGameService> logger)
         {
             _attackSystem = attackSystem;
             _expSystem = expSystem;
+            _unitDropSystem = unitDropSystem;
             _identificationService = identificationService;
             _attackFactory = attackFactory;
             _periodicScheduler = periodicScheduler;
@@ -253,6 +255,12 @@ namespace Server.Game.Services.Game
             // Experience and the levels it brings, with everything the client has to be told about
             // them, go before the death of the monster: that is the order the original sends them in
             _expSystem.KillUnit(client, target);
+
+            // The loot goes out between the experience and the death: the reference captures show
+            // the items appearing on the ground before the monster is told to fall, and the drop
+            // itself never lets an exception of its own out - a hole in the reference or a database
+            // that is down must not leave the monster half killed
+            _unitDropSystem.DropItems(client, target);
 
             _attackFactory.SendDeadAttack(client, client.Pc.UniqueId, target.UniqueId, chaotic, chaoticStatus);
 

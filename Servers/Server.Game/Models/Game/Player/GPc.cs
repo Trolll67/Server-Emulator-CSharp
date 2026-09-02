@@ -193,7 +193,9 @@ namespace Server.Game.Models.Game
         ///     wherever it has to be stored, and to drop the plan and leave the character untouched
         ///     when it cannot. The model itself knows nothing of sessions, packets or a database.
         ///     Which slot the item goes to is decided here, by the type of the item; the slot a
-        ///     request names is not asked for at all
+        ///     request names is not asked for at all.
+        ///     The checks are walked in the order of the original: the player is told the first
+        ///     reason his request failed for and none of the ones behind it
         /// </summary>
         /// <param name="serialNo">Serial number of the item of the inventory to put on</param>
         public GEquipChange EquipItem(ulong serialNo)
@@ -225,10 +227,22 @@ namespace Server.Game.Models.Game
             // a ban of the region of the map, an expired term, the owner of the item, a broken or
             // sealed slot, a curse that does not let the item of an occupied slot go
 
+            // Class and level of the row of the item, asked in that order: the original hands both
+            // to the item itself and lets it tell whether this character may wear it, and ours are
+            // the only two conditions a row carries
+            if (!IsClassAllowed(item.UseClass))
+            {
+                return GEquipChange.Refused(ErrorEnum.ItemCantEquipLimitClass);
+            }
+
+            if (!IsLevelAllowed(item.UseLevel))
+            {
+                return GEquipChange.Refused(ErrorEnum.ItemCantEquipLimitLevel);
+            }
+
             if (worn.Any(x => x.SerialNo == serialNo))
             {
-                // The closest code we carry: the original tells "already worn" apart from the rest
-                return GEquipChange.Refused(ErrorEnum.ItemNotUseStateOrPos);
+                return GEquipChange.Refused(ErrorEnum.ItemEquipped);
             }
 
             ItemEquipTypeEnum pos = item.EquipType;
@@ -237,20 +251,14 @@ namespace Server.Game.Models.Game
                 return GEquipChange.Refused(ErrorEnum.ItemNotEquipSlot);
             }
 
-            // Level and class of the row of the item. The original asks the item itself whether
-            // this character may wear it and hands it the class and the level; ours are the only
-            // two conditions a row carries
-            if (item.UseLevel > Simple.Level || !IsClassAllowed(item.UseClass))
-            {
-                return GEquipChange.Refused(ErrorEnum.CantEquipSlot);
-            }
-
             if (item.Type == ItemTypeEnum.Arrow)
             {
-                // Arrows are worn in the hand of the shield and hang on the bow of the other hand:
-                // with no bow there is nothing to shoot them off (the original also wants the
-                // grade of the arrows to match the grade of the bow, and the column that carries
-                // that grade is not established)
+                // Arrows are worn in the hand of the shield and hang on the bow of the other
+                // hand: with no bow there is nothing to shoot them off. The original also wants
+                // the grade of the arrows to match the grade of the bow, and that grade is zero on
+                // every bow and every kind of arrows of the parm - the check always passes there,
+                // and what tells a kind of arrows from another is the class of the row, which is
+                // asked above
                 GPcEquip weapon = worn.FirstOrDefault(x => x.Pos == ItemEquipTypeEnum.Weapon);
                 if (weapon == null || !weapon.Item.IsRangeWeapon)
                 {
@@ -319,6 +327,8 @@ namespace Server.Game.Models.Game
         /// <param name="pos">Slot to empty</param>
         public GEquipChange UnEquipItem(ItemEquipTypeEnum pos)
         {
+            // A slot that is no slot of the equipment at all: the original reads such a request as
+            // a broken one, writes it into its log and answers nothing at all
             if (pos < ItemEquipTypeEnum.Weapon || pos > ItemEquipTypeEnum.Servant)
             {
                 return GEquipChange.Refused(ErrorEnum.PosInvalid);
@@ -329,7 +339,7 @@ namespace Server.Game.Models.Game
             GPcEquip current = worn.FirstOrDefault(x => x.Pos == pos);
             if (current == null)
             {
-                return GEquipChange.Refused(ErrorEnum.ItemNotEquipSlot);
+                return GEquipChange.Refused(ErrorEnum.ItemNotEquip);
             }
 
             if (DeadTime != null)
@@ -463,21 +473,464 @@ namespace Server.Game.Models.Game
 
             return ((int)useClass & (1 << (int)Simple.Class)) != 0;
         }
+
+        /// <summary>
+        ///     Whether the level of the character is the one the row of the item asks for. The
+        ///     column carries the requirement with a sign: a positive one asks for a level not
+        ///     below it, a negative one - the rows written for the low levels - for a level not
+        ///     above its modulus, and a row that asks for nothing carries a zero
+        /// </summary>
+        /// <param name="useLevel">Level requirement of the row of the item</param>
+        private bool IsLevelAllowed(short useLevel)
+        {
+            if (useLevel == 0)
+            {
+                return true;
+            }
+
+            return useLevel > 0 ? Simple.Level >= useLevel : Simple.Level <= -useLevel;
+        }
+        #endregion
+
+        #region Inventory
+        /// <summary>
+        ///     Serializes the writers of the bag. A plan of a change is built over a snapshot of
+        ///     the rows and holds only until another plan is applied, and the caller writes the row
+        ///     of the item into the database in between - so the whole sequence "build the plan,
+        ///     store it, apply it" belongs to one writer at a time, the call of the database
+        ///     included. Two writers reach one bag: the requests of the player on the network
+        ///     thread of its session and the loot of a killed monster on the thread of the swings,
+        ///     and a pair of them that overlapped would publish the list of one over the list of
+        ///     the other and lose one of the two operations without a word.
+        ///     A change of the equipment is written under it as well: it is built over a row of the
+        ///     bag and moves the very rows of the slots a drop of a worn item is refused by, so an
+        ///     item put on while the same item is being thrown away has to wait for the other
+        ///     operation to end - see EquipHandler.
+        ///     Readers do not take it - they live on the published reference of the list.
+        ///     Order the locks of the character are taken in: this one first and the lock of the
+        ///     recalc of the characteristics (_recalcLock) or the lock of the identification service
+        ///     inside it, never the other way round. Both nestings already happen - a change of the
+        ///     equipment ends in the recalc under this lock (ApplyEquipChange), and a pick-up takes
+        ///     the thing out of the world under it (InventarHandler.ItemPickUp) - and the recalc
+        ///     itself writes the weight of the bag, so it takes this lock around its own one and
+        ///     never underneath it
+        /// </summary>
+        public readonly object InventoryLock = new object();
+
+        /// <summary>
+        ///     Check a request to take an item of the ground into the bag and build the change it
+        ///     makes. Nothing of the character moves here: the answer carries the whole list of
+        ///     rows the bag is going to hold, and the character holds it only when
+        ///     ApplyInventoryChange is called with that answer. The split between the check and the
+        ///     change is the one of the equipment - see EquipItem - and it is what lets the caller
+        ///     create or move the row of the item in the database in between, and drop the plan
+        ///     when it cannot.
+        ///     The order of the checks is the one of the original: a player has to be told the
+        ///     first reason his request failed for and not any of the ones behind it
+        /// </summary>
+        /// <param name="groundItem">Item lying on the ground the character reaches for</param>
+        /// <param name="count">How many items of it the character takes</param>
+        public GInventoryChange PickUpItem(GItem groundItem, int count)
+        {
+            if (groundItem == null)
+            {
+                return GInventoryChange.Refused(InventoryErrorEnum.ItemNotExist);
+            }
+
+            // A dead character picks nothing up. Death is told by DeadTime and not by the hit
+            // points, exactly the way EquipItem reads it
+            if (DeadTime != null)
+            {
+                return GInventoryChange.Refused(InventoryErrorEnum.CharAlreadyDie);
+            }
+
+            // TODO: a paralyzed or stunned character takes nothing into its bag either, each with
+            // its own error code - waits for abnormal states
+
+            // Nothing at all, and more than one of an item that lies one to a row: the original
+            // refuses both before it looks at the bag
+            if (count <= 0 || (count > 1 && !GPcInventory.IsStackable(groundItem)))
+            {
+                return GInventoryChange.Refused(InventoryErrorEnum.ItemInvalidCnt);
+            }
+
+            // The rows are read once into a snapshot: everything below decides over the state the
+            // operation started with - the list is never changed in place
+            List<GItem> items = Inventory.Items;
+
+            GItem stack = GPcInventory.FindStack(items, groundItem);
+
+            // A row is taken in only when there is nothing to merge into: a merge leaves the count
+            // of the rows as it is and goes through a bag that is already full. The original lifts
+            // its own "bag full" the same way as soon as it finds a row to merge into - and asks
+            // the weight again right after, so a merge into a full bag is still refused when the
+            // character cannot carry the pile
+            if (stack == null && items.Count >= GPcInventory.MaxSize)
+            {
+                return GInventoryChange.Refused(InventoryErrorEnum.InvFull);
+            }
+
+            // Counted wide: a row holds up to a billion items and the sum of two rows does not fit
+            // the count of one. The cap of the row is asked before the weight, the way the original
+            // asks it: a pile that breaks both is refused for the stack and not for the weight
+            long leftCount = (stack == null ? 0L : stack.Count) + count;
+            if (leftCount > GPcInventory.MaxStackCount)
+            {
+                return GInventoryChange.Refused(InventoryErrorEnum.ItemTooManyStackCnt);
+            }
+
+            // The whole pile goes on the character at once, and its weight is counted wide for the
+            // same reason
+            if (Inventory.Weight + (long)count * groundItem.Weight > Inventory.MaxWeight)
+            {
+                return GInventoryChange.Refused(InventoryErrorEnum.ItemTooHeavy);
+            }
+
+            // TODO: an item the original lets a character hold one of at a time is refused right
+            // here with its own code - no column of ours says which items those are
+
+            if (stack != null)
+            {
+                // The bag keeps every row it held: the merge only raises the count of one of them,
+                // and the very list the plan was built over is published back
+                return GInventoryChange.Merged(items, stack, count, (int)leftCount);
+            }
+
+            GItem added = CopyItem(groundItem, count);
+
+            List<GItem> next = new List<GItem>(items.Count + 1);
+            next.AddRange(items);
+            next.Add(added);
+
+            return GInventoryChange.Added(next, added, count);
+        }
+
+        /// <summary>
+        ///     Check a request to throw an item of the bag away and build the change it makes. Like
+        ///     the request to pick an item up, this one only builds the plan - see PickUpItem for
+        ///     the contract between the check and the change
+        /// </summary>
+        /// <param name="serialNo">Serial number of the row of the bag</param>
+        /// <param name="count">How many items of the row leave it</param>
+        public GInventoryChange DropItem(ulong serialNo, int count)
+        {
+            List<GItem> items = Inventory.Items;
+
+            // The row is looked up by its serial number and never by the number of the item: two
+            // rows of one item lie in the bag side by side as soon as anything keeps them apart
+            GItem item = items.FirstOrDefault(x => x.SerialNumber == serialNo);
+            if (item == null)
+            {
+                return GInventoryChange.Refused(InventoryErrorEnum.ItemNotExist);
+            }
+
+            if (DeadTime != null)
+            {
+                return GInventoryChange.Refused(InventoryErrorEnum.CharAlreadyDie);
+            }
+
+            // TODO: a paralyzed or stunned character throws nothing away, and neither a seized item
+            // nor a bound one leaves the bag at all - waits for abnormal states and for a source of
+            // the two flags
+
+            // A worn item is not thrown away and is not taken off by itself: the record of the
+            // equipment would be left hanging on a row that is no longer in the bag. The original
+            // refuses the same way and asks this before it looks at the count of the request, so a
+            // request that names a worn item hears of the item and not of its count
+            if (Equip.Any(x => x.SerialNo == serialNo))
+            {
+                return GInventoryChange.Refused(InventoryErrorEnum.ItemEquipped);
+            }
+
+            if (count <= 0 || count > item.Count)
+            {
+                return GInventoryChange.Refused(InventoryErrorEnum.ItemLack);
+            }
+
+            GItem ground = CopyItem(item, count);
+            int leftCount = item.Count - count;
+
+            if (leftCount > 0)
+            {
+                // A part of the stack leaves: the row stays where it is and the bag keeps the list
+                // it already holds
+                return GInventoryChange.Dropped(items, item, count, leftCount, ground);
+            }
+
+            List<GItem> next = new List<GItem>(items.Count);
+            foreach (GItem row in items)
+            {
+                if (row != item)
+                {
+                    next.Add(row);
+                }
+            }
+
+            return GInventoryChange.Dropped(next, item, count, 0, ground);
+        }
+
+        /// <summary>
+        ///     Carry what a plan of a change of the bag names. The list of rows is published whole:
+        ///     a new list replaces the old one by a single write of the reference, so a reader on
+        ///     another thread walks either the bag before the change or the one after it. The count
+        ///     of a row is written before that - a reader that already sees the new list sees the
+        ///     row whole - and the weight of the character is summed up over the published bag.
+        ///     A plan is applied once and by the thread that built it: a plan built before another
+        ///     one was applied carries a list that no longer holds - which is why every writer of
+        ///     the bag builds, stores and applies its plan under InventoryLock
+        /// </summary>
+        /// <param name="change">Plan built by PickUpItem or DropItem</param>
+        public bool ApplyInventoryChange(GInventoryChange change)
+        {
+            if (change == null || !change.IsSuccess)
+            {
+                return false;
+            }
+
+            // A row that leaves the bag keeps the count it had: the item that goes to the ground
+            // was built off it, and nothing reads the row itself any more
+            if (change.Item != null && !change.IsRemoved)
+            {
+                change.Item.Count = change.LeftCount;
+            }
+
+            // The plan built the list of an addition or of a removal from scratch and gave it to
+            // nobody else; a merge and a partial drop publish back the very list they were built
+            // over. Either way the reference is written as it is
+            Inventory.Items = (List<GItem>)change.Items;
+            Inventory.RecalcWeight();
+
+            return true;
+        }
+
+        /// <summary>
+        ///     Carry a plan that waits for a serial number of the database: the row a pick-up adds
+        ///     has none of its own until the stored procedure creates it, and the row a pick-up
+        ///     merges into has to be the very row the procedure merged the stack into.
+        ///     The procedure merges by the date the term of the row runs out at, which the bag does
+        ///     not keep (GPcInventory.FindStack), so the two of them tell the stacks apart by
+        ///     different conditions and disagree in both directions. Neither disagreement is
+        ///     refused: the database is the arbiter of every merge, and the bag is brought over to
+        ///     the row the answer names.
+        ///     A plan that adds a row may come back with the serial number of a row the bag already
+        ///     holds - the procedure merged what the bag kept apart. Two rows of one serial number
+        ///     would leave the bag telling of something the database has never had, and every
+        ///     request of the player names a row by that number, so the count goes into the row
+        ///     that carries it and the row of the plan is dropped.
+        ///     A plan that merges may come back with another serial number than the row it merges
+        ///     into carries - the procedure kept apart what the bag merged, or merged the stack
+        ///     into another row of the bag. The merge of the plan is not carried out at all and the
+        ///     count goes where the answer points instead.
+        ///     Whichever way it went, the row the bag ends up holding is the one under the serial
+        ///     number of the answer - that is the row the caller tells the client of, and it reads
+        ///     it back with <see cref="FindItem"/>
+        /// </summary>
+        /// <param name="change">Plan built by PickUpItem</param>
+        /// <param name="serialNo">Serial number the database issued to the row</param>
+        public bool ApplyInventoryChange(GInventoryChange change, ulong serialNo)
+        {
+            if (change == null || !change.IsSuccess)
+            {
+                return false;
+            }
+
+            if (change.IsAdded)
+            {
+                GItem stack = FindSerial(change.Items, serialNo, change.Item);
+                if (stack != null)
+                {
+                    return ApplyDatabaseMerge(change, stack);
+                }
+
+                change.Item.SerialNumber = serialNo;
+            }
+            else if (change.IsMerged && change.Item.SerialNumber != serialNo)
+            {
+                return ApplyDatabaseSerial(change, serialNo);
+            }
+
+            return ApplyInventoryChange(change);
+        }
+
+        /// <summary>
+        ///     Carry a plan of an addition the database merged into a row the bag already held. The
+        ///     count of the plan goes into that row and the list published is the one of the plan
+        ///     without the row it added, so the bag holds as many rows as it did before.
+        ///     What the plan carries is left telling of the row the count went into - the serial
+        ///     number of the database and the count that row ended up with - so a reader of the
+        ///     plan and the bag tell one story; the caller of the pick-up reads the row of the bag
+        ///     itself by that serial number (<see cref="FindItem"/>), because the other way a plan
+        ///     may end - the merge the database did not merge - leaves the plan pointing at a row
+        ///     the count never went into
+        /// </summary>
+        /// <param name="change">Plan built by PickUpItem that takes a new row in</param>
+        /// <param name="stack">Row of the bag the database merged the item into</param>
+        private bool ApplyDatabaseMerge(GInventoryChange change, GItem stack)
+        {
+            AddToStack(stack, change.Count);
+
+            List<GItem> next = new List<GItem>(change.Items.Count - 1);
+            foreach (GItem row in change.Items)
+            {
+                if (row != change.Item)
+                {
+                    next.Add(row);
+                }
+            }
+
+            change.Item.SerialNumber = stack.SerialNumber;
+            change.Item.Count = stack.Count;
+
+            Inventory.Items = next;
+            Inventory.RecalcWeight();
+
+            return true;
+        }
+
+        /// <summary>
+        ///     Carry a plan of a merge the database answered another serial number to. Nothing of
+        ///     the merge has happened yet - the plan only named it - so the row the plan was going
+        ///     to raise is simply left with the count it holds, and the count goes where the answer
+        ///     of the procedure points.
+        ///     It points at a row of the bag when the procedure merged the stack into another row
+        ///     than the plan picked: the bag holds two rows the plan cannot tell apart - they differ
+        ///     by the date the term runs out at and by nothing the bag keeps - and the procedure
+        ///     picked the other one of them. Otherwise it points at a row of its own the procedure
+        ///     created, and the bag takes that row in beside the one the plan merged into: the copy
+        ///     is taken off that row, because the two carry the same number of the item, the same
+        ///     status, the same binding and the same term - everything a merge of the bag is made
+        ///     by - and differ in the one thing the bag does not keep at all.
+        ///     The bag may end up holding one row more than its cap that way: the checks of a
+        ///     pick-up let a merge through a full bag, and the row the procedure created exists
+        ///     whatever the cap of the bag says - a row dropped here would be a row nobody ever
+        ///     gets back
+        /// </summary>
+        /// <param name="change">Plan built by PickUpItem that goes into a row of the bag</param>
+        /// <param name="serialNo">Serial number of the row the database put the item into</param>
+        private bool ApplyDatabaseSerial(GInventoryChange change, ulong serialNo)
+        {
+            GItem stack = FindSerial(change.Items, serialNo, change.Item);
+
+            if (stack == null)
+            {
+                // The row of the procedure holds what went into it and nothing else: the count of
+                // the plan is the whole count the item was stored with
+                GItem added = CopyItem(change.Item, change.Count);
+                added.SerialNumber = serialNo;
+
+                List<GItem> next = new List<GItem>(change.Items.Count + 1);
+                next.AddRange(change.Items);
+                next.Add(added);
+
+                Inventory.Items = next;
+                Inventory.RecalcWeight();
+
+                return true;
+            }
+
+            AddToStack(stack, change.Count);
+
+            // A merge publishes back the very list it was built over, and this one adds no row to
+            // it: the reference is written as it is, the way the plan of a merge is applied
+            Inventory.Items = (List<GItem>)change.Items;
+            Inventory.RecalcWeight();
+
+            return true;
+        }
+
+        /// <summary>
+        ///     Put a count into a row of the bag. Counted wide and clipped at the cap of a row: a
+        ///     count that lands in a row the plan did not look at as at a stack of its own has been
+        ///     asked by nobody whether the two counts fit one row
+        /// </summary>
+        /// <param name="stack">Row the count goes into</param>
+        /// <param name="count">Count that goes in</param>
+        private static void AddToStack(GItem stack, int count)
+        {
+            long total = (long)stack.Count + count;
+
+            stack.Count = total > GPcInventory.MaxStackCount ? GPcInventory.MaxStackCount : (int)total;
+        }
+
+        /// <summary>
+        ///     Row of the bag under a given serial number, none when the bag holds no such row. The
+        ///     serial number is the one thing a row of the bag and a row of the database are held
+        ///     together by, so a caller that has just stored a change of the bag reads the row it
+        ///     has to tell the client of by the serial number the procedure answered with - see
+        ///     ApplyInventoryChange, which puts the count wherever that number points
+        /// </summary>
+        /// <param name="serialNo">Serial number of the row of the database</param>
+        public GItem FindItem(ulong serialNo)
+        {
+            return Inventory.Items.FirstOrDefault(x => x.SerialNumber == serialNo);
+        }
+
+        /// <summary>
+        ///     Row of a list under a given serial number, none when no row carries it. The row a
+        ///     plan is about to add is left out by its reference and never by its number: a thing
+        ///     somebody else threw away lies in the world under the serial number of the row it came
+        ///     off, and the copy the bag takes in carries that number until the database issues its
+        ///     own
+        /// </summary>
+        /// <param name="items">Rows to look through</param>
+        /// <param name="serialNo">Serial number to look for</param>
+        /// <param name="skip">Row that is not looked at</param>
+        private static GItem FindSerial(IReadOnlyList<GItem> items, ulong serialNo, GItem skip)
+        {
+            foreach (GItem row in items)
+            {
+                if (row != skip && row.SerialNumber == serialNo)
+                {
+                    return row;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        ///     Copy of an item that is about to live on its own: the row a bag takes in, or the
+        ///     item a drop puts on the ground beside the row it came off. What the copy constructor
+        ///     of the item leaves behind is written here - the status of the item is one of those,
+        ///     and both the merge of the stacks and the packets of the item read it
+        /// </summary>
+        /// <param name="source">Item the copy is taken off</param>
+        /// <param name="count">Count the copy holds</param>
+        private static GItem CopyItem(GItem source, int count)
+        {
+            GItem copy = new GItem(source);
+
+            copy.Status = source.Status;
+            copy.Count = count;
+
+            return copy;
+        }
         #endregion
 
         /// <summary>
         ///     Serializes the writers of the recalc: a level up runs it on the swing thread and a
         ///     change of the equipment on the network thread of the session, and two interleaved
         ///     recalcs could publish the weapon of one and the abilities of the other. Readers do
-        ///     not take it - they live on the published references
+        ///     not take it - they live on the published references.
+        ///     It is the inner of the two locks of the character: it is taken under InventoryLock
+        ///     and nothing is ever taken under it - see the order written down beside that lock
         /// </summary>
         private readonly object _recalcLock = new object();
 
         public new void CalcAbility()
         {
-            lock (_recalcLock)
+            // The lock of the bag is taken around the one of the recalc and never underneath it:
+            // the calculation ends by writing the cap of the weight, the sum of the bag and the
+            // state of the load, and those three belong to the writers of the bag - a pick-up that
+            // has just raised the weight must not be overwritten by a recalc that started before
+            // it. The paths that reach the recalc from under the lock of the bag - a change of the
+            // equipment - only take it a second time
+            lock (InventoryLock)
             {
-                CalcAbilityLocked();
+                lock (_recalcLock)
+                {
+                    CalcAbilityLocked();
+                }
             }
         }
 
@@ -790,6 +1243,13 @@ namespace Server.Game.Models.Game
             }
         }
 
+        /// <summary>
+        ///     Write the weight cap of the character off its characteristics and rebuild the weight
+        ///     of the bag behind it. Every field of the weight is written here, and every one of
+        ///     them belongs to the writers of the bag, so the call goes under InventoryLock -
+        ///     CalcAbility, the only caller, takes it
+        /// </summary>
+        /// <param name="ability">Set of the characteristics being built</param>
         public void CalcWeight(GPcAbility ability)
         {
             // What the worn items add to the cap comes in beside the addition of the character
@@ -815,6 +1275,12 @@ namespace Server.Game.Models.Game
             // TODO: the achievement bonus of the transformed shape does not raise the weight cap yet
 
             Inventory.SetMaxWeight(maxWeight);
+
+            // The weight the bag adds up to is summed here as well: the calculation runs when the
+            // character is read out of the database and on every change of the equipment, and
+            // until it does the character carries a bag of rows that weigh nothing - and every
+            // check against the cap of the weight would be made over that nothing
+            Inventory.RecalcWeight();
         }
 
         public void CalcMaxHp(GPcAbility ability, int addHpByItem)

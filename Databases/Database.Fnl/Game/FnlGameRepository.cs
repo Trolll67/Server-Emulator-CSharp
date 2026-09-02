@@ -17,15 +17,19 @@ namespace Database.Fnl.Game
         private const string GetPcItemProcedure = "dbo.UspGetPcItem";
         private const string GetListAbnormalProcedure = "dbo.UspGetListAbnormal";
         private const string UpdatePosProcedure = "dbo.UspUpdatePos";
-        private const string EquipProcedure = "dbo.UspEquip";
+        private const string SetEquipProcedure = "dbo.UspSetEquip";
+        private const string ResetEquipProcedure = "dbo.UspResetEquip";
+        private const string PushItemProcedure = "dbo.UspPushItem";
+        private const string PopItemProcedure = "dbo.UspPopItem";
+        private const string EraseItemProcedure = "dbo.UspEraseItem";
 
         /// <summary>
-        ///     Slots dbo.UspEquip accepts: it picks the column of the equipment table by the slot
-        ///     number and has one only for the worn slots, weapon..cloak. Everything above that
-        ///     (materials, servant) lives in other tables and the procedure rejects it
+        ///     Owner an item that lies on the ground is kept under. It is not a character: the
+        ///     inventory reader answers with an empty list for the character numbers of the npc and
+        ///     of the dropped items, so a row parked here belongs to nobody until somebody picks
+        ///     the item up
         /// </summary>
-        private const int EquipSlotFirst = 0;
-        private const int EquipSlotLast = 10;
+        public const int DroppedItemOwner = 1;
 
         /// <summary>
         ///     Column ordinals of the dbo.UspListPc result set: a.mSlot, a.mNo
@@ -97,6 +101,14 @@ namespace Database.Fnl.Game
         private const int ItemBindingType = 12;
         private const int ItemRestoreCnt = 13;
         private const int ItemHoleCount = 14;
+
+        /// <summary>
+        ///     Column ordinals of the dbo.UspPushItem result set: the error code, the serial the
+        ///     item ended up with and DATEDIFF(minute, now, endDate) of that row
+        /// </summary>
+        private const int PushItemErrNo = 0;
+        private const int PushItemSerialNo = 1;
+        private const int PushItemEndDate = 2;
 
         /// <summary>
         ///     Column ordinals of the dbo.UspGetListAbnormal result set:
@@ -409,29 +421,119 @@ namespace Database.Fnl.Game
         }
 
         /// <inheritdoc/>
-        public bool Equip(int pcNo, int slot, long serialNo)
+        public int SetEquip(int pcNo, long serialNo, int slot)
         {
-            // The procedure answers an unknown slot with its own error code, there is no point
-            // in going to the database for one
-            if (slot < EquipSlotFirst || slot > EquipSlotLast)
-            {
-                return false;
-            }
-
             using SqlConnection connection = _connectionFactory.Create(FnlConnectionNames.FnlGame);
-            using SqlCommand command = StoredProcedure.Create(connection, EquipProcedure);
+            using SqlCommand command = StoredProcedure.Create(connection, SetEquipProcedure);
 
             // Order and types are taken from sys.parameters of the live procedure
             StoredProcedure.AddInInt(command, "@pPcNo", pcNo);
             StoredProcedure.AddInBigInt(command, "@pSerial", serialNo);
-            StoredProcedure.AddInInt(command, "@pWhere", slot);
+            StoredProcedure.AddInInt(command, "@pSlot", slot);
 
             connection.Open();
             command.ExecuteNonQuery();
 
-            // The slot is written by a dynamic UPDATE/INSERT, its failure comes back as the
-            // return code, so only a zero means the slot really changed
-            return StoredProcedure.ReturnValue(command) == 0;
+            return StoredProcedure.ReturnValue(command);
+        }
+
+        /// <inheritdoc/>
+        public int ResetEquip(int pcNo, int slot)
+        {
+            using SqlConnection connection = _connectionFactory.Create(FnlConnectionNames.FnlGame);
+            using SqlCommand command = StoredProcedure.Create(connection, ResetEquipProcedure);
+
+            StoredProcedure.AddInInt(command, "@pPcNo", pcNo);
+            StoredProcedure.AddInInt(command, "@pSlot", slot);
+
+            connection.Open();
+            command.ExecuteNonQuery();
+
+            return StoredProcedure.ReturnValue(command);
+        }
+
+        /// <inheritdoc/>
+        public PushItemRow PushItem(int pcNo, long serialNo, int itemNo, int validDay, int cnt, short cntUse,
+            bool isConfirm, byte status, bool isStack, bool isCharge = false, int practicalPeriod = 0,
+            byte bindingType = 0, byte restoreCnt = 0)
+        {
+            using SqlConnection connection = _connectionFactory.Create(FnlConnectionNames.FnlGame);
+            using SqlCommand command = StoredProcedure.Create(connection, PushItemProcedure);
+
+            // Order and types are taken from sys.parameters of the live procedure
+            StoredProcedure.AddInInt(command, "@pPcNo", pcNo);
+            StoredProcedure.AddInBigInt(command, "@pSerial", serialNo);
+            StoredProcedure.AddInInt(command, "@pItemNo", itemNo);
+            StoredProcedure.AddInInt(command, "@pValidDay", validDay);
+            StoredProcedure.AddInInt(command, "@pCnt", cnt);
+            StoredProcedure.AddInSmallInt(command, "@pCntUse", cntUse);
+            StoredProcedure.AddInBit(command, "@pIsConfirm", isConfirm);
+            StoredProcedure.AddInTinyInt(command, "@pStatus", status);
+            StoredProcedure.AddInBit(command, "@pIsStack", isStack);
+            StoredProcedure.AddInBit(command, "@pIsCharge", isCharge);
+            StoredProcedure.AddInInt(command, "@pPracticalPeriod", practicalPeriod);
+            StoredProcedure.AddInTinyInt(command, "@pBindingType", bindingType);
+            StoredProcedure.AddInTinyInt(command, "@pRestoreCnt", restoreCnt);
+
+            connection.Open();
+
+            using SqlDataReader reader = command.ExecuteReader();
+
+            // The outcome is a result set of its own, the procedure sends it on every path it has
+            if (!reader.Read())
+            {
+                throw new System.InvalidOperationException(
+                    $"Stored procedure '{PushItemProcedure}' answered with no row");
+            }
+
+            return new PushItemRow
+            {
+                ErrorCode = reader.GetInt32(PushItemErrNo),
+                SerialNo = GetSerialNo(reader, PushItemSerialNo),
+                // The lifetime is counted from a date the failure paths may leave unset
+                EndDateMinutes = GetInt32OrZero(reader, PushItemEndDate)
+            };
+        }
+
+        /// <inheritdoc/>
+        public PopItemResult PopItem(int pcNo, long serialNo, int cnt, int cachingCnt, bool isSpend, bool isStack)
+        {
+            using SqlConnection connection = _connectionFactory.Create(FnlConnectionNames.FnlGame);
+            using SqlCommand command = StoredProcedure.Create(connection, PopItemProcedure);
+
+            // Order and types are taken from sys.parameters of the live procedure, @pIsSpend is
+            // a tinyint there and not a bit
+            StoredProcedure.AddInInt(command, "@pPcNo", pcNo);
+            StoredProcedure.AddInBigInt(command, "@pSerial", serialNo);
+            StoredProcedure.AddInInt(command, "@pCnt", cnt);
+            StoredProcedure.AddInInt(command, "@pCachingCnt", cachingCnt);
+            StoredProcedure.AddInTinyInt(command, "@pIsSpend", isSpend ? (byte)1 : (byte)0);
+            StoredProcedure.AddInBit(command, "@pIsStack", isStack);
+
+            SqlParameter serialNew = StoredProcedure.AddOutBigInt(command, "@pSerialNew");
+
+            connection.Open();
+            command.ExecuteNonQuery();
+
+            return new PopItemResult
+            {
+                ReturnCode = StoredProcedure.ReturnValue(command),
+                SerialNoNew = GetInt64(serialNew)
+            };
+        }
+
+        /// <inheritdoc/>
+        public int EraseItem(long serialNo)
+        {
+            using SqlConnection connection = _connectionFactory.Create(FnlConnectionNames.FnlGame);
+            using SqlCommand command = StoredProcedure.Create(connection, EraseItemProcedure);
+
+            StoredProcedure.AddInBigInt(command, "@pSerial", serialNo);
+
+            connection.Open();
+            command.ExecuteNonQuery();
+
+            return StoredProcedure.ReturnValue(command);
         }
 
         /// <summary>
@@ -440,6 +542,14 @@ namespace Database.Fnl.Game
         private static int GetInt32(SqlParameter parameter)
         {
             return IsEmpty(parameter) ? 0 : (int)parameter.Value;
+        }
+
+        /// <summary>
+        ///     Reads a bigint output parameter
+        /// </summary>
+        private static long GetInt64(SqlParameter parameter)
+        {
+            return IsEmpty(parameter) ? 0L : (long)parameter.Value;
         }
 
         /// <summary>
@@ -472,6 +582,15 @@ namespace Database.Fnl.Game
         private static int GetInt32OrZero(SqlDataReader reader, int ordinal)
         {
             return reader.IsDBNull(ordinal) ? 0 : reader.GetInt32(ordinal);
+        }
+
+        /// <summary>
+        ///     Reads an item serial column: the serial counter of the database is a signed 32-bit
+        ///     identity, and the procedures carry its value both as an int and as a bigint
+        /// </summary>
+        private static long GetSerialNo(SqlDataReader reader, int ordinal)
+        {
+            return reader.IsDBNull(ordinal) ? 0L : System.Convert.ToInt64(reader.GetValue(ordinal));
         }
 
         /// <summary>

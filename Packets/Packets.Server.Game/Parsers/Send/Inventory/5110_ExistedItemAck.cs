@@ -21,7 +21,11 @@ namespace Packets.Server.Game.Parsers.Send.Inventory
 
             foreach (PublicItem item in model.Items)
             {
-                item.Write(formationPackage);
+                // The tail of a record of the batch goes out with zeros: its offset here is not
+                // confirmed - the single sample of the reference lays it two bytes off the packet
+                // about a single item - and a constant by a wrong offset would overwrite a field
+                // that is really there. Zeros until a second sample
+                item.Write(formationPackage, 0);
             }
 
             return formationPackage.GetBytes();

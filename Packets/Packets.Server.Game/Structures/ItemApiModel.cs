@@ -12,6 +12,12 @@ namespace Packets.Server.Game.Structures
         public byte ItemStatus { get; set; }
         public short UseCount { get; set; }
         public uint EatTime { get; set; }
+        /// <summary>
+        ///     Minutes left until the term of the thing ends. The original takes them from the
+        ///     row of the thing in the DB of the player and puts a literal zero for a thing that
+        ///     is lying on the ground; the term of validity of the parm row is a different value
+        ///     and does not belong here
+        /// </summary>
         public int TermOfEffectivity { get; set; }
         public byte ItemBind { get; set; }
         public byte Restore { get; set; }

@@ -213,8 +213,9 @@ namespace Server.Login.Services.Family
         /// <summary>
         ///     Links of every server of the world that is on the line
         /// </summary>
+        /// <param name="type">Kind of server to take, null for every kind</param>
         /// <returns>Copies of the references, safe to use outside the lock</returns>
-        public IReadOnlyList<LoginSession> GetSessions()
+        public IReadOnlyList<LoginSession> GetSessions(ParmServerType? type = null)
         {
             lock (_lock)
             {
@@ -226,7 +227,7 @@ namespace Server.Login.Services.Family
                 }
 
                 return servers.Values
-                    .Where(server => server.Session != null)
+                    .Where(server => server.Session != null && (type == null || server.Type == type))
                     .Select(server => server.Session)
                     .ToList();
             }

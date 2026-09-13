@@ -44,6 +44,13 @@ namespace Server.Login.Models.Settings
         public int FamilyKeepAliveSeconds { get; set; } = 30;
 
         /// <summary>
+        ///     How long a key of a login waits for its player, in seconds. The player takes it
+        ///     from the login screen to a game server, and a key nobody came for stops working.
+        ///     The original gives every key a deadline of its own in the very same way
+        /// </summary>
+        public int CertifyKeyLifetimeSeconds { get; set; } = 300;
+
+        /// <summary>
         ///     How many players a field server has to be holding before the client is told the
         ///     server is not empty any more. Below this the server shows as the least loaded one.
         ///     The original keeps the three steps of the scale per country, this is the first

@@ -32,7 +32,9 @@ namespace Server.Login.Core.Handlers
         private readonly IFnlAccountRepository _accountRepository;
         private readonly IAuthorizationFactory _authorizationFactory;
         private readonly IServersFactory _serversFactory;
+        private readonly IFamilyFactory _familyFactory;
         private readonly FamilyRegistry _familyRegistry;
+        private readonly CertificationRegistry _certificationRegistry;
         private readonly OwnChannelInfo _ownChannelInfo;
         private readonly LoginSetting _loginSetting;
         private readonly ILogger<AuthorizationHandler> _logger;
@@ -40,12 +42,14 @@ namespace Server.Login.Core.Handlers
         /// <summary>
         ///     Creates a new instance
         /// </summary>
-        public AuthorizationHandler(IFnlAccountRepository accountRepository, IAuthorizationFactory authorizationFactory, IServersFactory serversFactory, FamilyRegistry familyRegistry, OwnChannelInfo ownChannelInfo, IOptions<LoginSetting> loginSetting, ILogger<AuthorizationHandler> logger)
+        public AuthorizationHandler(IFnlAccountRepository accountRepository, IAuthorizationFactory authorizationFactory, IServersFactory serversFactory, IFamilyFactory familyFactory, FamilyRegistry familyRegistry, CertificationRegistry certificationRegistry, OwnChannelInfo ownChannelInfo, IOptions<LoginSetting> loginSetting, ILogger<AuthorizationHandler> logger)
         {
             _accountRepository = accountRepository;
             _authorizationFactory = authorizationFactory;
             _serversFactory = serversFactory;
+            _familyFactory = familyFactory;
             _familyRegistry = familyRegistry;
+            _certificationRegistry = certificationRegistry;
             _ownChannelInfo = ownChannelInfo;
             _loginSetting = loginSetting.Value;
             _logger = logger;
@@ -239,7 +243,7 @@ namespace Server.Login.Core.Handlers
             // its output parameters with whatever they happened to hold
             if (!certifyUser.IsSuccess)
             {
-                SendCertifyError(loginSession, authorizationLoginModel.Login, certifyUser);
+                SendCertifyError(loginSession, authorizationLoginModel.Login, certifyUser, ip);
                 return;
             }
 
@@ -250,6 +254,20 @@ namespace Server.Login.Core.Handlers
                 CertifiedKey = certifiedKey,
                 WorldNo = certifyUser.WorldNo
             };
+
+            // The key is worth something until the player takes it to a game server, so the
+            // channel has to know whose key is out there and for how long
+            LoginSession previous = _certificationRegistry.Certified(certifyUser.UserNo, authorizationLoginModel.Login, certifiedKey, ip, loginSession);
+
+            if (previous != null && previous != loginSession)
+            {
+                // The same account logged in again while the first one was still on the login
+                // screen. The original forgets the older key at this very point, and a key nobody
+                // remembers is a session with nothing left to do
+                _logger.LogInformation("Account {Login} logs in again, the older session {Session} is closed", authorizationLoginModel.Login, previous.Id);
+
+                previous.Disconnect();
+            }
 
             _logger.LogInformation($"Account {authorizationLoginModel.Login} certified with mUserNo {certifyUser.UserNo}");
 
@@ -263,11 +281,13 @@ namespace Server.Login.Core.Handlers
         ///     So every reason the procedure has ever been taught reaches the player without being
         ///     listed anywhere here
         /// </summary>
-        private void SendCertifyError(LoginSession loginSession, string login, CertifyUserResult certifyUser)
+        private void SendCertifyError(LoginSession loginSession, string login, CertifyUserResult certifyUser, string ip)
         {
             NakErrorType error = string.IsNullOrWhiteSpace(certifyUser.ErrNo)
                 ? NakErrorType.NoUserNotExistId
                 : NakErrorType.FromName(certifyUser.ErrNo.Trim());
+
+            KickWhenAlreadyPlaying(login, certifyUser, error, ip);
 
             // Без этой строки отказ виден только на клиенте: пакет 3102 несёт один код ошибки
             // и не говорит, что именно ответила процедура
@@ -285,6 +305,30 @@ namespace Server.Login.Core.Handlers
         }
 
         /// <summary>
+        ///     The account is refused because it is already in the game. The original refuses the
+        ///     login and at the same time asks the world to throw the account out, so that the
+        ///     next attempt of the same player goes through instead of hitting the same wall
+        /// </summary>
+        private void KickWhenAlreadyPlaying(string login, CertifyUserResult certifyUser, NakErrorType error, string ip)
+        {
+            if (error.Code != NakErrorType.NoUserChkAlreadyLogined.Code && error.Code != NakErrorType.NoUserLoginAnother.Code)
+            {
+                return;
+            }
+
+            // The procedure leaves its output parameters alone on most of the error paths, and
+            // a kick of account zero would be a kick of nobody
+            if (certifyUser.UserNo <= 0)
+            {
+                _logger.LogWarning("Account {Login} is already in the game, but the procedure did not name its number: nobody is thrown out", login);
+
+                return;
+            }
+
+            _familyFactory.SendKick(certifyUser.UserNo, GetAddressNumber(ip), error);
+        }
+
+        /// <summary>
         ///     Address of the client, the procedure writes it into TblUser.mIp char(15)
         /// </summary>
         private static string GetClientIp(LoginSession loginSession)
@@ -298,13 +342,23 @@ namespace Server.Login.Core.Handlers
         /// </summary>
         private static long GetAddressNumber(LoginSession loginSession)
         {
-            if (!(loginSession.Socket?.RemoteEndPoint is IPEndPoint endPoint))
-            {
-                return 0;
-            }
+            return loginSession.Socket?.RemoteEndPoint is IPEndPoint endPoint
+                ? GetAddressNumber(endPoint.Address.MapToIPv4().GetAddressBytes())
+                : 0;
+        }
 
-            byte[] parts = endPoint.Address.MapToIPv4().GetAddressBytes();
+        /// <summary>
+        ///     The same number out of an address that is already written out
+        /// </summary>
+        private static long GetAddressNumber(string ip)
+        {
+            return IPAddress.TryParse(ip, out IPAddress address)
+                ? GetAddressNumber(address.MapToIPv4().GetAddressBytes())
+                : 0;
+        }
 
+        private static long GetAddressNumber(byte[] parts)
+        {
             return ((parts[0] * 1000L + parts[1]) * 1000L + parts[2]) * 1000L + parts[3];
         }
 

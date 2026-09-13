@@ -12,6 +12,11 @@ namespace Packets.Core.Parsers.Family
     [ParserSend]
     public class FamilySendParsers
     {
+        /// <summary>
+        ///     Room the kick keeps for whom it is about, see <see cref="FamilyReceiveParsers"/>
+        /// </summary>
+        private const int WhoSize = 15;
+
         [ParserAction(PacketType.LoginFamilyReq)]
         public byte[] ParsingLoginFamilyReq(LoginFamilyReqModel model)
         {
@@ -52,6 +57,34 @@ namespace Packets.Core.Parsers.Family
             formationPackage.AddShort(model.SvrNo);
             formationPackage.AddShort(model.MaxSesCnt);
             formationPackage.AddShort(model.BusySesCnt);
+
+            return formationPackage.GetBytes();
+        }
+
+        [ParserAction(PacketType.KickPcReq)]
+        public byte[] ParsingKickPcReq(KickPcReqModel model)
+        {
+            FormationPackage formationPackage = new FormationPackage();
+
+            formationPackage.AddByte(model.IsPc ? (byte)1 : (byte)0);
+
+            // One and the same room holds either the number of the account or the name
+            if (model.IsPc)
+            {
+                formationPackage.AddBytes(FormationPackageUtility.GetBytes(model.PcName ?? string.Empty, WhoSize));
+            }
+            else
+            {
+                FormationPackage who = new FormationPackage();
+                who.AddInteger(model.UserNo);
+                who.AddZeroBytes(WhoSize - sizeof(int));
+
+                formationPackage.AddBytes(who.GetBytes());
+            }
+
+            formationPackage.AddUInteger(model.Reason.Code);
+            formationPackage.AddInteger(model.Reason.MsgGroup);
+            formationPackage.AddLong(model.AddressNumber);
 
             return formationPackage.GetBytes();
         }

@@ -15,6 +15,8 @@
         NotifySvrStateAck = 1114,
         KeepAliveNullReq = 1117,
         LoginFamilyAck = 1130,
+        KickPcAck = 2069,
+        KickPcReq = 2071,
 
         // Login packets
         AuthorizationLogin = 3100,

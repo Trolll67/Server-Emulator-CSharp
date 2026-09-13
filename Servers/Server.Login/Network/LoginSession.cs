@@ -23,6 +23,7 @@ namespace Server.Login.Network
         private IAuthorizationFactory _authorizationFactory;
         private IRegisterHandlerService _registerHandlerService;
         private FamilyRegistry _familyRegistry;
+        private CertificationRegistry _certificationRegistry;
 
         /// <summary>
         ///     Feature flag of LoginSetting.EncryptOutgoingPackets: the frames of this session leave
@@ -81,13 +82,15 @@ namespace Server.Login.Network
         /// <param name="authorizationFactory"></param>
         /// <param name="registerHandlerService"></param>
         /// <param name="familyRegistry"></param>
+        /// <param name="certificationRegistry"></param>
         /// <param name="encryptOutgoing">Value of LoginSetting.EncryptOutgoingPackets, see <see cref="_encryptOutgoing"/></param>
-        public void InicializeServices(ILogger<LoginSession> logger, IAuthorizationFactory authorizationFactory, IRegisterHandlerService registerHandlerService, FamilyRegistry familyRegistry, bool encryptOutgoing)
+        public void InicializeServices(ILogger<LoginSession> logger, IAuthorizationFactory authorizationFactory, IRegisterHandlerService registerHandlerService, FamilyRegistry familyRegistry, CertificationRegistry certificationRegistry, bool encryptOutgoing)
         {
             _logger = logger;
             _authorizationFactory = authorizationFactory;
             _registerHandlerService = registerHandlerService;
             _familyRegistry = familyRegistry;
+            _certificationRegistry = certificationRegistry;
             _encryptOutgoing = encryptOutgoing;
         }
 
@@ -117,6 +120,13 @@ namespace Server.Login.Network
             if (FamilySvrNo.HasValue)
             {
                 _familyRegistry.Disconnected(FamilySvrNo.Value, this);
+            }
+
+            // The player either took the key to a game server or gave up on the login screen.
+            // Either way the channel has nothing left to hold for this account
+            if (SessionLogin != null)
+            {
+                _certificationRegistry.Released(SessionLogin.UserNo, this);
             }
 
             // Save account in database

@@ -50,6 +50,25 @@ namespace Server.Game.Network
         }
 
         /// <summary>
+        ///     Finds the session an account is playing on. The channel of this world asks to throw
+        ///     an account out by its number, and this is the only way from the number to a session
+        /// </summary>
+        /// <param name="accountId">Account number, TblUser.mUserNo</param>
+        /// <returns>Session of the account, null when it is not on this server</returns>
+        public GameSession FindByAccount(int accountId)
+        {
+            foreach (NetworkSession session in Sessions.Values)
+            {
+                if (session is GameSession gameSession && gameSession.Sessions?.AccountId == accountId)
+                {
+                    return gameSession;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
         ///     Both feature flags at once contradict each other: the welcome block is generated per
         ///     connection, while the traffic cipher still runs on the static key of BlowfishCrypt.
         ///     The client then drops the connection with nothing in the log to explain it, so at

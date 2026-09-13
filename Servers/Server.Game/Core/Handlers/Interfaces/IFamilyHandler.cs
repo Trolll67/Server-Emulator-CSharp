@@ -35,5 +35,12 @@ namespace Server.Game.Core.Handlers.Interfaces
         /// <param name="familySession"></param>
         /// <param name="keepAliveNullReqModel"></param>
         void KeepAliveHandle(FamilySession familySession, KeepAliveNullReqModel keepAliveNullReqModel);
+
+        /// <summary>
+        ///     The channel asks to throw an account out of this world
+        /// </summary>
+        /// <param name="familySession"></param>
+        /// <param name="kickPcReqModel"></param>
+        void KickPcHandle(FamilySession familySession, KickPcReqModel kickPcReqModel);
     }
 }

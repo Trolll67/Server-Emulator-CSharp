@@ -50,18 +50,24 @@ namespace Packets.Core.Models.Common
         /// </summary>
         private static readonly uint[] CrcTable = BuildCrcTable();
 
+        /// <summary>
+        ///     Group the client keeps the texts of the reasons of the server in. It only matters
+        ///     where a packet carries the group next to the reason, which the kick does
+        /// </summary>
+        private const int ServerMessageGroup = 10004;
+
         // Login, the character screen and the server list
         public static readonly NakErrorType NoUserNotLogin = new NakErrorType("eErrNoUserNotLogin");
         public static readonly NakErrorType NoUserAlreadyLogined = new NakErrorType("eErrNoUserAlreadyLogined");
         public static readonly NakErrorType NoUserNotExistId = new NakErrorType("eErrNoUserNotExistId3");
         public static readonly NakErrorType NoUserDiffPswd = new NakErrorType("eErrNoUserDiffPswd");
-        public static readonly NakErrorType NoUserLoginAnother = new NakErrorType("eErrNoUserLoginAnother");
+        public static readonly NakErrorType NoUserLoginAnother = new NakErrorType("eErrNoUserLoginAnother", ServerMessageGroup);
         public static readonly NakErrorType VerInvalid = new NakErrorType("eErrNoVerInvalid");
         public static readonly NakErrorType IpBlocked = new NakErrorType("eErrNoIpBlocked");
         public static readonly NakErrorType FamilyNot = new NakErrorType("eErrNoFamilyNot");
         public static readonly NakErrorType TrBrokenIntegrity = new NakErrorType("eErrNoTrBrokenIntegrity");
         public static readonly NakErrorType UserInvalidId = new NakErrorType("eErrNoUserInvalidId");
-        public static readonly NakErrorType NoUserChkAlreadyLogined = new NakErrorType("eErrNoUserChkAlreadyLogined");
+        public static readonly NakErrorType NoUserChkAlreadyLogined = new NakErrorType("eErrNoUserChkAlreadyLogined", ServerMessageGroup);
         public static readonly NakErrorType NoCharInvalidSlot = new NakErrorType("eErrNoCharInvalidSlot");
         public static readonly NakErrorType NoUserCharSlotBusy = new NakErrorType("eErrNoUserCharSlotBusy");
         public static readonly NakErrorType NoCharAlreadyExistNm = new NakErrorType("eErrNoCharAlreadyExistNm");
@@ -116,10 +122,11 @@ namespace Packets.Core.Models.Common
         /// </summary>
         public static readonly NakErrorType UnknownError = CnsmUnknownError;
 
-        private NakErrorType(string name)
+        private NakErrorType(string name, int msgGroup = 0)
         {
             Name = name;
             Code = MakeHashKey(name);
+            MsgGroup = msgGroup;
         }
 
         /// <summary>
@@ -135,6 +142,25 @@ namespace Packets.Core.Models.Common
         }
 
         /// <summary>
+        ///     Reason that came in a packet, where the number travels instead of the name. The
+        ///     name is not in the packet and is not needed: everything that is done with it here
+        ///     is sending it on and writing it down
+        /// </summary>
+        /// <param name="code">Number of the reason</param>
+        /// <param name="msgGroup">Group of texts the client looks it up in</param>
+        public static NakErrorType FromCode(uint code, int msgGroup)
+        {
+            return new NakErrorType(code, msgGroup);
+        }
+
+        private NakErrorType(uint code, int msgGroup)
+        {
+            Name = code.ToString();
+            Code = code;
+            MsgGroup = msgGroup;
+        }
+
+        /// <summary>
         ///     Name of the reason, spelled the way the original spells it
         /// </summary>
         public string Name { get; }
@@ -143,6 +169,12 @@ namespace Packets.Core.Models.Common
         ///     Number of the name, the one that goes out in the packet
         /// </summary>
         public uint Code { get; }
+
+        /// <summary>
+        ///     Group of texts the client looks the reason up in. Zero for every reason that
+        ///     travels without a group, which is all of them but the ones of the kick
+        /// </summary>
+        public int MsgGroup { get; }
 
         /// <summary>
         ///     Number of a name: the standard CRC-32 over its ASCII bytes - the polynomial

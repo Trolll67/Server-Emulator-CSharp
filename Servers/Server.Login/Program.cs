@@ -84,6 +84,9 @@ namespace Server.Login
                     // Who of this world is on the line, the client server list is built from it
                     services.AddSingleton<FamilyRegistry>();
 
+                    // Whose keys of the login are out there and for how long
+                    services.AddSingleton<CertificationRegistry>();
+
                     // Register handlers
                     services.AddSingleton<IAuthorizationHandler, AuthorizationHandler>();
                     services.AddSingleton<IServersHandler, ServersHandler>();

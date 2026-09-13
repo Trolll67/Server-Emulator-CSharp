@@ -21,6 +21,7 @@ namespace Server.Login.Network
         private readonly IAuthorizationFactory _authorizationFactory;
         private readonly IRegisterHandlerService _registerHandlerService;
         private readonly FamilyRegistry _familyRegistry;
+        private readonly CertificationRegistry _certificationRegistry;
         private readonly LoginSetting _loginSetting;
 
         /// <summary>
@@ -33,13 +34,14 @@ namespace Server.Login.Network
         /// <param name="familyRegistry"></param>
         /// <param name="ownChannelInfo"></param>
         /// <param name="loginSetting"></param>
-        public LoginServer(ILogger<LoginServer> logger, ILogger<LoginSession> loggerSession, IAuthorizationFactory authorizationFactory, IRegisterHandlerService registerHandlerService, FamilyRegistry familyRegistry, OwnChannelInfo ownChannelInfo, IOptions<LoginSetting> loginSetting) : base(IPAddress.Parse(loginSetting.Value.ServerIp), 0)
+        public LoginServer(ILogger<LoginServer> logger, ILogger<LoginSession> loggerSession, IAuthorizationFactory authorizationFactory, IRegisterHandlerService registerHandlerService, FamilyRegistry familyRegistry, CertificationRegistry certificationRegistry, OwnChannelInfo ownChannelInfo, IOptions<LoginSetting> loginSetting) : base(IPAddress.Parse(loginSetting.Value.ServerIp), 0)
         {
             _logger = logger;
             _loggerSession = loggerSession;
             _authorizationFactory = authorizationFactory;
             _registerHandlerService = registerHandlerService;
             _familyRegistry = familyRegistry;
+            _certificationRegistry = certificationRegistry;
             _loginSetting = loginSetting.Value;
 
             // TblParmSvr is the only source of the port: the same table tells the client where to
@@ -92,7 +94,7 @@ namespace Server.Login.Network
         protected override NetworkSession CreateSession()
         {
             LoginSession loginSession = new LoginSession(this);
-            loginSession.InicializeServices(_loggerSession, _authorizationFactory, _registerHandlerService, _familyRegistry, _loginSetting.EncryptOutgoingPackets);
+            loginSession.InicializeServices(_loggerSession, _authorizationFactory, _registerHandlerService, _familyRegistry, _certificationRegistry, _loginSetting.EncryptOutgoingPackets);
 
             return loginSession;
         }

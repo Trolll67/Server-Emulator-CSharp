@@ -1,5 +1,7 @@
+using System;
 using Packets.Core.Attributes;
 using Packets.Core.Enums;
+using Packets.Core.Models.Common;
 using Packets.Core.Models.Family;
 using Packets.Core.Utilities;
 
@@ -12,6 +14,11 @@ namespace Packets.Core.Parsers.Family
     [ParserReceive]
     public class FamilyReceiveParsers
     {
+        /// <summary>
+        ///     Room the kick keeps for whom it is about: an account number or a character name
+        /// </summary>
+        private const int WhoSize = 15;
+
         [ParserAction(PacketType.LoginFamilyReq)]
         public LoginFamilyReqModel ParsingLoginFamilyReq(byte[] data)
         {
@@ -57,6 +64,24 @@ namespace Packets.Core.Parsers.Family
                 SvrNo = formationPackage.ReadShort(),
                 MaxSesCnt = formationPackage.ReadShort(),
                 BusySesCnt = formationPackage.ReadShort()
+            };
+        }
+
+        [ParserAction(PacketType.KickPcReq)]
+        public KickPcReqModel ParsingKickPcReq(byte[] data)
+        {
+            FormationPackage formationPackage = new FormationPackage(data);
+
+            bool isPc = formationPackage.ReadByte() != 0;
+            byte[] who = formationPackage.ReadBytes(WhoSize);
+
+            return new KickPcReqModel
+            {
+                IsPc = isPc,
+                UserNo = isPc ? 0 : BitConverter.ToInt32(who, 0),
+                PcName = isPc ? FormationPackageUtility.GetText(who, 0) : null,
+                Reason = NakErrorType.FromCode(formationPackage.ReadUInteger(), formationPackage.ReadInteger()),
+                AddressNumber = formationPackage.ReadLong()
             };
         }
 

@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Database.Fnl.Parm;
+using Packets.Core.Models.Common;
 using Packets.Core.Models.Family;
 using Server.Login.Core.Factories.Interfaces;
 using Server.Login.Models.Settings;
@@ -41,6 +43,28 @@ namespace Server.Login.Core.Factories
         public void SendLoginFamilyNak(LoginSession loginSession, short svrNo, FamilyErrorType error)
         {
             loginSession.Send(new LoginFamilyNakModel { SvrNo = svrNo, Error = error });
+        }
+
+        /// <inheritdoc/>
+        public void SendKick(int userNo, long addressNumber, NakErrorType reason)
+        {
+            KickPcReqModel kick = new KickPcReqModel
+            {
+                IsPc = false,
+                UserNo = userNo,
+                Reason = reason,
+                AddressNumber = addressNumber
+            };
+
+            IReadOnlyList<LoginSession> sessions = _familyRegistry.GetSessions(ParmServerType.Field);
+
+            foreach (LoginSession session in sessions)
+            {
+                session.Send(kick);
+            }
+
+            _logger.LogInformation("Asked {Count} game servers of this world to throw account {UserNo} out: {Reason}",
+                sessions.Count, userNo, reason);
         }
 
         /// <inheritdoc/>

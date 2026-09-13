@@ -10,6 +10,7 @@ using Packets.Core.Interfaces;
 using Packets.Core.Utilities;
 using Server.Login.Core.Factories.Interfaces;
 using Server.Login.Models.Login;
+using Server.Login.Services.Family;
 
 namespace Server.Login.Network
 {
@@ -21,6 +22,7 @@ namespace Server.Login.Network
         private ILogger<LoginSession> _logger;
         private IAuthorizationFactory _authorizationFactory;
         private IRegisterHandlerService _registerHandlerService;
+        private FamilyRegistry _familyRegistry;
 
         /// <summary>
         ///     Feature flag of LoginSetting.EncryptOutgoingPackets: the frames of this session leave
@@ -54,6 +56,13 @@ namespace Server.Login.Network
         /// </summary>
         public byte[] CipherKey { get; set; }
 
+        /// <summary>
+        ///     Number of the server of this world that opened the link, null while the session
+        ///     belongs to a client. CSession::mFamily of the original: the channel port serves
+        ///     both the players and the servers of the world, and this is what tells them apart
+        /// </summary>
+        public short? FamilySvrNo { get; set; }
+
         #endregion
 
         /// <summary>
@@ -71,12 +80,14 @@ namespace Server.Login.Network
         /// <param name="logger"></param>
         /// <param name="authorizationFactory"></param>
         /// <param name="registerHandlerService"></param>
+        /// <param name="familyRegistry"></param>
         /// <param name="encryptOutgoing">Value of LoginSetting.EncryptOutgoingPackets, see <see cref="_encryptOutgoing"/></param>
-        public void InicializeServices(ILogger<LoginSession> logger, IAuthorizationFactory authorizationFactory, IRegisterHandlerService registerHandlerService, bool encryptOutgoing)
+        public void InicializeServices(ILogger<LoginSession> logger, IAuthorizationFactory authorizationFactory, IRegisterHandlerService registerHandlerService, FamilyRegistry familyRegistry, bool encryptOutgoing)
         {
             _logger = logger;
             _authorizationFactory = authorizationFactory;
             _registerHandlerService = registerHandlerService;
+            _familyRegistry = familyRegistry;
             _encryptOutgoing = encryptOutgoing;
         }
 
@@ -100,6 +111,13 @@ namespace Server.Login.Network
         protected override void OnDisconnected()
         {
             _logger.LogInformation($"Client disconnected {Id}");
+
+            // A server of the world went off the line: the roster has to stop showing it to the
+            // clients right away, and its slot has to be free for the server to come back to
+            if (FamilySvrNo.HasValue)
+            {
+                _familyRegistry.Disconnected(FamilySvrNo.Value, this);
+            }
 
             // Save account in database
         }

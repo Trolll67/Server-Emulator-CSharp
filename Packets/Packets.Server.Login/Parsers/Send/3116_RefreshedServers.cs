@@ -47,14 +47,11 @@ namespace Packets.Server.Login.Parsers.Send
                 // Порт сервера
                 formationPackage.AddShort(server.ServerPort, true);
 
-                // Тип сервера - (01)Список серверов/(02)Список открытых серверов
-                formationPackage.AddByte((byte)server.Type);
+                // Тип сервера, TblParmSvr.mSupportType: (01)обычный/(02)открытый
+                formationPackage.AddInteger((int)server.Type);
 
-                // Скрыт или показан
-                formationPackage.AddByte((byte)(server.Hidden ? 0x01 : 0x00));
-
-                // Не расшифрованные байты
-                formationPackage.AddZeroBytes(6);
+                // Сервер Хаоса, TblParmSvr.mSvrInfo
+                formationPackage.AddInteger(server.IsChaosBattle ? 1 : 0);
             }
 
             return formationPackage.GetBytes();

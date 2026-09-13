@@ -16,10 +16,13 @@ namespace Packets.Core.Services
         // For models
         private static Dictionary<PacketType, Type> _models { get; set; } = new Dictionary<PacketType, Type>();
 
-        // For parsers
+        // For parsers. The two directions keep their own parser instances: a packet that this
+        // server both sends and receives - the family packets of the servers do - has a parser
+        // on either side, and one shared dictionary would only hold the first of them
         private static Dictionary<PacketType, MethodInfo> _parserRecieveActions { get; set; } = new Dictionary<PacketType, MethodInfo>();
         private static Dictionary<PacketType, MethodInfo> _parserSendActions { get; set; } = new Dictionary<PacketType, MethodInfo>();
-        private static Dictionary<PacketType, object> _parsers { get; set; } = new Dictionary<PacketType, object>();
+        private static Dictionary<PacketType, object> _parsersReceive { get; set; } = new Dictionary<PacketType, object>();
+        private static Dictionary<PacketType, object> _parsersSend { get; set; } = new Dictionary<PacketType, object>();
 
         // For handlers
         private static Dictionary<PacketType, Type> _handlers { get; set; } = new Dictionary<PacketType, Type>();
@@ -60,7 +63,7 @@ namespace Packets.Core.Services
                     {
                         PacketType packetType = method.GetCustomAttribute<ParserActionAttribute>().PacketType;
 
-                        _parsers.Add(packetType, parser);
+                        _parsersSend.Add(packetType, parser);
                         _parserSendActions.Add(packetType, method);
                     }
                 }
@@ -74,7 +77,7 @@ namespace Packets.Core.Services
                     {
                         PacketType packetType = method.GetCustomAttribute<ParserActionAttribute>().PacketType;
 
-                        _parsers.Add(packetType, parser);
+                        _parsersReceive.Add(packetType, parser);
                         _parserRecieveActions.Add(packetType, method);
                     }
                 }
@@ -109,13 +112,13 @@ namespace Packets.Core.Services
         /// <inheritdoc />
         public object Parse(PacketType packetType, byte[] data)
         {
-            return _parserRecieveActions.GetValueOrDefault(packetType)?.Invoke(_parsers[packetType], new object[] { data });
+            return _parserRecieveActions.GetValueOrDefault(packetType)?.Invoke(_parsersReceive[packetType], new object[] { data });
         }
 
         /// <inheritdoc />
         public byte[] Parse(PacketType packetType, object model)
         {
-            return (byte[])_parserSendActions.GetValueOrDefault(packetType)?.Invoke(_parsers[packetType], new object[] { model });
+            return (byte[])_parserSendActions.GetValueOrDefault(packetType)?.Invoke(_parsersSend[packetType], new object[] { model });
         }
 
         /// <inheritdoc />

@@ -24,6 +24,7 @@ using Server.Game.Models.Settings;
 using Server.Game.Network;
 using Server.Game.Services;
 using Server.Game.Services.Database;
+using Server.Game.Services.Family;
 using Server.Game.Services.Game;
 using Server.Game.Services.GameServices;
 using Server.Game.Services.Hosted;
@@ -111,6 +112,7 @@ namespace Server.Game
                     services.AddTransient<IEquipHandler, EquipHandler>();
                     services.AddTransient<IReinforceHandler, ReinforceHandler>();
                     services.AddTransient<INpcActionHandler, NpcActionHandler>();
+                    services.AddTransient<IFamilyHandler, FamilyHandler>();
 
                     // Register factories
                     services.AddTransient<ISkillFactory, SkillFactory>();
@@ -157,6 +159,10 @@ namespace Server.Game
                     // Register hosted services
                     services.AddHostedService<NetworkHostedService>();
 
+                    // Keeps this server on the line of its world, otherwise the channel shows it
+                    // to nobody
+                    services.AddHostedService<FamilyLinkService>();
+
                     // Started before the game services, so the jobs they register start right away;
                     // stopped after them, so the jobs are cancelled on shutdown
                     services.AddHostedService(provider => provider.GetRequiredService<PeriodicScheduler>());
@@ -174,7 +180,10 @@ namespace Server.Game
                     // Building service provider
                     ServiceProvider = services.BuildServiceProvider();
 
-                    // Register all handlers packet assembly
+                    // Register all handlers packet assembly. Packets.Core carries the packets the
+                    // servers of one world talk to each other with: every server knows them all
+                    ServiceProvider.GetService<IRegisterHandlerService>().RegistrationModels(Assembly.Load("Packets.Core"));
+                    ServiceProvider.GetService<IRegisterHandlerService>().RegistrationParsers(Assembly.Load("Packets.Core"));
                     ServiceProvider.GetService<IRegisterHandlerService>().RegistrationModels(Assembly.Load("Packets.Server.Game"));
                     ServiceProvider.GetService<IRegisterHandlerService>().RegistrationParsers(Assembly.Load("Packets.Server.Game"));
                     ServiceProvider.GetService<IRegisterHandlerService>().RegistrationHandlers(Assembly.Load("Server.Game"));

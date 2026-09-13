@@ -8,14 +8,22 @@
         // Common packets
         ConnectionClient = 1103,
 
+        // Family packets: the servers of one world talk to each other with them.
+        // The framework of the original carries them, so both servers know them all
+        LoginFamilyReq = 1107,
+        LoginFamilyNak = 1108,
+        NotifySvrStateAck = 1114,
+        KeepAliveNullReq = 1117,
+        LoginFamilyAck = 1130,
+
         // Login packets
         AuthorizationLogin = 3100,
         SendServers = 3101,
         LoginServerError = 3102,
         RefreshServers = 3115,
         RefreshedServers = 3116,
-        SelectServer = 3120,
-        SelectedServer = 3121,
+        ArsAuthReq = 3120,
+        ArsAuthAck = 3121,
 
         // Game packets
         GameServerError = 1102,

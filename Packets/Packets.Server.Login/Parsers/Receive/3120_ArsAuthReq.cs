@@ -6,15 +6,15 @@ using Packets.Server.Login.Models.Receive;
 namespace Packets.Server.Login.Parsers.Receive
 {
     /// <summary>
-    ///     Parser select server
+    ///     Parser of the phone confirmation request
     /// </summary>
     [ParserReceive]
-    public class SelectServer
+    public class ArsAuthReq
     {
-        [ParserAction(PacketType.SelectServer)]
-        public SelectServerModel Parsing(byte[] data)
+        [ParserAction(PacketType.ArsAuthReq)]
+        public ArsAuthReqModel Parsing(byte[] data)
         {
-            SelectServerModel authorizationModel = new SelectServerModel();
+            ArsAuthReqModel authorizationModel = new ArsAuthReqModel();
 
             FormationPackage formationPackage = new FormationPackage(data);
             authorizationModel.AccountId = formationPackage.ReadInteger();

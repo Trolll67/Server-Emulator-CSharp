@@ -1,13 +1,13 @@
-﻿using System;
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
 using Core.Network;
-using Database.Fnl.Parm;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Packets.Core.Interfaces;
 using Server.Login.Core.Factories.Interfaces;
 using Server.Login.Models.Settings;
+using Server.Login.Services;
+using Server.Login.Services.Family;
 
 namespace Server.Login.Network
 {
@@ -20,6 +20,7 @@ namespace Server.Login.Network
         private readonly ILogger<LoginSession> _loggerSession;
         private readonly IAuthorizationFactory _authorizationFactory;
         private readonly IRegisterHandlerService _registerHandlerService;
+        private readonly FamilyRegistry _familyRegistry;
         private readonly LoginSetting _loginSetting;
 
         /// <summary>
@@ -29,18 +30,45 @@ namespace Server.Login.Network
         /// <param name="loggerSession"></param>
         /// <param name="authorizationFactory"></param>
         /// <param name="registerHandlerService"></param>
+        /// <param name="familyRegistry"></param>
+        /// <param name="ownChannelInfo"></param>
         /// <param name="loginSetting"></param>
-        public LoginServer(ILogger<LoginServer> logger, ILogger<LoginSession> loggerSession, IAuthorizationFactory authorizationFactory, IRegisterHandlerService registerHandlerService, IFnlParmRepository parmRepository, IOptions<LoginSetting> loginSetting) : base(IPAddress.Parse(loginSetting.Value.ServerIp), 0)
+        public LoginServer(ILogger<LoginServer> logger, ILogger<LoginSession> loggerSession, IAuthorizationFactory authorizationFactory, IRegisterHandlerService registerHandlerService, FamilyRegistry familyRegistry, OwnChannelInfo ownChannelInfo, IOptions<LoginSetting> loginSetting) : base(IPAddress.Parse(loginSetting.Value.ServerIp), 0)
         {
             _logger = logger;
             _loggerSession = loggerSession;
             _authorizationFactory = authorizationFactory;
             _registerHandlerService = registerHandlerService;
+            _familyRegistry = familyRegistry;
             _loginSetting = loginSetting.Value;
 
-            ResolveListenPort(parmRepository, loginSetting.Value);
+            // TblParmSvr is the only source of the port: the same table tells the client where to
+            // connect, so a port taken from anywhere else would only be reachable by accident
+            UpdateEndpoint(new IPEndPoint(IPAddress.Parse(ownChannelInfo.ServerIp), ownChannelInfo.TcpPort));
 
             WarnOnConflictingCryptoSettings();
+        }
+
+        /// <summary>
+        ///     How many players are on the channel right now. The links of the servers of this world
+        ///     come to the very same port and are not players, so they are left out of the count
+        /// </summary>
+        public int ClientSessions
+        {
+            get
+            {
+                int count = 0;
+
+                foreach (NetworkSession session in Sessions.Values)
+                {
+                    if (session is LoginSession loginSession && !loginSession.FamilySvrNo.HasValue)
+                    {
+                        count++;
+                    }
+                }
+
+                return count;
+            }
         }
 
         /// <summary>
@@ -58,51 +86,13 @@ namespace Server.Login.Network
         }
 
         /// <summary>
-        ///     Finds this server in TblParmSvr by its address and kind (channel), and binds to the
-        ///     port stored there. TblParmSvr is the only source of the port: the same table tells the
-        ///     client where to connect, so a port taken from anywhere else would only be reachable
-        ///     by accident. A missing or empty row stops the server instead of silently listening
-        ///     somewhere the client will never look
-        /// </summary>
-        private void ResolveListenPort(IFnlParmRepository parmRepository, LoginSetting setting)
-        {
-            ParmServerRow own = parmRepository.GetParmSvr(ParmServerType.Channel, setting.ServerIp);
-
-            if (own == null)
-            {
-                throw Fatal($"TblParmSvr has no channel server (mType = {(byte)ParmServerType.Channel}) with mMajorIp = '{setting.ServerIp}'. " +
-                            "Add the row, or point \"LoginSetting:ServerIp\" at the address the channel is registered under");
-            }
-
-            if (own.TcpPort <= 0)
-            {
-                throw Fatal($"Channel server {own.SvrNo} on {setting.ServerIp} has no listen port: TblParmSvr.mTcpPort is {own.TcpPort}");
-            }
-
-            UpdateEndpoint(new IPEndPoint(IPAddress.Parse(setting.ServerIp), own.TcpPort));
-            _logger.LogInformation("Resolved listen port {Port} from TblParmSvr (channel server {SvrNo} on {Ip})", own.TcpPort, own.SvrNo, setting.ServerIp);
-        }
-
-        /// <summary>
-        ///     Logs the reason and builds the exception that stops the host
-        /// </summary>
-        private InvalidOperationException Fatal(string message)
-        {
-            string text = "Login server cannot start: " + message;
-
-            _logger.LogCritical(text);
-
-            return new InvalidOperationException(text);
-        }
-
-        /// <summary>
         ///     Create new session for login server
         /// </summary>
         /// <returns></returns>
         protected override NetworkSession CreateSession()
         {
             LoginSession loginSession = new LoginSession(this);
-            loginSession.InicializeServices(_loggerSession, _authorizationFactory, _registerHandlerService, _loginSetting.EncryptOutgoingPackets);
+            loginSession.InicializeServices(_loggerSession, _authorizationFactory, _registerHandlerService, _familyRegistry, _loginSetting.EncryptOutgoingPackets);
 
             return loginSession;
         }

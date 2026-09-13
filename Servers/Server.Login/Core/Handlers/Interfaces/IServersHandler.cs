@@ -9,11 +9,11 @@ namespace Server.Login.Core.Handlers.Interfaces
     public interface IServersHandler
     {
         /// <summary>
-        ///     Select server handle
+        ///     Phone confirmation handle: the client asks it about the server it has chosen
         /// </summary>
         /// <param name="loginSession"></param>
-        /// <param name="selectServerModel"></param>
-        void SelectServerHandle(LoginSession loginSession, SelectServerModel selectServerModel);
+        /// <param name="arsAuthReqModel"></param>
+        void ArsAuthHandle(LoginSession loginSession, ArsAuthReqModel arsAuthReqModel);
 
         /// <summary>
         ///     Refresh servers handle

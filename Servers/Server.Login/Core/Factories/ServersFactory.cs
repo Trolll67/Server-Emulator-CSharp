@@ -6,8 +6,11 @@ using Microsoft.Extensions.Options;
 using Packets.Server.Login.Models.Send;
 using Packets.Server.Login.Models.Send.Models;
 using Server.Login.Core.Factories.Interfaces;
+using Server.Login.Models.Family;
 using Server.Login.Models.Settings;
 using Server.Login.Network;
+using Server.Login.Services;
+using Server.Login.Services.Family;
 
 namespace Server.Login.Core.Factories
 {
@@ -15,16 +18,10 @@ namespace Server.Login.Core.Factories
     public class ServersFactory : IServersFactory
     {
         private readonly IFnlParmRepository _parmRepository;
+        private readonly FamilyRegistry _familyRegistry;
+        private readonly OwnChannelInfo _ownChannelInfo;
         private readonly ILogger<ServersFactory> _logger;
         private readonly LoginSetting _loginSetting;
-
-        /// <summary>
-        ///     Server list of the channel, read from FNLParm once and kept here: the client asks for it
-        ///     on every login, and TblParmSvr changes only when the servers themselves are reconfigured.
-        ///     Sessions live on socket threads, so the built list is never touched again and a new read
-        ///     only replaces the reference: volatile makes the filled list visible to the other threads
-        /// </summary>
-        private volatile List<ServerModel> _servers;
 
         /// <summary>
         ///     Options of this channel from TblParmSvrOp, by option number. Read on the first login
@@ -37,11 +34,15 @@ namespace Server.Login.Core.Factories
         ///     Creates a new instance
         /// </summary>
         /// <param name="parmRepository"></param>
+        /// <param name="familyRegistry"></param>
+        /// <param name="ownChannelInfo"></param>
         /// <param name="logger"></param>
         /// <param name="loginSetting"></param>
-        public ServersFactory(IFnlParmRepository parmRepository, ILogger<ServersFactory> logger, IOptions<LoginSetting> loginSetting)
+        public ServersFactory(IFnlParmRepository parmRepository, FamilyRegistry familyRegistry, OwnChannelInfo ownChannelInfo, ILogger<ServersFactory> logger, IOptions<LoginSetting> loginSetting)
         {
             _parmRepository = parmRepository;
+            _familyRegistry = familyRegistry;
+            _ownChannelInfo = ownChannelInfo;
             _logger = logger;
             _loginSetting = loginSetting.Value;
         }
@@ -64,93 +65,86 @@ namespace Server.Login.Core.Factories
         {
             RefreshedServersModel refreshedServersModel = new RefreshedServersModel()
             {
-                Servers = LoadServers()
+                Servers = GetServers()
             };
 
             loginSession.Send(refreshedServersModel);
         }
 
         /// <inheritdoc/>
-        public void SendSelectedServer(LoginSession loginSession)
+        public void SendArsAuth(LoginSession loginSession)
         {
-            SelectedServerModel selectedServerModel = new SelectedServerModel();
+            // The phone confirmation is not reproduced here, and the original answers exactly this
+            // when its own content flag is off: the state stays None and the client goes on
+            ArsAuthAckModel arsAuthAckModel = new ArsAuthAckModel { State = ArsAuthState.None };
 
-            loginSession.Send(selectedServerModel);
+            loginSession.Send(arsAuthAckModel);
         }
 
         /// <inheritdoc/>
         public bool IsKnownServer(short serverId)
         {
-            // The very same list the client was given in 3101: what it sees and what it may choose
-            // never disagree, and the choice costs no round trip to FNLParm
-            foreach (ServerModel server in GetServers())
-            {
-                if (server.Id == serverId)
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            // The original looks the chosen server up in the very same roster the list was built
+            // from, and takes anything that is in this world
+            return _familyRegistry.IsKnown(serverId);
         }
 
         /// <summary>
-        ///     Write all servers in the packet
+        ///     Builds the client server list out of the roster of this world
         /// </summary>
-        /// <returns></returns>
+        /// <returns>
+        ///     Field servers of this world, the ones on the line marked as such. A server that is
+        ///     configured but not running stays in the list and is shown as unavailable, which is
+        ///     what the original does as well
+        /// </returns>
         private List<ServerModel> GetServers()
-        {
-            return _servers ?? LoadServers();
-        }
-
-        /// <summary>
-        ///     Rereads the server list from FNLParm and caches it
-        /// </summary>
-        /// <returns>Field servers of the own family, empty list when the database is not readable</returns>
-        private List<ServerModel> LoadServers()
         {
             List<ServerModel> serverModels = new List<ServerModel>();
 
-            try
+            // The world also holds the manager and the gateway, the client list is field servers only
+            foreach (FamilyServer server in _familyRegistry.GetServers(ParmServerType.Field))
             {
-                short svrNo = GetOwnSvrNo();
-
-                foreach (FamilyServerRow server in _parmRepository.GetFamily(svrNo))
+                serverModels.Add(new ServerModel
                 {
-                    // The family also carries the manager and the gateway, the client list is field servers only
-                    if (server.Type != ParmServerType.Field)
-                    {
-                        continue;
-                    }
-
-                    ServerModel serverModel = new ServerModel
-                    {
-                        Id = server.SvrNo,
-                        Name = server.Desc,
-                        ServerIp = server.MajorIp,
-                        ServerPort = (short)server.TcpPort,
-                        Status = true, // ASSUMPTION: TblParmSvr has no "is alive" column, the channel pings the family instead
-                        Hidden = false, // ASSUMPTION: no such column in TblParmSvr
-                        Type = ServerType.Server, // ASSUMPTION: no such column in TblParmSvr
-                        Congestion = CongestionType.Low // ASSUMPTION: the original counts the online users of the field server
-                    };
-
-                    serverModels.Add(serverModel);
-                }
+                    Id = server.SvrNo,
+                    Name = server.Desc,
+                    ServerIp = server.MajorIp,
+                    ServerPort = (short)server.TcpPort,
+                    Status = server.IsConnected,
+                    Congestion = GetCongestion(server),
+                    Type = (ServerType)server.SupportType,
+                    IsChaosBattle = server.SvrInfo == ParmServerInfo.ChaosBattle
+                });
             }
-            catch (SqlException e)
-            {
-                // UspGetFamilyEx raises 'Invalid SvrNo(%d)' for an unknown number instead of returning
-                // an empty set. The client gets an empty list, the login server keeps running,
-                // and the next packet tries the database again: the failed read is not cached
-                _logger.LogError(e, "Can not read the server list from FNLParm, the client gets an empty list");
-
-                return serverModels;
-            }
-
-            _servers = serverModels;
 
             return serverModels;
+        }
+
+        /// <summary>
+        ///     Turns the session counts a field server reports into the four step scale the client
+        ///     draws. The steps and their order are the ones of the original: the emptiest server
+        ///     is the lowest value, and the numbers the steps are counted against are per country
+        ///     there and configurable here
+        /// </summary>
+        /// <param name="server">Server of this world with the state it last reported</param>
+        private CongestionType GetCongestion(FamilyServer server)
+        {
+            // A server that has not told anything yet is holding nobody as far as we know
+            int used = server.IsConnected ? server.UsedSessions : 0;
+
+            if (used < _loginSetting.ServerLowLoadSessions)
+            {
+                return CongestionType.Low;
+            }
+
+            if (used < _loginSetting.ServerNormalLoadSessions)
+            {
+                return CongestionType.Medium;
+            }
+
+            return used >= server.MaxSesCnt - _loginSetting.ServerFullReserveSessions
+                ? CongestionType.Maximum
+                : CongestionType.High;
         }
 
         /// <inheritdoc/>
@@ -198,7 +192,7 @@ namespace Server.Login.Core.Factories
 
             try
             {
-                foreach (ParmServerOptionRow option in _parmRepository.GetServerOptions(GetOwnSvrNo()))
+                foreach (ParmServerOptionRow option in _parmRepository.GetServerOptions(_ownChannelInfo.SvrNo))
                 {
                     options[option.OpNo] = option.IsSetup;
                 }
@@ -227,22 +221,5 @@ namespace Server.Login.Core.Factories
             return options;
         }
 
-        /// <summary>
-        ///     Own number of the channel server: the original looks it up by its own address
-        /// </summary>
-        /// <returns>TblParmSvr.mSvrNo of this channel</returns>
-        private short GetOwnSvrNo()
-        {
-            ParmServerRow channel = _parmRepository.GetParmSvr(ParmServerType.Channel, _loginSetting.ServerIp);
-
-            if (channel != null)
-            {
-                return channel.SvrNo;
-            }
-
-            _logger.LogWarning($"TblParmSvr has no channel server on {_loginSetting.ServerIp}, taking ChannelSvrNo {_loginSetting.ChannelSvrNo} from loginsettings.json");
-
-            return _loginSetting.ChannelSvrNo;
-        }
     }
 }

@@ -6,18 +6,17 @@ using Packets.Server.Login.Models.Send;
 namespace Packets.Server.Login.Parsers.Send
 {
     /// <summary>
-    ///     Parser selected server
+    ///     Parser of the phone confirmation answer
     /// </summary>
     [ParserSend]
-    public class SelectedServer
+    public class ArsAuthAck
     {
-        [ParserAction(PacketType.SelectedServer)]
-        public byte[] Parsing(SelectedServerModel model)
+        [ParserAction(PacketType.ArsAuthAck)]
+        public byte[] Parsing(ArsAuthAckModel model)
         {
             FormationPackage formationPackage = new FormationPackage();
 
-            // Не расшифрованные байты
-            formationPackage.AddZeroBytes(4);
+            formationPackage.AddInteger((int)model.State);
 
             return formationPackage.GetBytes();
         }

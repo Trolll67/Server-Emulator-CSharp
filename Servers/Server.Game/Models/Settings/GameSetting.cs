@@ -34,6 +34,24 @@ namespace Server.Game.Models.Settings
         /// </summary>
         public bool GenerateSessionKey { get; set; }
 
+        /// <summary>
+        ///     How many players this server is able to hold. Goes to the channel in the packet of
+        ///     the state, and the channel turns it into the fullness the client draws in the list
+        /// </summary>
+        public short MaxSessions { get; set; } = 1000;
+
+        /// <summary>
+        ///     How often, in seconds, the server calls the channels of its world: a link that is
+        ///     down is opened again, an open one gets a ping and the state of this server
+        /// </summary>
+        public int FamilyKeepAliveSeconds { get; set; } = 30;
+
+        /// <summary>
+        ///     Build this server names itself with when it joins the world. The original logs it
+        ///     and lets the link live either way
+        /// </summary>
+        public int FamilyVersion { get; set; }
+
         // Garbage settings
         public int GarbageItems { get; set; }
         public int GarbageUnits { get; set; }

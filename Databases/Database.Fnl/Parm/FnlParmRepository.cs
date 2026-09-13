@@ -31,6 +31,8 @@ namespace Database.Fnl.Parm
         private const int FamilyMajorIp = 4;
         private const int FamilyDesc = 6;
         private const int FamilyWorldNo = 7;
+        private const int FamilySupportType = 8;
+        private const int FamilySvrInfo = 9;
 
         /// <summary>
         ///     Column ordinals of the dbo.UspGetParmSvrOp result set:
@@ -106,7 +108,13 @@ namespace Database.Fnl.Parm
                     UdpPort = GetPort(reader, FamilyUdpPort),
                     MajorIp = GetTrimmedString(reader, FamilyMajorIp),
                     Desc = GetTrimmedString(reader, FamilyDesc),
-                    WorldNo = GetInt16OrZero(reader, FamilyWorldNo)
+                    WorldNo = GetInt16OrZero(reader, FamilyWorldNo),
+
+                    // The last two columns of the procedure. They are read through a length check:
+                    // an older UspGetFamilyEx stops at mWorldNo, and the server list survives that
+                    // with the values the original would have used for a plain server
+                    SupportType = (ParmSupportServerType)GetByteOrDefault(reader, FamilySupportType, (byte)ParmSupportServerType.Original),
+                    SvrInfo = (ParmServerInfo)GetByteOrDefault(reader, FamilySvrInfo, (byte)ParmServerInfo.None)
                 });
             }
 
@@ -173,6 +181,23 @@ namespace Database.Fnl.Parm
         private static short GetInt16OrZero(SqlDataReader reader, int ordinal)
         {
             return reader.IsDBNull(ordinal) ? (short)0 : reader.GetInt16(ordinal);
+        }
+
+        /// <summary>
+        ///     Reads a tinyint column that an older version of the procedure may not select at all
+        /// </summary>
+        /// <param name="reader"></param>
+        /// <param name="ordinal"></param>
+        /// <param name="whenMissing">Value to use when the column is absent or null</param>
+        /// <returns>Column value or <paramref name="whenMissing"/></returns>
+        private static byte GetByteOrDefault(SqlDataReader reader, int ordinal, byte whenMissing)
+        {
+            if (ordinal >= reader.FieldCount || reader.IsDBNull(ordinal))
+            {
+                return whenMissing;
+            }
+
+            return reader.GetByte(ordinal);
         }
 
         /// <summary>

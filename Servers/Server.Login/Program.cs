@@ -20,6 +20,8 @@ using Server.Login.Core.Handlers;
 using Server.Login.Core.Handlers.Interfaces;
 using Server.Login.Models.Settings;
 using Server.Login.Network;
+using Server.Login.Services;
+using Server.Login.Services.Family;
 using Server.Login.Services.Hosted;
 
 namespace Server.Login
@@ -76,13 +78,21 @@ namespace Server.Login
                     // Loading configure
                     services.Configure<LoginSetting>(hostContext.Configuration.GetSection("LoginSetting"));
 
+                    // This channel's own identity (svr no, world no, port) resolved once from TblParmSvr
+                    services.AddSingleton<OwnChannelInfo>();
+
+                    // Who of this world is on the line, the client server list is built from it
+                    services.AddSingleton<FamilyRegistry>();
+
                     // Register handlers
                     services.AddSingleton<IAuthorizationHandler, AuthorizationHandler>();
                     services.AddSingleton<IServersHandler, ServersHandler>();
+                    services.AddSingleton<IFamilyHandler, FamilyHandler>();
 
                     // Register factories
                     services.AddSingleton<IAuthorizationFactory, AuthorizationFactory>();
                     services.AddSingleton<IServersFactory, ServersFactory>();
+                    services.AddSingleton<IFamilyFactory, FamilyFactory>();
 
                     // Register all handlers packet
                     services.AddSingleton<IRegisterHandlerService, RegisterHandlerService>();
@@ -92,11 +102,15 @@ namespace Server.Login
 
                     // Register hosted services
                     services.AddHostedService<NetworkHostedService>();
+                    services.AddHostedService<FamilyHostedService>();
 
                     // Building service provider
                     ServiceProvider = services.BuildServiceProvider();
 
-                    // Register all handlers packet assembly
+                    // Register all handlers packet assembly. Packets.Core carries the packets the
+                    // servers of one world talk to each other with: every server knows them all
+                    ServiceProvider.GetService<IRegisterHandlerService>().RegistrationModels(Assembly.Load("Packets.Core"));
+                    ServiceProvider.GetService<IRegisterHandlerService>().RegistrationParsers(Assembly.Load("Packets.Core"));
                     ServiceProvider.GetService<IRegisterHandlerService>().RegistrationModels(Assembly.Load("Packets.Server.Login"));
                     ServiceProvider.GetService<IRegisterHandlerService>().RegistrationParsers(Assembly.Load("Packets.Server.Login"));
                     ServiceProvider.GetService<IRegisterHandlerService>().RegistrationHandlers(Assembly.Load("Server.Login"));

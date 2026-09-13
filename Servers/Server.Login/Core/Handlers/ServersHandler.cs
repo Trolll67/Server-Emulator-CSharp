@@ -33,35 +33,35 @@ namespace Server.Login.Core.Handlers
         }
 
         /// <inheritdoc />
-        [HandlerAction(PacketType.SelectServer)]
-        public void SelectServerHandle(LoginSession loginSession, SelectServerModel selectServerModel)
+        [HandlerAction(PacketType.ArsAuthReq)]
+        public void ArsAuthHandle(LoginSession loginSession, ArsAuthReqModel arsAuthReqModel)
         {
             SessionLoginModel sessionLogin = loginSession.SessionLogin;
 
             // The client repeats the account it was certified with, both values have to match the session
-            if (sessionLogin == null || sessionLogin.UserNo != selectServerModel.AccountId ||
-                !string.Equals(sessionLogin.UserId, selectServerModel.Login, StringComparison.OrdinalIgnoreCase))
+            if (sessionLogin == null || sessionLogin.UserNo != arsAuthReqModel.AccountId ||
+                !string.Equals(sessionLogin.UserId, arsAuthReqModel.Login, StringComparison.OrdinalIgnoreCase))
             {
-                _logger.LogWarning($"Packet 3120 from an unknown session: it names mUserNo {selectServerModel.AccountId} and login {selectServerModel.Login}, the session holds {(sessionLogin == null ? "nothing" : sessionLogin.UserNo + " and " + sessionLogin.UserId)}");
+                _logger.LogWarning($"Packet 3120 from an unknown session: it names mUserNo {arsAuthReqModel.AccountId} and login {arsAuthReqModel.Login}, the session holds {(sessionLogin == null ? "nothing" : sessionLogin.UserNo + " and " + sessionLogin.UserId)}");
 
                 _authorizationFactory.SendError(loginSession, ServerErrorType.NoUser);
                 return;
             }
 
             // The factory answers from the same list it sent in 3101, no second read of FNLParm
-            if (!_serversFactory.IsKnownServer(selectServerModel.ServerId))
+            if (!_serversFactory.IsKnownServer(arsAuthReqModel.ServerId))
             {
-                _logger.LogWarning($"Account {sessionLogin.UserId} chose the server {selectServerModel.ServerId}, which is not in the family list sent in 3101");
+                _logger.LogWarning($"Account {sessionLogin.UserId} chose the server {arsAuthReqModel.ServerId}, which is not in the family list sent in 3101");
 
                 _authorizationFactory.SendError(loginSession, ServerErrorType.IncorrectServer);
                 return;
             }
 
-            // Ключ сессии выдаётся один раз в CertifyUser и уходит клиенту в 3101. Перевыпуск здесь
-            // невозможен: пакет 3121 поля для ключа не имеет (см. 3121_SelectedServer.cs), клиент
-            // остался бы со старым значением.
+            // The packet carries no session key: the key is issued once in CertifyUser and goes
+            // to the client in 3101, and 3121 has room for nothing but the confirmation state
+            // (see 3121_ArsAuthAck.cs)
 
-            _serversFactory.SendSelectedServer(loginSession);
+            _serversFactory.SendArsAuth(loginSession);
         }
 
         /// <inheritdoc />

@@ -20,10 +20,11 @@ namespace Server.Login.Core.Factories.Interfaces
         void SendRefreshedServers(LoginSession loginSession);
 
         /// <summary>
-        ///     Sends confirm packet of connecting to server
+        ///     Answers that the chosen server wants no phone confirmation, which lets
+        ///     the client go on to the game server
         /// </summary>
         /// <param name="loginSession"></param>
-        void SendSelectedServer(LoginSession loginSession);
+        void SendArsAuth(LoginSession loginSession);
 
         /// <summary>
         ///     Checks that the chosen server is one of those the client was given in the list

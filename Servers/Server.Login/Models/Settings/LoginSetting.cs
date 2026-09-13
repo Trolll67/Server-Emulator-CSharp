@@ -14,11 +14,35 @@ namespace Server.Login.Models.Settings
         public string ServerIp { get; set; }
 
         /// <summary>
-        ///     Own number of the channel server in FNLParm.TblParmSvr. Used when the server can not be
-        ///     found by <see cref="ServerIp"/>: the address the emulator listens on and TblParmSvr.mMajorIp
-        ///     of the live database are not necessarily the same
+        ///     How many players this channel is able to hold. Goes to the servers of the world in
+        ///     the packet of the state, and the original takes it from its own session pool
         /// </summary>
-        public short ChannelSvrNo { get; set; }
+        public short MaxSessions { get; set; } = 1000;
+
+        /// <summary>
+        ///     How often, in seconds, the channel pings the links of the servers of its world and
+        ///     tells them how loaded it is
+        /// </summary>
+        public int FamilyKeepAliveSeconds { get; set; } = 30;
+
+        /// <summary>
+        ///     How many players a field server has to be holding before the client is told the
+        ///     server is not empty any more. Below this the server shows as the least loaded one.
+        ///     The original keeps the three steps of the scale per country, this is the first
+        /// </summary>
+        public int ServerLowLoadSessions { get; set; } = 500;
+
+        /// <summary>
+        ///     How many players a field server has to be holding before it shows as loaded.
+        ///     The second step of the scale, gNrmCnt of the original
+        /// </summary>
+        public int ServerNormalLoadSessions { get; set; } = 1500;
+
+        /// <summary>
+        ///     How many free places are left before the server shows as full. The last step of
+        ///     the scale, counted from the session count the server itself reports
+        /// </summary>
+        public int ServerFullReserveSessions { get; set; } = 550;
 
         /// <summary>
         ///     Фича-флаг: шифровать исходящие пакеты. Выключен - кадр уходит как сейчас, с

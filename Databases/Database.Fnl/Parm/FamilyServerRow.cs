@@ -39,5 +39,16 @@ namespace Database.Fnl.Parm
         ///     World the server belongs to
         /// </summary>
         public short WorldNo { get; set; }
+
+        /// <summary>
+        ///     Kind of service the server offers (TblParmSvr.mSupportType), goes to the client
+        ///     in the server list
+        /// </summary>
+        public ParmSupportServerType SupportType { get; set; } = ParmSupportServerType.Original;
+
+        /// <summary>
+        ///     Extra mark on the server (TblParmSvr.mSvrInfo), goes to the client in the server list
+        /// </summary>
+        public ParmServerInfo SvrInfo { get; set; } = ParmServerInfo.None;
     }
 }

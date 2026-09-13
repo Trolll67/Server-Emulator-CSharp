@@ -124,7 +124,7 @@ namespace Core.Network
 
             // Setup buffers
             _receiveBuffer = new Buffer();
-            _framingBuffer = new Buffer();
+            _frameReader = new FrameReader(FrameBufferInitialSize);
             _sendBufferMain = new Buffer();
             _sendBufferFlush = new Buffer();
 
@@ -148,7 +148,6 @@ namespace Core.Network
 
             // Prepare receive & send buffers
             _receiveBuffer.Reserve(OptionReceiveBufferSize);
-            _framingBuffer.Reserve(FrameBufferInitialSize);
             _sendBufferMain.Reserve(OptionSendBufferSize);
             _sendBufferFlush.Reserve(OptionSendBufferSize);
 
@@ -247,20 +246,10 @@ namespace Core.Network
         private SocketAsyncEventArgs _receiveEventArg;
         private int _receiveThreadId;
 
-        // Incoming stream accumulator: TCP gives a byte stream, so a single receive may hold
-        // a piece of a packet, several packets or both. Received bytes are stored here until
-        // a whole packet is collected
-        private Buffer _framingBuffer;
+        // Incoming stream accumulator, see FrameReader
+        private FrameReader _frameReader;
 
-        // Size of the packet length prefix, the prefix is a part of the declared length
-        private const int FrameHeaderSize = 2;
-
-        // The biggest packet length the 2 bytes prefix is able to express
-        private const int MaxFrameSize = short.MaxValue;
-
-        // Start size of the accumulator, a couple of usual client packets. The socket receive buffer
-        // is way bigger, and reserving it per session would cost megabytes on a crowded server, while
-        // the accumulator grows by itself and never holds more than one frame plus one segment
+        // Start size of the accumulator, a couple of usual client packets
         private const int FrameBufferInitialSize = 1024;
 
         // Send buffer
@@ -589,45 +578,21 @@ namespace Core.Network
         /// </remarks>
         private void ProcessFrames(byte[] buffer, long offset, long size)
         {
-            // Store the fresh segment, the tail of the previous one is already here
-            _framingBuffer.Append(buffer, offset, size);
+            _frameReader.Append(buffer, offset, size);
 
-            // Size of the accumulator part which is already taken apart and must be dropped
-            long position = 0;
-
-            int brokenSize = 0;
-            long brokenDropped = 0;
+            FrameReader.Frame broken = default;
 
             try
             {
-                // Take packets while the accumulator holds the length prefix and the whole frame
-                while (_framingBuffer.Size - position >= FrameHeaderSize)
+                while (_frameReader.TryRead(out FrameReader.Frame frame))
                 {
-                    int packetSize = BitConverter.ToUInt16(_framingBuffer.Data, (int)position);
-
-                    // The length is impossible, the stream is desynchronized and cannot be
-                    // resynchronized without a packet boundary, so the rest of the accumulator is
-                    // dropped instead of reading out of it
-                    if (packetSize < FrameHeaderSize || packetSize > MaxFrameSize)
+                    if (frame.IsBroken)
                     {
-                        brokenSize = packetSize;
-                        brokenDropped = _framingBuffer.Size - position;
-                        position = _framingBuffer.Size;
+                        broken = frame;
                         break;
                     }
 
-                    // The rest of the frame is still on the way, wait for the next segment
-                    if (_framingBuffer.Size - position < packetSize)
-                    {
-                        break;
-                    }
-
-                    // Pass the payload without the length prefix as the inline parser did before
-                    byte[] payload = new byte[packetSize - FrameHeaderSize];
-                    Array.Copy(_framingBuffer.Data, position + FrameHeaderSize, payload, 0, payload.Length);
-                    position += packetSize;
-
-                    OnReceived(payload, 0, payload.Length);
+                    OnReceived(frame.Payload, 0, frame.Payload.Length);
 
                     // The handler is allowed to close the session, the rest of the stream is not ours
                     if (!IsConnected)
@@ -641,17 +606,14 @@ namespace Core.Network
                 // Drop the handled frames and keep the tail for the next segment. It happens even
                 // when a handler throws, otherwise the same frames would be given out once again
                 // together with the next segment
-                if (position > 0)
-                {
-                    _framingBuffer.Remove(0, position);
-                }
+                _frameReader.Compact();
             }
 
             // Report the broken length when the accumulator is already cleaned up, the handler is
             // allowed to close the session from here
-            if (brokenDropped > 0)
+            if (broken.IsBroken && broken.Dropped > 0)
             {
-                OnFramingError(brokenSize, brokenDropped);
+                OnFramingError(broken.BrokenSize, broken.Dropped);
             }
         }
 

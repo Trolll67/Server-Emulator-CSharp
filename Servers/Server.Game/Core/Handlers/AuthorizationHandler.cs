@@ -10,6 +10,7 @@ using Packets.Core.Enums;
 using Packets.Server.Game.Models.Receive;
 using Packets.Server.Game.Models.Send;
 using Packets.Server.Game.Models.Send.Character;
+using Packets.Core.Models.Common;
 using Server.Game.Core.Factories.Interfaces;
 using Server.Game.Core.Handlers.Interfaces;
 using Server.Game.Models.Game;
@@ -67,7 +68,7 @@ namespace Server.Game.Core.Handlers
             // would stay in it forever, saved by the autosave and never logged out
             if (client.State != GameSessionState.Connected)
             {
-                _commonFactory.SendServerError(client, PacketType.LoginUserReq, GameServerErrorType.NoUserChkAlreadyLogined, true);
+                _commonFactory.SendServerError(client, PacketType.LoginUserReq, NakErrorType.NoUserChkAlreadyLogined, true);
                 return;
             }
 
@@ -105,14 +106,14 @@ namespace Server.Game.Core.Handlers
                 // code as a wrong session key and the world server keeps running
                 _logger.LogError(e, $"Can not log mUserNo {userNo} into world {_ownServerInfo.WorldNo}, UspLoginUser failed");
 
-                _commonFactory.SendServerError(client, PacketType.LoginUserReq, GameServerErrorType.NoUserNotLogin, true);
+                _commonFactory.SendServerError(client, PacketType.LoginUserReq, NakErrorType.NoUserNotLogin, true);
                 return;
             }
 
             // Only the return code is trustworthy: a wrong key or an unknown account fails here
             if (!loginResult.IsSuccess)
             {
-                _commonFactory.SendServerError(client, PacketType.LoginUserReq, GameServerErrorType.NoUserNotLogin, true);
+                _commonFactory.SendServerError(client, PacketType.LoginUserReq, NakErrorType.NoUserNotLogin, true);
                 return;
             }
 
@@ -304,7 +305,7 @@ namespace Server.Game.Core.Handlers
         /// <param name="client"></param>
         private void SendChoosePcNak(GameSession client)
         {
-            _commonFactory.SendServerError(client, PacketType.ChoosePcReq, GameServerErrorType.NoCharInvalidNo, true);
+            _commonFactory.SendServerError(client, PacketType.ChoosePcReq, NakErrorType.NoCharInvalidNo, true);
         }
 
         /// <summary>

@@ -12,6 +12,7 @@ using Packets.Core.Attributes;
 using Server.Game.Models.Game;
 using Server.Game.Network;
 using Packets.Core.Enums;
+using Packets.Core.Models.Common;
 using Database.Fnl.Game;
 using System;
 
@@ -177,7 +178,7 @@ namespace Server.Game.Core.Handlers
 
             Restore((int)client.Pc.Simple.PcNo, change);
 
-            _errorFactory.SendServerError(client, packet, GameServerErrorType.SqlInternalError, serialNo, false);
+            _errorFactory.SendServerError(client, packet, NakErrorType.SqlInternalError, serialNo, false);
 
             return false;
         }
@@ -273,7 +274,7 @@ namespace Server.Game.Core.Handlers
         /// <param name="serialNo">Serial of the item of the request, zero when it names none</param>
         private void Refuse(GameSession client, PacketType packet, ErrorEnum reason, ulong serialNo)
         {
-            GameServerErrorType error = ToErrorType(reason);
+            NakErrorType error = ToErrorType(reason);
 
             if (error == null)
             {
@@ -295,32 +296,32 @@ namespace Server.Game.Core.Handlers
         /// </summary>
         /// <param name="error">Reason the character refused the request for</param>
         /// <returns>Reason as it goes out in 1102, empty when nothing is answered</returns>
-        private static GameServerErrorType ToErrorType(ErrorEnum error)
+        private static NakErrorType ToErrorType(ErrorEnum error)
         {
             switch (error)
             {
                 case ErrorEnum.PosInvalid:
                     return null;
                 case ErrorEnum.CharAlreadyDie:
-                    return GameServerErrorType.CharAlreadyDie;
+                    return NakErrorType.CharAlreadyDie;
                 case ErrorEnum.ItemCantEquipLimitClass:
-                    return GameServerErrorType.ItemCantEquipLimitClass;
+                    return NakErrorType.ItemCantEquipLimitClass;
                 case ErrorEnum.ItemCantEquipLimitLevel:
-                    return GameServerErrorType.ItemCantEquipLimitLevel;
+                    return NakErrorType.ItemCantEquipLimitLevel;
                 case ErrorEnum.ItemEquipped:
-                    return GameServerErrorType.ItemEquipped;
+                    return NakErrorType.ItemEquipped;
                 case ErrorEnum.ItemNotEquipSlot:
-                    return GameServerErrorType.ItemNotEquipSlot;
+                    return NakErrorType.ItemNotEquipSlot;
                 case ErrorEnum.ItemNotEquip:
-                    return GameServerErrorType.ItemNotEquip;
+                    return NakErrorType.ItemNotEquip;
                 case ErrorEnum.ItemCantFindBow:
-                    return GameServerErrorType.ItemCantFindBow;
+                    return NakErrorType.ItemCantFindBow;
                 case ErrorEnum.ItemCantEquipSpear:
-                    return GameServerErrorType.ItemCantEquipSpear;
+                    return NakErrorType.ItemCantEquipSpear;
                 case ErrorEnum.ItemCantEquipShield:
-                    return GameServerErrorType.ItemCantEquipShield;
+                    return NakErrorType.ItemCantEquipShield;
                 default:
-                    return GameServerErrorType.ItemNotExist;
+                    return NakErrorType.ItemNotExist;
             }
         }
 

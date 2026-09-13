@@ -1,4 +1,5 @@
-﻿using Packets.Core.Attributes;
+﻿using System;
+using Packets.Core.Attributes;
 using Packets.Core.Enums;
 using Packets.Core.Utilities;
 using Packets.Server.Login.Models.Receive;
@@ -17,15 +18,29 @@ namespace Packets.Server.Login.Parsers.Receive
             AuthorizationLoginModel authorizationLoginModel = new AuthorizationLoginModel
             {
                 Login = GetLogin(data),
-                Password = GetPassword(data)
+                Password = GetPassword(data),
+                IdIndex = data[IdIndexOffset],
+                PswdIndex = data[PswdIndexOffset],
+                Version = BitConverter.ToUInt32(data, VersionOffset),
+                RscLength = BitConverter.ToUInt32(data, RscLengthOffset)
             };
 
             return authorizationLoginModel;
         }
 
+        /// <summary>
+        ///     Places of the fields that always stand where they stand. The rest of the packet is
+        ///     noise with the login and the password hidden in it
+        /// </summary>
+        private const int PswdIndexOffset = 81;
+
+        private const int IdIndexOffset = 256;
+        private const int VersionOffset = 386;
+        private const int RscLengthOffset = 416;
+
         private string GetLogin(byte[] data)
         {
-            byte codeLogin = data[256];
+            byte codeLogin = data[IdIndexOffset];
             codeLogin = (byte) (codeLogin / 8);
 
             int offsetLogin;
@@ -65,7 +80,7 @@ namespace Packets.Server.Login.Parsers.Receive
 
         private string GetPassword(byte[] data)
         {
-            byte codePassword = data[81];
+            byte codePassword = data[PswdIndexOffset];
             codePassword = (byte) (codePassword / 2);
 
             int offsetPassword;

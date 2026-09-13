@@ -8,6 +8,7 @@ using Packets.Server.Game.Enums;
 using Packets.Server.Game.Models.Receive.Inventory;
 using Packets.Server.Game.Models.Send;
 using Packets.Server.Game.Structures;
+using Packets.Core.Models.Common;
 using Server.Game.Core.Factories.Interfaces;
 using Server.Game.Core.Handlers.Interfaces;
 using Server.Game.Core.Systems;
@@ -124,7 +125,7 @@ namespace Server.Game.Core.Handlers
         {
             if (!client.IsInWorld || client.Pc == null)
             {
-                _errorFactory.SendServerError(client, PacketType.ItemPickupReq, GameServerErrorType.NoUserNotLogin, false);
+                _errorFactory.SendServerError(client, PacketType.ItemPickupReq, NakErrorType.NoUserNotLogin, false);
                 return;
             }
 
@@ -139,13 +140,13 @@ namespace Server.Game.Core.Handlers
 
             if (ground == null)
             {
-                _errorFactory.SendServerError(client, PacketType.ItemPickupReq, GameServerErrorType.ItemNotExist, false);
+                _errorFactory.SendServerError(client, PacketType.ItemPickupReq, NakErrorType.ItemNotExist, false);
                 return;
             }
 
             if (!IsInReach(client.Pc, ground.Position))
             {
-                _errorFactory.SendServerError(client, PacketType.ItemPickupReq, GameServerErrorType.DistIsOut, false);
+                _errorFactory.SendServerError(client, PacketType.ItemPickupReq, NakErrorType.DistIsOut, false);
                 return;
             }
 
@@ -173,7 +174,7 @@ namespace Server.Game.Core.Handlers
                 // the other one finds nothing to take and is told the thing is not there any more
                 if (!_identificationService.TryTakeItem(itemPickUpModel.UniqueIdentifierItem, out GPublicItem taken))
                 {
-                    _errorFactory.SendServerError(client, PacketType.ItemPickupReq, GameServerErrorType.ItemNotExist, false);
+                    _errorFactory.SendServerError(client, PacketType.ItemPickupReq, NakErrorType.ItemNotExist, false);
                     return;
                 }
 
@@ -184,7 +185,7 @@ namespace Server.Game.Core.Handlers
                 if (taken != ground)
                 {
                     _identificationService.ReturnItem(taken);
-                    _errorFactory.SendServerError(client, PacketType.ItemPickupReq, GameServerErrorType.ItemNotExist, false);
+                    _errorFactory.SendServerError(client, PacketType.ItemPickupReq, NakErrorType.ItemNotExist, false);
                     return;
                 }
 
@@ -246,7 +247,7 @@ namespace Server.Game.Core.Handlers
         {
             if (!client.IsInWorld || client.Pc == null)
             {
-                _errorFactory.SendServerError(client, PacketType.ItemDropReq, GameServerErrorType.NoUserNotLogin, itemDropModel.SerialNumber, false);
+                _errorFactory.SendServerError(client, PacketType.ItemDropReq, NakErrorType.NoUserNotLogin, itemDropModel.SerialNumber, false);
                 return;
             }
 
@@ -320,7 +321,7 @@ namespace Server.Game.Core.Handlers
         {
             // TODO: using a thing - the buffs it hands out, the cooldown, the stomach of the
             // character - is a phase of its own
-            _errorFactory.SendServerError(client, PacketType.ItemUseReq, GameServerErrorType.ItemNotExist, itemUseModel.SerialNumber, false);
+            _errorFactory.SendServerError(client, PacketType.ItemUseReq, NakErrorType.ItemNotExist, itemUseModel.SerialNumber, false);
         }
 
         /// <summary>
@@ -354,7 +355,7 @@ namespace Server.Game.Core.Handlers
                 // FNLGame is down or the procedure failed: the bag is not touched and the thing goes
                 // back to the world by the caller
                 _logger.LogError(e, "Can not store item {ItemNo} picked up by character {PcNo}, the pick-up is dropped", ground.Id, client.Pc.Simple.PcNo);
-                _errorFactory.SendServerError(client, PacketType.ItemPickupReq, GameServerErrorType.SqlInternalError, false);
+                _errorFactory.SendServerError(client, PacketType.ItemPickupReq, NakErrorType.SqlInternalError, false);
                 return false;
             }
 
@@ -401,7 +402,7 @@ namespace Server.Game.Core.Handlers
             catch (Exception e) when (e is SqlException || e is InvalidOperationException)
             {
                 _logger.LogError(e, "Can not take item {SerialNo} out of the bag of character {PcNo}, the drop is dropped", change.Item.SerialNumber, client.Pc.Simple.PcNo);
-                _errorFactory.SendServerError(client, PacketType.ItemDropReq, GameServerErrorType.SqlInternalError, change.Item.SerialNumber, false);
+                _errorFactory.SendServerError(client, PacketType.ItemDropReq, NakErrorType.SqlInternalError, change.Item.SerialNumber, false);
                 return false;
             }
 
@@ -535,26 +536,26 @@ namespace Server.Game.Core.Handlers
         /// </summary>
         /// <param name="error">Reason the character refused the request for</param>
         /// <returns>Reason as it goes out in 1102</returns>
-        private static GameServerErrorType ToErrorType(InventoryErrorEnum error)
+        private static NakErrorType ToErrorType(InventoryErrorEnum error)
         {
             switch (error)
             {
                 case InventoryErrorEnum.CharAlreadyDie:
-                    return GameServerErrorType.CharAlreadyDie;
+                    return NakErrorType.CharAlreadyDie;
                 case InventoryErrorEnum.ItemInvalidCnt:
-                    return GameServerErrorType.ItemInvalidCnt;
+                    return NakErrorType.ItemInvalidCnt;
                 case InventoryErrorEnum.InvFull:
-                    return GameServerErrorType.InvFull;
+                    return NakErrorType.InvFull;
                 case InventoryErrorEnum.ItemTooManyStackCnt:
-                    return GameServerErrorType.ItemTooManyStackCnt;
+                    return NakErrorType.ItemTooManyStackCnt;
                 case InventoryErrorEnum.ItemTooHeavy:
-                    return GameServerErrorType.NoItemTooHeavy;
+                    return NakErrorType.NoItemTooHeavy;
                 case InventoryErrorEnum.ItemLack:
-                    return GameServerErrorType.ItemLack;
+                    return NakErrorType.ItemLack;
                 case InventoryErrorEnum.ItemEquipped:
-                    return GameServerErrorType.ItemEquipped;
+                    return NakErrorType.ItemEquipped;
                 default:
-                    return GameServerErrorType.ItemNotExist;
+                    return NakErrorType.ItemNotExist;
             }
         }
 
@@ -567,9 +568,9 @@ namespace Server.Game.Core.Handlers
         /// <param name="errNo">Code the procedure answered with</param>
         /// <param name="bindErrNo">Code of that procedure for the binding of the item</param>
         /// <returns>Reason as it goes out in 1102</returns>
-        private static GameServerErrorType ToErrorType(int errNo, int bindErrNo)
+        private static NakErrorType ToErrorType(int errNo, int bindErrNo)
         {
-            return errNo == bindErrNo ? GameServerErrorType.BindItemCantMove : GameServerErrorType.SqlInternalError;
+            return errNo == bindErrNo ? NakErrorType.BindItemCantMove : NakErrorType.SqlInternalError;
         }
 
         /// <summary>

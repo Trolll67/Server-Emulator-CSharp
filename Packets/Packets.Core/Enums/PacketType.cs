@@ -26,7 +26,7 @@
         ArsAuthAck = 3121,
 
         // Game packets
-        GameServerError = 1102,
+        Nak = 1102,
         GameConfiguration = 2012,
         ChatReq = 2033,
         ChatAck = 2034,

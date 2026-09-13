@@ -5,6 +5,7 @@ using Packets.Server.Game.Enums;
 using Packets.Server.Game.Models.Receive.Npc;
 using Packets.Server.Game.Models.Send;
 using Packets.Server.Game.Models.Send.Npc;
+using Packets.Core.Models.Common;
 using Server.Game.Core.Factories.Interfaces;
 using Server.Game.Core.Handlers.Interfaces;
 using Server.Game.Core.Systems;
@@ -56,7 +57,7 @@ namespace Server.Game.Core.Handlers
 
             //if (model.UniqueIdentifier == null)
             //{
-                _errorFactory.SendServerError(client, PacketType.ScriptReq, GameServerErrorType.UnknownError, false);
+                _errorFactory.SendServerError(client, PacketType.ScriptReq, NakErrorType.UnknownError, false);
                 return;
             //}
 
@@ -77,7 +78,7 @@ namespace Server.Game.Core.Handlers
 
             //if (model.UniqueIdentifier == null)
             //{
-                _errorFactory.SendServerError(client, PacketType.ScriptProcReq, GameServerErrorType.UnknownError, false);
+                _errorFactory.SendServerError(client, PacketType.ScriptProcReq, NakErrorType.UnknownError, false);
                 return;
             //}
 
@@ -123,7 +124,7 @@ namespace Server.Game.Core.Handlers
 
             //if (itemSilver == null)
             //{
-                _errorFactory.SendServerError(client, PacketType.MerchantBuyReq, GameServerErrorType.UnknownError, false);
+                _errorFactory.SendServerError(client, PacketType.MerchantBuyReq, NakErrorType.UnknownError, false);
                 return;
             //}
 
@@ -148,7 +149,7 @@ namespace Server.Game.Core.Handlers
             //}
             //else
             //{
-            //    _errorFactory.SendServerError(client, PacketType.MerchantBuyReq, GameServerErrorType.UnknownError, false);
+            //    _errorFactory.SendServerError(client, PacketType.MerchantBuyReq, NakErrorType.UnknownError, false);
             //    return;
             //}
 

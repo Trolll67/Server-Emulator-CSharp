@@ -7,6 +7,7 @@ using Server.Game.Network;
 using Packets.Core.Attributes;
 using Packets.Core.Enums;
 using Packets.Server.Game.Models.Send;
+using Packets.Core.Models.Common;
 using Server.Game.Models.Game;
 using Server.Game.Models.Settings;
 using Server.Game.Services.Database;
@@ -83,7 +84,7 @@ namespace Server.Game.Core.Handlers
             // behind it, so there is nothing to own the character and no list to put it into
             if (client.State == GameSessionState.Connected)
             {
-                _errorFactory.SendServerError(client, PacketType.CreatePcReq, GameServerErrorType.NoUserNotLogin, true);
+                _errorFactory.SendServerError(client, PacketType.CreatePcReq, NakErrorType.NoUserNotLogin, true);
                 return;
             }
 
@@ -92,7 +93,7 @@ namespace Server.Game.Core.Handlers
             // enum is the one about a session that is logged in already
             if (client.IsInWorld)
             {
-                _errorFactory.SendServerError(client, PacketType.CreatePcReq, GameServerErrorType.NoUserChkAlreadyLogined, true);
+                _errorFactory.SendServerError(client, PacketType.CreatePcReq, NakErrorType.NoUserChkAlreadyLogined, true);
                 return;
             }
 
@@ -102,21 +103,21 @@ namespace Server.Game.Core.Handlers
             if (model.Slot >= SlotCount || model.Class >= (byte)PcClassEnum.Cnt)
             {
                 _logger.LogWarning("Account {AccountId} asked to create a character in slot {Slot} of class {Class}, request rejected", client.Sessions.AccountId, model.Slot, model.Class);
-                _errorFactory.SendServerError(client, PacketType.CreatePcReq, GameServerErrorType.HackerDetected, true);
+                _errorFactory.SendServerError(client, PacketType.CreatePcReq, NakErrorType.HackerDetected, true);
                 return;
             }
 
             // Check if character more 3
             if (client.Pcs.Count() >= SlotCount)
             {
-                _errorFactory.SendServerError(client, PacketType.CreatePcReq, GameServerErrorType.NoCharInvalidSlot, true);
+                _errorFactory.SendServerError(client, PacketType.CreatePcReq, NakErrorType.NoCharInvalidSlot, true);
                 return;
             }
 
             // Check if slot not empty
             if (client.Pcs.Any(c => c.Simple.Slot == model.Slot)) // TODO проверка на удаленного персонажа
             {
-                _errorFactory.SendServerError(client, PacketType.CreatePcReq, GameServerErrorType.NoUserCharSlotBusy, true);
+                _errorFactory.SendServerError(client, PacketType.CreatePcReq, NakErrorType.NoUserCharSlotBusy, true);
                 return;
             }
 
@@ -130,7 +131,7 @@ namespace Server.Game.Core.Handlers
 
             if (!IsValidName(name))
             {
-                _errorFactory.SendServerError(client, PacketType.CreatePcReq, GameServerErrorType.NoCharInvalidNo, true);
+                _errorFactory.SendServerError(client, PacketType.CreatePcReq, NakErrorType.NoCharInvalidNo, true);
                 return;
             }
 
@@ -138,7 +139,7 @@ namespace Server.Game.Core.Handlers
             // here only the characters of this account are known, they are checked without a query
             if (client.Pcs.Any(c => string.Equals(c.Simple.NickName, name, StringComparison.OrdinalIgnoreCase)))
             {
-                _errorFactory.SendServerError(client, PacketType.CreatePcReq, GameServerErrorType.NoCharAlreadyExistNm, true);
+                _errorFactory.SendServerError(client, PacketType.CreatePcReq, NakErrorType.NoCharAlreadyExistNm, true);
                 return;
             }
 
@@ -152,7 +153,7 @@ namespace Server.Game.Core.Handlers
                 // Класс не описан в конфиге — это ошибка настройки сервера. В оригинале сюда
                 // приходит eErrNoContentsNotSupport, но его числовой код пока не известен
                 _logger.LogError("No start position for class {Class} in GameSetting.StartPositions, character creation rejected", model.Class);
-                _errorFactory.SendServerError(client, PacketType.CreatePcReq, GameServerErrorType.UnknownError, true);
+                _errorFactory.SendServerError(client, PacketType.CreatePcReq, NakErrorType.UnknownError, true);
                 return;
             }
 
@@ -184,7 +185,7 @@ namespace Server.Game.Core.Handlers
                 // keeps waiting on the creation screen forever
                 _logger.LogError(e, $"Can not create a character for account {client.Sessions.AccountId}, UspCreatePc failed");
 
-                _errorFactory.SendServerError(client, PacketType.CreatePcReq, GameServerErrorType.UnknownError, true);
+                _errorFactory.SendServerError(client, PacketType.CreatePcReq, NakErrorType.UnknownError, true);
                 return;
             }
 
@@ -196,7 +197,7 @@ namespace Server.Game.Core.Handlers
                 if (result.ReturnCode < 0)
                 {
                     _logger.LogError("UspCreatePc failed internally for account {AccountId}, return code {ReturnCode}", client.Sessions.AccountId, result.ReturnCode);
-                    _errorFactory.SendServerError(client, PacketType.CreatePcReq, GameServerErrorType.UnknownError, true);
+                    _errorFactory.SendServerError(client, PacketType.CreatePcReq, NakErrorType.UnknownError, true);
                     return;
                 }
 
@@ -219,7 +220,7 @@ namespace Server.Game.Core.Handlers
             {
                 _logger.LogError(e, $"Character {result.PcNo} of account {client.Sessions.AccountId} was created but its loading failed");
 
-                _errorFactory.SendServerError(client, PacketType.CreatePcReq, GameServerErrorType.UnknownError, true);
+                _errorFactory.SendServerError(client, PacketType.CreatePcReq, NakErrorType.UnknownError, true);
                 return;
             }
 
@@ -228,7 +229,7 @@ namespace Server.Game.Core.Handlers
                 // The row is written, but the loaders gave nothing back: the character shows up
                 // on the next visit of the selection screen, this attempt can only be refused
                 _logger.LogError("Character {PcNo} of account {AccountId} was created but can not be loaded back", result.PcNo, client.Sessions.AccountId);
-                _errorFactory.SendServerError(client, PacketType.CreatePcReq, GameServerErrorType.UnknownError, true);
+                _errorFactory.SendServerError(client, PacketType.CreatePcReq, NakErrorType.UnknownError, true);
                 return;
             }
 
@@ -248,7 +249,7 @@ namespace Server.Game.Core.Handlers
             // 5120 belongs to the selection screen, the same way 5118 does
             if (client.State == GameSessionState.Connected)
             {
-                _errorFactory.SendServerError(client, PacketType.DeletePcReq, GameServerErrorType.NoUserNotLogin, true);
+                _errorFactory.SendServerError(client, PacketType.DeletePcReq, NakErrorType.NoUserNotLogin, true);
                 return;
             }
 
@@ -257,7 +258,7 @@ namespace Server.Game.Core.Handlers
             // character that no longer exists. The original answers eErrNoUserAlreadyEnterField
             if (client.IsInWorld)
             {
-                _errorFactory.SendServerError(client, PacketType.DeletePcReq, GameServerErrorType.NoUserChkAlreadyLogined, true);
+                _errorFactory.SendServerError(client, PacketType.DeletePcReq, NakErrorType.NoUserChkAlreadyLogined, true);
                 return;
             }
 
@@ -265,7 +266,7 @@ namespace Server.Game.Core.Handlers
 
             if (pcGame == null)
             {
-                _errorFactory.SendServerError(client, PacketType.DeletePcReq, GameServerErrorType.NoCharCannotDel, true);
+                _errorFactory.SendServerError(client, PacketType.DeletePcReq, NakErrorType.NoCharCannotDel, true);
                 return;
             }
 
@@ -280,7 +281,7 @@ namespace Server.Game.Core.Handlers
             {
                 _logger.LogError(e, $"Can not delete character {model.PcNo} of account {client.Sessions.AccountId}, UspDeletePcEx failed");
 
-                _errorFactory.SendServerError(client, PacketType.DeletePcReq, GameServerErrorType.UnknownError, true);
+                _errorFactory.SendServerError(client, PacketType.DeletePcReq, NakErrorType.UnknownError, true);
                 return;
             }
 
@@ -291,7 +292,7 @@ namespace Server.Game.Core.Handlers
                 if (result.ReturnCode < 0)
                 {
                     _logger.LogError("UspDeletePcEx failed internally for character {PcNo}, return code {ReturnCode}", model.PcNo, result.ReturnCode);
-                    _errorFactory.SendServerError(client, PacketType.DeletePcReq, GameServerErrorType.UnknownError, true);
+                    _errorFactory.SendServerError(client, PacketType.DeletePcReq, NakErrorType.UnknownError, true);
                     return;
                 }
 
@@ -300,7 +301,7 @@ namespace Server.Game.Core.Handlers
                 // has a value for none of them, so every business refusal goes out as the common
                 // one and the reasons stay apart in the log only
                 _logger.LogInformation("UspDeletePcEx refused character {PcNo}: {Reason}, return code {ReturnCode}", model.PcNo, DescribeDeleteReason(result.ReturnCode), result.ReturnCode);
-                _errorFactory.SendServerError(client, PacketType.DeletePcReq, GameServerErrorType.NoCharCannotDel, true);
+                _errorFactory.SendServerError(client, PacketType.DeletePcReq, NakErrorType.NoCharCannotDel, true);
                 return;
             }
 
@@ -352,20 +353,20 @@ namespace Server.Game.Core.Handlers
         /// </summary>
         /// <param name="returnCode">RETURN code of the procedure, above zero</param>
         /// <returns>Error type of packet 1102</returns>
-        private static GameServerErrorType MapCreateError(int returnCode)
+        private static NakErrorType MapCreateError(int returnCode)
         {
             switch (returnCode)
             {
                 case CreateSlotBusy:
-                    return GameServerErrorType.NoUserCharSlotBusy;
+                    return NakErrorType.NoUserCharSlotBusy;
 
                 case CreateNameExists:
-                    return GameServerErrorType.NoCharAlreadyExistNm;
+                    return NakErrorType.NoCharAlreadyExistNm;
 
                 // The rest of the codes are failed inserts and a missing item serial: the client
                 // has nothing to fix there, so it gets the common error
                 default:
-                    return GameServerErrorType.UnknownError;
+                    return NakErrorType.UnknownError;
             }
         }
 

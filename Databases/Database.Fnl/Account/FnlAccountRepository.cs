@@ -22,6 +22,10 @@ namespace Database.Fnl.Account
 
         private const string LogoutUserProcedure = "dbo.UspLogoutUser";
 
+        private const string IsValidIpProcedure = "dbo.UspIsValidIp";
+
+        private const string RetrieveWorldNoProcedure = "dbo.UspRetrieveWorldNo";
+
         private readonly ISqlConnectionFactory _connectionFactory;
 
         /// <summary>
@@ -234,6 +238,51 @@ namespace Database.Fnl.Account
         private static bool IsEmpty(SqlParameter parameter)
         {
             return parameter?.Value == null || parameter.Value == DBNull.Value;
+        }
+
+        /// <inheritdoc/>
+        public IpCheckResult IsValidIp(long addressNumber)
+        {
+            using (SqlConnection connection = _connectionFactory.Create(FnlConnectionNames.FnlAccount))
+            using (SqlCommand command = StoredProcedure.Create(connection, IsValidIpProcedure))
+            {
+                StoredProcedure.AddInBigInt(command, "@pIpNum", addressNumber);
+
+                connection.Open();
+                command.ExecuteNonQuery();
+
+                // The procedure answers with its return code alone: above zero the address is
+                // allowed, zero means it is on the list, below zero it did not get that far
+                int returnCode = StoredProcedure.ReturnValue(command);
+
+                if (returnCode > 0)
+                {
+                    return IpCheckResult.Allowed;
+                }
+
+                return returnCode == 0 ? IpCheckResult.Blocked : IpCheckResult.Unreadable;
+            }
+        }
+
+        /// <inheritdoc/>
+        public RetrieveWorldNoResult RetrieveWorldNo(string userId)
+        {
+            using (SqlConnection connection = _connectionFactory.Create(FnlConnectionNames.FnlAccount))
+            using (SqlCommand command = StoredProcedure.Create(connection, RetrieveWorldNoProcedure))
+            {
+                StoredProcedure.AddInVarChar(command, "@pUserId", 20, userId);
+
+                SqlParameter worldNo = StoredProcedure.AddOutSmallInt(command, "@pWorldNo");
+
+                connection.Open();
+                command.ExecuteNonQuery();
+
+                return new RetrieveWorldNoResult
+                {
+                    ReturnCode = StoredProcedure.ReturnValue(command),
+                    WorldNo = worldNo.Value is short value ? value : (short)0
+                };
+            }
         }
     }
 }

@@ -11,6 +11,7 @@ using System.Linq;
 using Server.Game.Models.Game;
 using Packets.Server.Game.Models.Send.Inventory;
 using Packets.Server.Game.Models.Send;
+using Packets.Core.Models.Common;
 using Server.Game.Services.Database;
 
 namespace Server.Game.Core.Handlers
@@ -55,13 +56,13 @@ namespace Server.Game.Core.Handlers
 
             //if (itemReinforceModel == null)
             //{
-                _errorFactory.SendServerError(client, PacketType.ReinforceReq, GameServerErrorType.ItemInvalid, false);
+                _errorFactory.SendServerError(client, PacketType.ReinforceReq, NakErrorType.ItemInvalid, false);
                 return;
             //}
 
             //if (material == null)
             //{
-            //    _errorFactory.SendServerError(client, PacketType.ReinforceReq, GameServerErrorType.ItemInvalid, false);
+            //    _errorFactory.SendServerError(client, PacketType.ReinforceReq, NakErrorType.ItemInvalid, false);
             //    return;
             //}
 
@@ -69,12 +70,12 @@ namespace Server.Game.Core.Handlers
 
             //if (resultType == ReinforceResultType.Error)
             //{
-            //    _errorFactory.SendServerError(client, PacketType.ReinforceReq, GameServerErrorType.ItemInvalid, false);
+            //    _errorFactory.SendServerError(client, PacketType.ReinforceReq, NakErrorType.ItemInvalid, false);
             //    return;
             //}
             //if (resultType == ReinforceResultType.MaxReinforce)
             //{
-            //    _errorFactory.SendServerError(client, PacketType.ReinforceReq, GameServerErrorType.NoReinforce, false);
+            //    _errorFactory.SendServerError(client, PacketType.ReinforceReq, NakErrorType.NoReinforce, false);
             //    return;
             //}
             //else if (resultType == ReinforceResultType.Success)

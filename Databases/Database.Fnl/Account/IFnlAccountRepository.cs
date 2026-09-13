@@ -37,5 +37,23 @@ namespace Database.Fnl.Account
         /// <param name="useMacro">Value written back into TblUser.mUseMacro, from the login result</param>
         /// <returns>Result with the return code of the procedure, never null</returns>
         LogoutUserResult LogoutUser(int userNo, int chatBlockApplyTime, short useMacro);
+
+        /// <summary>
+        ///     Asks the block list of addresses about a client (dbo.UspIsValidIp). The original
+        ///     runs it before it even looks at the account
+        /// </summary>
+        /// <param name="addressNumber">
+        ///     Address the way the original counts it: the four parts packed in decimal,
+        ///     so 192.168.0.1 becomes 192168000001
+        /// </param>
+        IpCheckResult IsValidIp(long addressNumber);
+
+        /// <summary>
+        ///     Reads the world an account belongs to (dbo.UspRetrieveWorldNo). The original asks
+        ///     it before the login itself: an account of another world is only let in when that
+        ///     world is a neighbour of this channel
+        /// </summary>
+        /// <param name="userId">Login of the account</param>
+        RetrieveWorldNoResult RetrieveWorldNo(string userId);
     }
 }

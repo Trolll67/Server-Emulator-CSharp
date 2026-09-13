@@ -1,5 +1,6 @@
 ﻿using Packets.Core.Enums;
 using Packets.Server.Game.Models.Send;
+using Packets.Core.Models.Common;
 using Server.Game.Core.Factories.Interfaces;
 using Server.Game.Network;
 
@@ -7,7 +8,7 @@ namespace Server.Game.Core.Factories
 {
     public class ErrorFactory : IErrorFactory
     {
-        public void SendServerError(GameSession client, PacketType packet, GameServerErrorType gameServerError, bool isMsgBox)
+        public void SendServerError(GameSession client, PacketType packet, NakErrorType gameServerError, bool isMsgBox)
         {
             SendServerError(client, packet, gameServerError, 0, isMsgBox);
         }
@@ -23,9 +24,9 @@ namespace Server.Game.Core.Factories
         /// <param name="gameServerError">Reason of the refusal</param>
         /// <param name="etc">Eight bytes of the request, zero when it carries nothing to give back</param>
         /// <param name="isMsgBox">Whether the client shows the reason in a window of its own</param>
-        public void SendServerError(GameSession client, PacketType packet, GameServerErrorType gameServerError, ulong etc, bool isMsgBox)
+        public void SendServerError(GameSession client, PacketType packet, NakErrorType gameServerError, ulong etc, bool isMsgBox)
         {
-            GameServerErrorModel gameServerErrorModel = new GameServerErrorModel
+            NakModel gameServerErrorModel = new NakModel
             {
                 PacketType = packet,
                 ErrorType = gameServerError,

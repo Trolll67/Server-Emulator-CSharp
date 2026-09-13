@@ -14,6 +14,24 @@ namespace Server.Login.Models.Settings
         public string ServerIp { get; set; }
 
         /// <summary>
+        ///     Build of the client this channel takes. Zero turns the check off, and it is off by
+        ///     default: the number lives in the files of the client, and a wrong one here refuses
+        ///     every login with "wrong version"
+        /// </summary>
+        public uint ClientVersion { get; set; }
+
+        /// <summary>
+        ///     Longest login this channel takes. The original picks the length by the country of
+        ///     the server; twenty is what it uses everywhere but Korea and China
+        /// </summary>
+        public int MaxLoginLength { get; set; } = 20;
+
+        /// <summary>
+        ///     Longest password this channel takes, see <see cref="MaxLoginLength"/>
+        /// </summary>
+        public int MaxPasswordLength { get; set; } = 20;
+
+        /// <summary>
         ///     How many players this channel is able to hold. Goes to the servers of the world in
         ///     the packet of the state, and the original takes it from its own session pool
         /// </summary>

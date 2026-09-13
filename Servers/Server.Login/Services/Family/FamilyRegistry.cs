@@ -183,6 +183,34 @@ namespace Server.Login.Services.Family
         }
 
         /// <summary>
+        ///     Does this channel know a server of that world? An account belongs to a world, and
+        ///     the original lets one of another world in only when a server of it is a neighbour
+        /// </summary>
+        /// <param name="worldNo">Number of the world the account belongs to</param>
+        public bool HasWorld(short worldNo)
+        {
+            lock (_lock)
+            {
+                Dictionary<short, FamilyServer> servers = LoadLocked();
+
+                if (servers == null)
+                {
+                    return false;
+                }
+
+                foreach (FamilyServer server in servers.Values)
+                {
+                    if (server.WorldNo == worldNo)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        }
+
+        /// <summary>
         ///     Links of every server of the world that is on the line
         /// </summary>
         /// <returns>Copies of the references, safe to use outside the lock</returns>

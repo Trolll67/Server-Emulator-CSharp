@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Options;
+using Packets.Core.Enums;
+using Packets.Core.Models.Common;
 using Packets.Server.Login.Models.Send;
 using Server.Login.Core.Factories.Interfaces;
 using Server.Login.Models.Settings;
@@ -74,14 +76,32 @@ namespace Server.Login.Core.Factories
         }
 
         /// <inheritdoc/>
-        public void SendError(LoginSession loginSession, ServerErrorType serverErrorType)
+        public void SendError(LoginSession loginSession, NakErrorType error)
         {
             LoginServerErrorModel loginServerErrorModel = new LoginServerErrorModel
             {
-                ErrorType = serverErrorType
+                Error = error
             };
 
             loginSession.Send(loginServerErrorModel);
+        }
+
+        /// <inheritdoc/>
+        public void SendError(LoginSession loginSession, LoginServerErrorModel loginServerErrorModel)
+        {
+            loginSession.Send(loginServerErrorModel);
+        }
+
+        /// <inheritdoc/>
+        public void SendNak(LoginSession loginSession, PacketType requestType, NakErrorType error)
+        {
+            NakModel nakModel = new NakModel
+            {
+                PacketType = requestType,
+                ErrorType = error
+            };
+
+            loginSession.Send(nakModel);
         }
     }
 }

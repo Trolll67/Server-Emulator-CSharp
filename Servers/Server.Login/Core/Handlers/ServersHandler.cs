@@ -2,8 +2,8 @@
 using Microsoft.Extensions.Logging;
 using Packets.Core.Attributes;
 using Packets.Core.Enums;
+using Packets.Core.Models.Common;
 using Packets.Server.Login.Models.Receive;
-using Packets.Server.Login.Models.Send;
 using Server.Login.Core.Factories.Interfaces;
 using Server.Login.Core.Handlers.Interfaces;
 using Server.Login.Models.Login;
@@ -38,22 +38,34 @@ namespace Server.Login.Core.Handlers
         {
             SessionLoginModel sessionLogin = loginSession.SessionLogin;
 
+            // A link of a server of this world has no business asking this, and the original
+            // refuses a session that already belongs to one
+            if (loginSession.FamilySvrNo.HasValue)
+            {
+                _logger.LogWarning("Server {SvrNo} asks about the phone confirmation as if it were a player", loginSession.FamilySvrNo);
+
+                _authorizationFactory.SendNak(loginSession, PacketType.ArsAuthReq, NakErrorType.NoUserAlreadyLogined);
+                return;
+            }
+
             // The client repeats the account it was certified with, both values have to match the session
             if (sessionLogin == null || sessionLogin.UserNo != arsAuthReqModel.AccountId ||
                 !string.Equals(sessionLogin.UserId, arsAuthReqModel.Login, StringComparison.OrdinalIgnoreCase))
             {
                 _logger.LogWarning($"Packet 3120 from an unknown session: it names mUserNo {arsAuthReqModel.AccountId} and login {arsAuthReqModel.Login}, the session holds {(sessionLogin == null ? "nothing" : sessionLogin.UserNo + " and " + sessionLogin.UserId)}");
 
-                _authorizationFactory.SendError(loginSession, ServerErrorType.NoUser);
+                _authorizationFactory.SendNak(loginSession, PacketType.ArsAuthReq, NakErrorType.NoUserNotLogin);
                 return;
             }
 
-            // The factory answers from the same list it sent in 3101, no second read of FNLParm
+            // The chosen server is looked up in the roster of this world, the one the list was
+            // built from. A refusal here goes out as the common packet of a refusal, not as the
+            // one of the login screen: the login itself has already gone through
             if (!_serversFactory.IsKnownServer(arsAuthReqModel.ServerId))
             {
-                _logger.LogWarning($"Account {sessionLogin.UserId} chose the server {arsAuthReqModel.ServerId}, which is not in the family list sent in 3101");
+                _logger.LogWarning($"Account {sessionLogin.UserId} chose the server {arsAuthReqModel.ServerId}, which is not in this world");
 
-                _authorizationFactory.SendError(loginSession, ServerErrorType.IncorrectServer);
+                _authorizationFactory.SendNak(loginSession, PacketType.ArsAuthReq, NakErrorType.FamilyNot);
                 return;
             }
 

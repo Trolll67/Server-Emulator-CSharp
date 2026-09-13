@@ -1,17 +1,17 @@
 ﻿using Packets.Core.Attributes;
 using Packets.Core.Utilities;
-using Packets.Server.Game.Models.Send;
+using Packets.Core.Models.Common;
 
-namespace Packets.Server.Game.Parsers.Send
+namespace Packets.Core.Parsers.Common
 {
     /// <summary>
     ///     Парсер ошибки сервера
     /// </summary>
     [ParserSend]
-    public class GameServerError
+    public class Nak
     {
-        [ParserAction(Core.Enums.PacketType.GameServerError)]
-        public byte[] Parsing(GameServerErrorModel model)
+        [ParserAction(Core.Enums.PacketType.Nak)]
+        public byte[] Parsing(NakModel model)
         {
             FormationPackage formationPackage = new FormationPackage();
 

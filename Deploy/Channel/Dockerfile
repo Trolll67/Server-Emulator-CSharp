@@ -10,7 +10,9 @@ RUN dotnet publish Servers/Server.Login/Server.Login.csproj \
     --configuration Release \
     --output /app
 
-FROM mcr.microsoft.com/dotnet/runtime:10.0
+# The shared framework of ASP.NET Core, not the plain runtime: the server is a console
+# application, but it pulls Serilog.AspNetCore in and refuses to start without it
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
 
 WORKDIR /app
 COPY --from=build /app .

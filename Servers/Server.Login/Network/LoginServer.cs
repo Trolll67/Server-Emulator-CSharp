@@ -45,8 +45,18 @@ namespace Server.Login.Network
             _loginSetting = loginSetting.Value;
 
             // TblParmSvr is the only source of the port: the same table tells the client where to
-            // connect, so a port taken from anywhere else would only be reachable by accident
-            UpdateEndpoint(new IPEndPoint(IPAddress.Parse(ownChannelInfo.ServerIp), ownChannelInfo.TcpPort));
+            // connect, so a port taken from anywhere else would only be reachable by accident.
+            // The address of the row is what the channel is known by, and it is the one the socket
+            // is bound to as long as the two are the same machine - see LoginSetting.BindIp
+            string bindIp = string.IsNullOrWhiteSpace(_loginSetting.BindIp) ? ownChannelInfo.ServerIp : _loginSetting.BindIp;
+
+            UpdateEndpoint(new IPEndPoint(IPAddress.Parse(bindIp), ownChannelInfo.TcpPort));
+
+            if (!string.Equals(bindIp, ownChannelInfo.ServerIp))
+            {
+                _logger.LogInformation("Channel {SvrNo} is registered on {Registered} and listens on {Bind}:{Port}",
+                    ownChannelInfo.SvrNo, ownChannelInfo.ServerIp, bindIp, ownChannelInfo.TcpPort);
+            }
 
             WarnOnConflictingCryptoSettings();
         }

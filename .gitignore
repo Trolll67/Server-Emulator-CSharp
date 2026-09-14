@@ -270,6 +270,9 @@ appsettings.Local.json
 # поэтому каталог целиком остаётся локальным.
 /Data/
 
+# Развёртывание: реальные адреса и строки подключения
+Deploy/**/.env
+
 # Claude Code — личные/локальные настройки (командные лежат в .claude/settings.json)
 .claude/settings.local.json
 .claude/board/

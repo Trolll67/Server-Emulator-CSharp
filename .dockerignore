@@ -1,0 +1,28 @@
+# Build output
+**/bin/
+**/obj/
+Logs/
+
+# Local configuration: connection strings and real addresses never leave the machine
+**/appsettings.Local.json
+**/appsettings.Development.json
+Deploy/**/.env
+
+# Working files of the agents
+.claude/
+.codex/
+.vs/
+.idea/
+
+# Materials derived from the proprietary files of the rights holder. They are in .gitignore
+# for the same reason and have no business inside an image either
+Pc.h
+Data/
+Utilities/Dump/
+Utilities/DumpAndParserPackets/Dump5108.json
+Utilities/DumpAndParserPackets/Monsters.json
+Utilities/DumpAndParserPackets/NPCs.json
+
+# Not needed to build the servers
+Sites/
+.git/

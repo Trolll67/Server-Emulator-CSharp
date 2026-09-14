@@ -1,0 +1,43 @@
+# Channel server of the emulator next to the database it works with.
+#
+# The container joins the network of the database container, so the databases are reached by
+# the name of their container and not through the host. The port is published as it is: the
+# client is told where to connect by TblParmSvr, and a port that does not match the row there
+# would only be reachable by accident.
+#
+# Real addresses and connection strings live in .env, which is not in the repository.
+# See .env.example and README.md
+services:
+  channel:
+    build:
+      context: ../..
+      dockerfile: Deploy/Channel/Dockerfile
+    image: r2-channel:latest
+    container_name: r2_channel
+    restart: unless-stopped
+    environment:
+      # Address this channel is registered under in FNLParm.TblParmSvr: the row is looked up
+      # by it, and the listen port is taken out of that row
+      LoginSetting__ServerIp: ${CHANNEL_REGISTERED_IP:?set CHANNEL_REGISTERED_IP in .env}
+
+      # Address the socket is bound to. Inside a container the registered address belongs to
+      # the host and cannot be bound, so the socket takes every address it has
+      LoginSetting__BindIp: 0.0.0.0
+
+      # Connection strings replace the DSN files of the original server, which are not in the
+      # image and never leave the machine they belong to
+      ConnectionStrings__Account: ${ACCOUNT_CONNECTION:?set ACCOUNT_CONNECTION in .env}
+      ConnectionStrings__Parm: ${PARM_CONNECTION:?set PARM_CONNECTION in .env}
+
+      DOTNETCORE_ENVIRONMENT: Production
+    ports:
+      # Both sides are the same on purpose, see the note about TblParmSvr above
+      - ${CHANNEL_PORT:?set CHANNEL_PORT in .env}:${CHANNEL_PORT}
+    networks:
+      - sqlnet
+
+# The network of the database container, it is not created here
+networks:
+  sqlnet:
+    name: ${SQL_NETWORK:-sql_net}
+    external: true

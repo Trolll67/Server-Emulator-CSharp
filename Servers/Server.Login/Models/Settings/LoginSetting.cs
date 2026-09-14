@@ -14,6 +14,17 @@ namespace Server.Login.Models.Settings
         public string ServerIp { get; set; }
 
         /// <summary>
+        ///     Address the socket is actually bound to. Empty means <see cref="ServerIp"/>, which
+        ///     is how it works when the channel runs on the machine it is registered under.
+        ///
+        ///     They part ways in a container: the address in TblParmSvr belongs to the host and
+        ///     cannot be bound inside the container at all, while the row still has to be found
+        ///     by it. Then <see cref="ServerIp"/> stays the address of the row and this one
+        ///     becomes 0.0.0.0
+        /// </summary>
+        public string BindIp { get; set; }
+
+        /// <summary>
         ///     Build of the client this channel takes. Zero turns the check off, and it is off by
         ///     default: the number lives in the files of the client, and a wrong one here refuses
         ///     every login with "wrong version"

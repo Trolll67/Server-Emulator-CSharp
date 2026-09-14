@@ -3,9 +3,10 @@
 **/obj/
 Logs/
 
-# Local configuration: connection strings and real addresses never leave the machine
+# Local configuration: connection strings and real addresses never leave the machine.
+# appsettings.Development.json and appsettings.Production.json stay: they are in the
+# repository, they are empty on purpose, and the build refuses to run without them
 **/appsettings.Local.json
-**/appsettings.Development.json
 Deploy/**/.env
 
 # Working files of the agents

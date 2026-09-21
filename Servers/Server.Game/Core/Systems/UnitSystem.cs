@@ -42,12 +42,18 @@ namespace Server.Game.Core.Systems
                 {
                     var rndSpotGroup = random.Next(0, mSpot.SpotGroup.Count);
                     sGroup = mSpot.SpotGroup[rndSpotGroup];
-                    pos = new Vector3((float)sGroup.PosX, (float)sGroup.PosZ, (float)sGroup.PosY);
+
+                    // The columns of the spot are the axes as they are: mPosY is the height, the
+                    // same way TblPcState keeps it and the same way it travels on the wire. The
+                    // swap that used to be here put a horizontal into Y, and every piece of logic
+                    // that holds the height steady - the walk of a monster, the scatter of the
+                    // loot - was holding the wrong axis
+                    pos = new Vector3((float)sGroup.PosX, (float)sGroup.PosY, (float)sGroup.PosZ);
                 }
                 else
                 {
                     sGroup = mSpot.SpotGroup[0];
-                    pos = new Vector3((float)sGroup.PosX, (float)sGroup.PosZ, (float)sGroup.PosY);
+                    pos = new Vector3((float)sGroup.PosX, (float)sGroup.PosY, (float)sGroup.PosZ);
                 }
 
                 // Set default position for unit. The current position is a copy: the home point of

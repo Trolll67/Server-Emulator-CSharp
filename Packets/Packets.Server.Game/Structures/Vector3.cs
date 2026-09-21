@@ -30,18 +30,28 @@ namespace Packets.Server.Game.Structures
         {
         }
 
+        /// <summary>
+        ///     C3D&lt;float&gt; of the original is plain mX, mY, mZ, and Y is the height: every
+        ///     recorded position on the wire carries the height in the middle, and so do
+        ///     TblPcState.mPosX/Y/Z and TblMonsterSpotGroup.mPosX/Y/Z. The game logic reads the
+        ///     axes the same way - the plane is X and Z, see MoveSystem.GetDistance2DSq - so the
+        ///     one and only order here is the natural one. Swapping Y and Z on the wire used to
+        ///     send the height as the last float, which dropped a character that had just entered
+        ///     the world somewhere off the map
+        /// </summary>
         public void Read(FormationPackage formationPackage)
         {
             X = formationPackage.ReadFloat();
-            Z = formationPackage.ReadFloat();
             Y = formationPackage.ReadFloat();
+            Z = formationPackage.ReadFloat();
         }
 
+        /// <inheritdoc cref="Read"/>
         public void Write(FormationPackage formationPackage)
         {
             formationPackage.AddFloat(X);
-            formationPackage.AddFloat(Z);
             formationPackage.AddFloat(Y);
+            formationPackage.AddFloat(Z);
         }
 
         public float Distance(Vector3 position)

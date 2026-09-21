@@ -103,6 +103,7 @@ namespace Server.Game.Core.Factories
             CompleteEnterWorldModel completeEnterWorldModel = new CompleteEnterWorldModel
             {
                 SessionGameId = client.Pc.UniqueId,
+                MapNo = client.Pc.MapNo,
                 Position = client.Pc.PositionCur,
                 Reputation = client.Pc.Detail.Chaotic,
                 AttackRate = client.Pc.Detail.AttackRate,

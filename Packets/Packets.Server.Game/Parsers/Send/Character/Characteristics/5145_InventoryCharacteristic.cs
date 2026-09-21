@@ -38,10 +38,12 @@ namespace Packets.Server.Game.Parsers.Send.Character.Characteristics
 
             formationPackage.AddShort(model.CriticalHit);
 
-            formationPackage.AddInteger(model.HpMax);
-            formationPackage.AddInteger(model.MpMax);
-
-            formationPackage.AddZeroBytes(10);
+            // AbInfo of the original is eighteen shorts and ends right here: mMaxHp and mMaxMp are
+            // shorts, not ints, and nothing follows them. Writing them as ints made the client read
+            // the low half of the health as the health - right by luck - and the high half of it,
+            // two zero bytes, as the whole mana: the player saw the right HP and 0/0 MP
+            formationPackage.AddShort(model.HpMax);
+            formationPackage.AddShort(model.MpMax);
 
             return formationPackage.GetBytes();
         }

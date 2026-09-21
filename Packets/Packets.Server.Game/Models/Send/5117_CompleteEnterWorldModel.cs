@@ -17,6 +17,12 @@ namespace Packets.Server.Game.Models.Send
         }
 
         public UniqueId SessionGameId { get; set; }
+
+        /// <summary>
+        ///     Map the character stands on, TblPcState.mMapNo
+        /// </summary>
+        public int MapNo { get; set; }
+
         public Vector3 Position { get; set; }
         public short Reputation { get; set; }
         public List<ItemApiModel> Items { get; set; }

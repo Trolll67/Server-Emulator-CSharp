@@ -25,7 +25,15 @@ namespace Packets.Server.Game.Models.Send.Character.Characteristics
         public short Dex { get; set; }
         public short Int { get; set; }
         public short CriticalHit { get; set; }
-        public int HpMax { get; set; }
-        public int MpMax { get; set; }
+
+        /// <summary>
+        ///     AbInfo.mMaxHp of the original, a short
+        /// </summary>
+        public short HpMax { get; set; }
+
+        /// <summary>
+        ///     AbInfo.mMaxMp of the original, a short
+        /// </summary>
+        public short MpMax { get; set; }
     }
 }

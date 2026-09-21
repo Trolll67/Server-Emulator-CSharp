@@ -24,6 +24,10 @@ services:
       # the host and cannot be bound, so the socket takes every address it has
       LoginSetting__BindIp: 0.0.0.0
 
+      # Build of the client this channel lets in, zero leaves the check off. The channel writes
+      # the build of every login into its log, which is where the number is taken from
+      LoginSetting__ClientVersion: ${CLIENT_VERSION:-0}
+
       # Connection strings replace the DSN files of the original server, which are not in the
       # image and never leave the machine they belong to
       ConnectionStrings__Account: ${ACCOUNT_CONNECTION:?set ACCOUNT_CONNECTION in .env}

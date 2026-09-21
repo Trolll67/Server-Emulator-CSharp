@@ -73,7 +73,11 @@ namespace Server.Game.Network
             formationPackage.AddBytes(bodyPackage.GetBytes());
             formationPackage.AddShort((short)(formationPackage.Size + 2), begin: true);
 
-            Send(formationPackage.GetBytes());
+            // base.Send on purpose: this class declares Send(object), which hides the inherited
+            // Send(byte[]) by name, so a plain Send(bytes) would call this method again with the
+            // frame as the model and throw on the missing packet attribute. The channel side sends
+            // the very same way, see LoginSession.Send
+            base.Send(formationPackage.GetBytes());
         }
 
         /// <inheritdoc/>

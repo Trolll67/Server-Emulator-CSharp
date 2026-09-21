@@ -16,7 +16,9 @@ namespace Database.Fnl.Account
         public bool IsSuccess => ReturnCode == 0;
 
         /// <summary>
-        ///     Number of the world, zero when the account is not tied to one yet
+        ///     Number of the world as TblUser keeps it, sign included: positive while the account
+        ///     is in a game of that world, negative once it has left it, zero when it has not
+        ///     played anywhere yet
         /// </summary>
         public short WorldNo { get; set; }
     }

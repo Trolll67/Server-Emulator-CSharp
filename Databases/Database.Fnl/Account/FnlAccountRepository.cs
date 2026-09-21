@@ -246,7 +246,7 @@ namespace Database.Fnl.Account
             using (SqlConnection connection = _connectionFactory.Create(FnlConnectionNames.FnlAccount))
             using (SqlCommand command = StoredProcedure.Create(connection, IsValidIpProcedure))
             {
-                StoredProcedure.AddInBigInt(command, "@pIpNum", addressNumber);
+                StoredProcedure.AddInBigInt(command, "@pIp", addressNumber);
 
                 connection.Open();
                 command.ExecuteNonQuery();

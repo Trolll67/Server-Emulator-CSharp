@@ -84,6 +84,11 @@ namespace Server.Login.Core.Handlers
                 return;
             }
 
+            // The build is written down for every login, not only for a refused one: this line is
+            // where the number to put into the settings is read from when a new client comes out
+            _logger.LogInformation("Account {Login} asks to log in from {Ip} with the build {Version}",
+                authorizationLoginModel.Login, GetClientIp(loginSession), authorizationLoginModel.Version);
+
             // Build of the client. The check is off while the expected build is not configured:
             // the number lives in the files of the client, and a wrong one here locks everybody out
             if (_loginSetting.ClientVersion != 0 && authorizationLoginModel.Version != _loginSetting.ClientVersion)
@@ -148,8 +153,9 @@ namespace Server.Login.Core.Handlers
         }
 
         /// <summary>
-        ///     An account belongs to a world, and this channel serves one. The original lets an
-        ///     account of another world in only when it knows a server of that world
+        ///     An account that is in a game right now can only be thrown out of a world this
+        ///     channel knows. The original refuses the login of one that plays in a world it has
+        ///     no server of, and does not look at the world of an account that is not playing
         /// </summary>
         /// <returns>True when the login may go on</returns>
         private bool IsWorldReachable(LoginSession loginSession, string login)
@@ -175,14 +181,16 @@ namespace Server.Login.Core.Handlers
                 return false;
             }
 
-            // An account that has not been to any world yet, and one of this very world, are both
-            // at home here
-            if (world.WorldNo == 0 || world.WorldNo == _ownChannelInfo.WorldNo || _familyRegistry.HasWorld(world.WorldNo))
+            // The sign is the state: entering a world writes its number into the account, and
+            // leaving it turns the number negative. So only a positive one means the account is
+            // in a game right now, and that is the only case the original looks at; zero is an
+            // account that has not played yet, a negative number is where it played last
+            if (world.WorldNo <= 0 || world.WorldNo == _ownChannelInfo.WorldNo || _familyRegistry.HasWorld(world.WorldNo))
             {
                 return true;
             }
 
-            _logger.LogInformation("Account {Login} belongs to world {World}, this channel serves {Own} and knows no server of that world",
+            _logger.LogInformation("Account {Login} is in the game in world {World}, this channel serves {Own} and knows no server of that world",
                 login, world.WorldNo, _ownChannelInfo.WorldNo);
 
             _authorizationFactory.SendError(loginSession, NakErrorType.NoUserLoginAnother);

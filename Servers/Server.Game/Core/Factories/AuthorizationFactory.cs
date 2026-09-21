@@ -73,6 +73,11 @@ namespace Server.Game.Core.Factories
             loginSession.Send(connectionClientModel);
         }
 
+        public void SendCertifiedKey(GameSession client, int certifiedKey)
+        {
+            client.Send(new CertifiedKeyAckModel { CertifiedKey = certifiedKey });
+        }
+
         public void SendServerTime(GameSession client)
         {
             DateTime dateTime = DateTime.Now;

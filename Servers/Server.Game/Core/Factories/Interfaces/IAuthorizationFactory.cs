@@ -6,6 +6,8 @@ namespace Server.Game.Core.Factories.Interfaces
     {
         void SendWelcome(GameSession loginSession);
 
+        void SendCertifiedKey(GameSession client, int certifiedKey);
+
         void SendServerTime(GameSession client);
 
         void SendCompleteEnterWorld(GameSession client);

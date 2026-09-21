@@ -79,6 +79,11 @@ namespace Server.Game.Core.Handlers
             // mUserNo in AccountId and mCertifiedKey in SessionId (see Server.Login AuthorizationHandler)
             LoginUserResult loginResult;
 
+            // The rotated key is kept: the procedure writes it into TblUser.mCertifiedKey and the
+            // client is told the new value through CertifiedKeyAck (5812), so it presents this one
+            // on its next reconnection to a world server
+            int newCertifiedKey = NextCertifiedKey();
+
             try
             {
                 loginResult = _accountRepository.LoginUser(new LoginUserRequest
@@ -95,7 +100,7 @@ namespace Server.Game.Core.Handlers
                     // UspLoginUser unconditionally overwrites TblUser.mCertifiedKey with this value
                     // even before it compares the keys; passing zero would leave a key no later
                     // re-authorization can match, so the key is rotated like the original does
-                    NewCertifiedKey = NextCertifiedKey()
+                    NewCertifiedKey = newCertifiedKey
                 });
             }
             catch (Exception e) when (e is SqlException || e is InvalidOperationException)
@@ -138,6 +143,9 @@ namespace Server.Game.Core.Handlers
             // 5116 is the only step left before the world
             client.MarkLoggedIn();
 
+            // The order is the one of the original right after a successful login: the new session
+            // key, the server tick, the contents block, then the character selection screen
+            _authorizationFactory.SendCertifiedKey(client, newCertifiedKey);
             _authorizationFactory.SendServerTime(client);
             _authorizationFactory.SendGameConfiguration(client);
             _characterFactory.SendInformationCharacters(client);

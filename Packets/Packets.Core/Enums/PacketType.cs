@@ -94,7 +94,15 @@
         MerchantListAck = 5271,
         MerchantBuyReq = 5273,
         StopMoveCharacter = 5326,
-        ServerTime = 5652,
+
+        // eCTrServerTickAck of the original: the server tick and the wall clock the client syncs
+        // to. 5652 is the client's own request and must never travel server to client - sending it
+        // there makes the client dispatch through a handler it has no entry for and access-violate
+        ServerTime = 5651,
+
+        // eCTrCertifiedKeyAck: the (rotated) session key, echoed to the client right after login
+        // so it holds the key its next reconnection has to present
+        CertifiedKeyAck = 5812,
         ItemCooldown = 5654,
         ChaosBattleLogin = 5662,
         CheckNeedMoney = 5813,

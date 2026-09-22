@@ -1,6 +1,7 @@
 ﻿using Packets.Core.Attributes;
 using Packets.Core.Utilities;
 using Packets.Server.Game.Models.Send;
+using System;
 using System.Linq;
 
 namespace Packets.Server.Game.Parsers.Send
@@ -11,6 +12,20 @@ namespace Packets.Server.Game.Parsers.Send
     [ParserSend]
     public class CompleteEnterWorld
     {
+        /// <summary>
+        ///     How many slots the bag of a character has, eInv_MaxSize of the original. The array
+        ///     of CPublicInven is declared for 240 there, but only 160 of them travel: the recorded
+        ///     packet of the original is 9060 bytes of payload, which is the 92 bytes before the
+        ///     inventory, its count and padding, and exactly 160 slots behind them
+        /// </summary>
+        private const int InventorySlots = 160;
+
+        /// <summary>
+        ///     Size of one slot, CGoods of the original with its padding
+        /// </summary>
+        private const int GoodsSize = 56;
+
+
         [ParserAction(Core.Enums.PacketType.CompleteEnterWorld)]
         public byte[] Parsing(CompleteEnterWorldModel model)
         {
@@ -33,11 +48,18 @@ namespace Packets.Server.Game.Parsers.Send
             formationPackage.AddInteger(model.Reputation);       // Репутация
             formationPackage.AddZeroBytes(28);                   // Не расшифрованные байты
 
-            formationPackage.AddShort((short)model.Items.Count);// Количество вещей в инвентаре
-            formationPackage.AddZeroBytes(6);                    // Не расшифрованные байты
+            // CPublicInven of the original: the count of the things, then the slots themselves.
+            // Six bytes of padding stand between them - CGoods starts with a flag and holds a
+            // serial number eight bytes wide, so the array is aligned to eight
+            // The count never names more than travels: a bag that somehow holds more than the
+            // slots would send the client reading past the end of the packet
+            formationPackage.AddShort((short)Math.Min(model.Items.Count, InventorySlots));
+            formationPackage.AddZeroBytes(6);
 
-            // Вещи в инвентаре
-            for (int i = 0; i < 240; i++)
+            // Every slot travels, not only the filled ones: the length of the packet does not
+            // depend on how full the bag is. The original leaves the slots past the count as they
+            // lay in its memory and the client reads none of them, so zeroes do just as well
+            for (int i = 0; i < InventorySlots; i++)
             {
                 var item = model.Items.ElementAtOrDefault(i);
 
@@ -47,11 +69,10 @@ namespace Packets.Server.Game.Parsers.Send
                 }
                 else
                 {
-                    formationPackage.AddZeroBytes(56);
+                    formationPackage.AddZeroBytes(GoodsSize);
                 }
             }
 
-            formationPackage.AddZeroBytes(5);
             return formationPackage.GetBytes();
         }
     }

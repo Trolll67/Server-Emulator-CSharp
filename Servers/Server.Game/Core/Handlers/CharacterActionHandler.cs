@@ -283,15 +283,25 @@ namespace Server.Game.Core.Handlers
         /// <param name="pc">Character that asked to be raised</param>
         private void MoveToRespawnPoint(GPc pc)
         {
-            // TblPc.mHomePosX/Y/Z, the point the original raises the character at.
-            // TODO: nothing fills GPcDetail.HomePos today - DBGameMappingService.MapCharacter reads
-            // the character without the home point, although PcDetailRow carries it together with
-            // TblPc.mHomeMapNo - so every respawn lands on the start point of the class below
+            // TblPc.mHomePosX/Y/Z, the point the original raises the character at. The original
+            // keeps an override for a handful of maps in FNLParm.TblResurrection - a map of the
+            // dungeon against the map its dead are sent to - and everything outside that handful
+            // falls through to the home point of the character, which is what happens here
             if (IsPositionSet(pc.Detail?.HomePos))
             {
                 // A copy and not the instance itself: the position of the character is replaced on
                 // every move, and the home point must not travel with it
                 pc.PositionCur = new Vector3(pc.Detail.HomePos);
+
+                // The home point carries its own map, and it is not always the one the character
+                // died on: moving the point without the map left the server counting the character
+                // on the map of its death while the client drew the one the point belongs to, and
+                // every move was then checked against the bounds of the wrong map
+                if (pc.Detail.HomeMapNo > 0)
+                {
+                    pc.MapNo = pc.Detail.HomeMapNo;
+                }
+
                 return;
             }
 

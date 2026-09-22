@@ -72,6 +72,7 @@ namespace Server.Game.Services
             // so the packet of the world carried zeroes in place of the home point and the
             // resurrection had no point to send the character to
             pc.Detail.HomePos = new Vector3(detail.HomePosX, detail.HomePosY, detail.HomePosZ);
+            pc.Detail.HomeMapNo = detail.HomeMapNo;
 
             // The parm goes first: _SetDefaultInfo fills the base regeneration, the attack distance
             // and the speeds of the character, and GPc.CalcAbility reads them. Detail is replaced

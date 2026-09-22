@@ -22,6 +22,15 @@ namespace Server.Game.Models.Game
 		public short AttackRate { get; set; }
 		public short MoveRate { get; set; }
 		public Vector3 HomePos { get; set; }
+
+		/// <summary>
+		///     TblPc.mHomeMapNo: the map the home point belongs to. It is not always the map the
+		///     character plays on, so a respawn that moves to the home point has to take the map
+		///     with it - the point alone would leave the server holding one map and the client
+		///     drawing another
+		/// </summary>
+		public int HomeMapNo { get; set; }
+
 		public uint PkCnt { get; set; }
 		public short Chaotic { get; set; }
 		public ChaoticStatusEnum ChaoticStatus { get; set; }

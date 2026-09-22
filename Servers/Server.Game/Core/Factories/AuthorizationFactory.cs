@@ -195,9 +195,13 @@ namespace Server.Game.Core.Factories
                     gameConfigurationModel.Contents.Add(new GameConfigurationContent());
                 }
 
-                // The numbers of the options start at one, so the first option of a page is
-                // page * 100 + 1 and it stands in the slot zero of that page
-                int first = (int)(page * GameConfigurationModel.ContentsPerPage) + 1;
+                // A content stands in the slot of its own number: page zero holds the contents
+                // 0..99 and page one the contents 100..199. There is no content number zero, so
+                // the very first slot of the first page stays empty - the recorded answer of the
+                // original has it empty as well. Shifting the contents by one lands every one of
+                // them in the slot of its neighbour, and the client then reads, say, the paid time
+                // of eContentsFlatCharge out of eContentsItemCharge
+                int first = (int)(page * GameConfigurationModel.ContentsPerPage);
 
                 foreach (ParmServerOptionRow option in options)
                 {

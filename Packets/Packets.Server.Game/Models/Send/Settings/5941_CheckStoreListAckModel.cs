@@ -1,20 +1,27 @@
+using System.Collections.Generic;
 using Packets.Core.Attributes;
 using Packets.Core.Enums;
 
 namespace Packets.Server.Game.Models.Send.Settings
 {
     /// <summary>
-    ///     CTrCheckStoreListAck of the original: the number of the rows of the warehouse and then
-    ///     that many of them. The array of the original holds three hundred rows, but only the ones
-    ///     it counts travel - an empty warehouse is the count alone, four bytes, and that is what
-    ///     the recorded answer of the original carries
+    ///     CTrCheckStoreListAck of the original: the count of the rows and then that many rows of
+    ///     two numbers each. This is not the full list - the row here is only what the thing is and
+    ///     how many of it lie there, eight bytes, and the client asks for it the moment it is in
+    ///     the world to know whether the warehouse holds anything at all
     /// </summary>
     [Model(PacketType.CheckStoreListAck)]
     public class CheckStoreListAckModel
     {
-        /// <summary>
-        ///     mCnt of the original: how many rows of the warehouse follow
-        /// </summary>
-        public uint Count { get; set; }
+        public List<CheckStoreRowModel> Rows { get; set; } = new List<CheckStoreRowModel>();
+    }
+
+    /// <summary>
+    ///     One row of the short list
+    /// </summary>
+    public class CheckStoreRowModel
+    {
+        public int ItemNo { get; set; }
+        public int Count { get; set; }
     }
 }

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Packets.Core.Attributes;
 using Packets.Core.Enums;
 
@@ -5,22 +6,41 @@ namespace Packets.Server.Game.Models.Receive
 {
     /// <summary>
     ///     CTrStoreReq of the original: everything the warehouse is asked to do travels in this one
-    ///     packet. Its length is fixed at 321 bytes - eighteen item slots of sixteen bytes, the
-    ///     action, the count, the password of the warehouse and four numbers of the client check.
-    ///     Only the action is read here: the rest belongs to the moves this server does not make yet
+    ///     packet of a fixed length. Only the first <see cref="Count"/> of the slots carry anything
     /// </summary>
     [Model(PacketType.StoreReq)]
     public class StoreReqModel
     {
+        /// <summary>
+        ///     Things the action is about, mItemInfo[18]
+        /// </summary>
+        public List<StoreReqItemModel> Items { get; set; } = new List<StoreReqItemModel>();
+
         /// <summary>
         ///     What the client wants of the warehouse, ESTOREACTION of the original
         /// </summary>
         public StoreActionType Action { get; set; }
 
         /// <summary>
-        ///     mCount of the original: how many things the action is about
+        ///     mCount of the original: how many of the slots above are filled
         /// </summary>
         public uint Count { get; set; }
+
+        /// <summary>
+        ///     Password of the warehouse the client typed, mStorePassword[9]. The original asks
+        ///     for it on every action but the short check of the list
+        /// </summary>
+        public string Password { get; set; }
+    }
+
+    /// <summary>
+    ///     One slot of the request, SItem of the original
+    /// </summary>
+    public class StoreReqItemModel
+    {
+        public long SerialNo { get; set; }
+        public uint Count { get; set; }
+        public int ItemNo { get; set; }
     }
 
     /// <summary>

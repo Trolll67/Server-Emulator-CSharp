@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Database.Fnl.Sql;
 using Microsoft.Data.SqlClient;
 
@@ -118,6 +118,20 @@ namespace Database.Fnl.Game
         private const int AbnormalLeftTime = 1;
         private const int AbnormalAbParmNo = 2;
         private const int AbnormalRestoreCnt = 3;
+
+        /// <summary>
+        ///     Column ordinals of dbo.UspGetListFromStore, in the order of its SELECT. They are
+        ///     the very fields the original puts into CStore on the wire
+        /// </summary>
+        private const int StoreSerialNo = 0;
+        private const int StoreItemNo = 1;
+        private const int StoreIsConfirm = 2;
+        private const int StoreStatus = 3;
+        private const int StoreCnt = 4;
+        private const int StoreCntUse = 5;
+        private const int StoreOwner = 6;
+        private const int StorePracticalPeriod = 7;
+        private const int StoreHoleCount = 8;
 
         private readonly ISqlConnectionFactory _connectionFactory;
 
@@ -591,6 +605,114 @@ namespace Database.Fnl.Game
         private static long GetSerialNo(SqlDataReader reader, int ordinal)
         {
             return reader.IsDBNull(ordinal) ? 0L : System.Convert.ToInt64(reader.GetValue(ordinal));
+        }
+
+
+        /// <inheritdoc/>
+        public IReadOnlyList<StoreItemRow> GetStoreList(int userNo)
+        {
+            using SqlConnection connection = _connectionFactory.Create(FnlConnectionNames.FnlGame);
+            using SqlCommand command = StoredProcedure.Create(connection, "dbo.UspGetListFromStore");
+
+            // The parameter of the procedure is named after the owner, and the owner of a
+            // warehouse is the account
+            StoredProcedure.AddInInt(command, "@pOwner", userNo);
+
+            connection.Open();
+
+            List<StoreItemRow> rows = new List<StoreItemRow>();
+
+            using SqlDataReader reader = command.ExecuteReader();
+
+            while (reader.Read())
+            {
+                rows.Add(new StoreItemRow
+                {
+                    SerialNo = reader.GetInt64(StoreSerialNo),
+                    ItemNo = reader.GetInt32(StoreItemNo),
+                    IsConfirm = reader.GetBoolean(StoreIsConfirm),
+                    Status = reader.GetByte(StoreStatus),
+                    Cnt = reader.GetInt32(StoreCnt),
+                    CntUse = reader.GetInt16(StoreCntUse),
+                    Owner = reader.GetInt32(StoreOwner),
+                    PracticalPeriod = reader.GetInt32(StorePracticalPeriod),
+                    HoleCount = reader.GetByte(StoreHoleCount)
+                });
+            }
+
+            return rows;
+        }
+
+        /// <inheritdoc/>
+        public int PushItemToStore(long serialNo, int count, int userNo, bool isStack, out long targetSerialNo)
+        {
+            using SqlConnection connection = _connectionFactory.Create(FnlConnectionNames.FnlGame);
+            using SqlCommand command = StoredProcedure.Create(connection, "dbo.UspPushItemToStoreEx");
+
+            StoredProcedure.AddInBigInt(command, "@pSn", serialNo);
+            StoredProcedure.AddInInt(command, "@pCnt", count);
+            StoredProcedure.AddInInt(command, "@pUserNo", userNo);
+            StoredProcedure.AddInBit(command, "@pIsStack", isStack);
+
+            SqlParameter target = StoredProcedure.AddOutBigInt(command, "@pTargetSn");
+
+            connection.Open();
+            command.ExecuteNonQuery();
+
+            targetSerialNo = target.Value is long value ? value : 0;
+
+            return StoredProcedure.ReturnValue(command);
+        }
+
+        /// <inheritdoc/>
+        public int PopItemFromStore(long serialNo, int userNo, int count, int itemNo, int pcNo, bool isStack)
+        {
+            using SqlConnection connection = _connectionFactory.Create(FnlConnectionNames.FnlGame);
+            using SqlCommand command = StoredProcedure.Create(connection, "dbo.UspPopItemFromStore");
+
+            StoredProcedure.AddInBigInt(command, "@pNo", serialNo);
+            StoredProcedure.AddInInt(command, "@pUserNo", userNo);
+            StoredProcedure.AddInInt(command, "@pCnt", count);
+            StoredProcedure.AddInInt(command, "@pItemNo", itemNo);
+            StoredProcedure.AddInInt(command, "@pPcNo", pcNo);
+            StoredProcedure.AddInBit(command, "@pIsStack", isStack);
+
+            connection.Open();
+            command.ExecuteNonQuery();
+
+            return StoredProcedure.ReturnValue(command);
+        }
+
+        /// <inheritdoc/>
+        public string GetStorePassword(int userNo)
+        {
+            using SqlConnection connection = _connectionFactory.Create(FnlConnectionNames.FnlGame);
+            using SqlCommand command = StoredProcedure.Create(connection, "dbo.UspGetStorePassword");
+
+            StoredProcedure.AddInInt(command, "@pUserNo", userNo);
+
+            connection.Open();
+
+            using SqlDataReader reader = command.ExecuteReader();
+
+            // A warehouse with no password gives back no row at all
+            return reader.Read() ? GetTrimmedString(reader, 0) : null;
+        }
+
+        /// <inheritdoc/>
+        public int SetStorePassword(int userNo, string password, bool isSet)
+        {
+            using SqlConnection connection = _connectionFactory.Create(FnlConnectionNames.FnlGame);
+            using SqlCommand command = StoredProcedure.Create(connection, "dbo.UspSetStorePassword");
+
+            StoredProcedure.AddInBit(command, "@pIsSet", isSet);
+            StoredProcedure.AddInInt(command, "@pUserNo", userNo);
+            StoredProcedure.AddInChar(command, "@pPassword", 8, password ?? string.Empty);
+
+            connection.Open();
+            command.ExecuteNonQuery();
+
+            return StoredProcedure.ReturnValue(command);
         }
 
         /// <summary>

@@ -1,4 +1,4 @@
-using Packets.Server.Game.Models.Receive;
+﻿using Packets.Server.Game.Models.Receive;
 using Server.Game.Network;
 
 namespace Server.Game.Core.Handlers.Interfaces
@@ -12,7 +12,8 @@ namespace Server.Game.Core.Handlers.Interfaces
     public interface IWorldStateHandler
     {
         /// <summary>
-        ///     The client asks the warehouse to do something, most often to name its rows
+        ///     The client asks the warehouse to do something: to name its rows, to count them,
+        ///     or to move a thing in or out
         /// </summary>
         void StoreHandle(GameSession client, StoreReqModel storeReqModel);
 

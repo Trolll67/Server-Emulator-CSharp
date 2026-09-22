@@ -84,6 +84,11 @@
         StoreReq = 5181,
         CheckStoreListAck = 5941,
 
+        // The whole list of the warehouse and how many rows it really holds. 5182 is declared
+        // in the original and sent from nowhere at all - a dead opcode of this build
+        StoreListAck = 5183,
+        StoreCountAck = 5652,
+
         // Whether the character refuses letters, TblPcState.mIsLetterLimit
         LetterRefuseReq = 5649,
         LetterRefuseAck = 5650,
@@ -119,8 +124,8 @@
         StopMoveCharacter = 5326,
 
         // eCTrServerTickAck of the original: the server tick and the wall clock the client syncs
-        // to. 5652 is the client's own request and must never travel server to client - sending it
-        // there makes the client dispatch through a handler it has no entry for and access-violate
+        // to. It used to stand at 5652, which is the count of the warehouse: the client read the
+        // tick as a warehouse and dispatched through the wrong handler, and access-violated on it
         ServerTime = 5651,
 
         // eCTrCertifiedKeyAck: the (rotated) session key, echoed to the client right after login

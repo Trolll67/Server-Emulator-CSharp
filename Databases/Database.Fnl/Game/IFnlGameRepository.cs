@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace Database.Fnl.Game
 {
@@ -165,6 +165,52 @@ namespace Database.Fnl.Game
         /// <param name="serialNo">Serial of the row, @pSerial</param>
         /// <returns>RETURN code: 0 - the row is deleted, 3 - there was no such row</returns>
         int EraseItem(long serialNo);
+        /// <summary>
+        ///     Rows of the personal warehouse of an account, dbo.UspGetListFromStore.
+        ///     The warehouse belongs to the account, so every character of it sees the same rows
+        /// </summary>
+        /// <param name="userNo">Account, TblUser.mUserNo</param>
+        IReadOnlyList<StoreItemRow> GetStoreList(int userNo);
+
+        /// <summary>
+        ///     Puts a thing of a character into the warehouse, dbo.UspPushItemToStoreEx.
+        ///     The thing leaves the bag of the character in the same procedure
+        /// </summary>
+        /// <param name="serialNo">Serial of the thing that goes in</param>
+        /// <param name="count">How many of a stack go in</param>
+        /// <param name="userNo">Account the warehouse belongs to</param>
+        /// <param name="isStack">Whether the thing joins a stack that is already there</param>
+        /// <param name="targetSerialNo">Serial the thing ends up under in the warehouse</param>
+        /// <returns>Return code of the procedure, zero when the thing is in</returns>
+        int PushItemToStore(long serialNo, int count, int userNo, bool isStack, out long targetSerialNo);
+
+        /// <summary>
+        ///     Takes a thing out of the warehouse into the bag of a character,
+        ///     dbo.UspPopItemFromStore
+        /// </summary>
+        /// <param name="serialNo">Serial of the row of the warehouse</param>
+        /// <param name="userNo">Account the warehouse belongs to</param>
+        /// <param name="count">How many of a stack come out</param>
+        /// <param name="itemNo">Row of the thing in the reference tables</param>
+        /// <param name="pcNo">Character that takes the thing</param>
+        /// <param name="isStack">Whether the thing joins a stack in the bag</param>
+        /// <returns>Return code of the procedure, zero when the thing is out</returns>
+        int PopItemFromStore(long serialNo, int userNo, int count, int itemNo, int pcNo, bool isStack);
+
+        /// <summary>
+        ///     Password of the warehouse of an account, dbo.UspGetStorePassword
+        /// </summary>
+        /// <returns>The password, null when the warehouse has none</returns>
+        string GetStorePassword(int userNo);
+
+        /// <summary>
+        ///     Sets or clears the password of the warehouse, dbo.UspSetStorePassword
+        /// </summary>
+        /// <param name="userNo">Account the warehouse belongs to</param>
+        /// <param name="password">New password, ignored when it is cleared</param>
+        /// <param name="isSet">True to set the password, false to clear it</param>
+        /// <returns>Return code of the procedure</returns>
+        int SetStorePassword(int userNo, string password, bool isSet);
     }
 
     /// <summary>
@@ -222,5 +268,6 @@ namespace Database.Fnl.Game
         ///     on success
         /// </summary>
         public long SerialNoNew { get; set; }
+
     }
 }

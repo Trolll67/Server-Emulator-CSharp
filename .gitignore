@@ -273,9 +273,8 @@ appsettings.Local.json
 # Развёртывание: реальные адреса и строки подключения
 Deploy/**/.env
 
-# Claude Code — личные/локальные настройки (командные лежат в .claude/settings.json)
-.claude/settings.local.json
-.claude/board/
+# Claude Code — конфигурация агентов и локальные настройки
+.claude/
 
 # Codex — локальные настройки агента и его инструкции
 .codex/

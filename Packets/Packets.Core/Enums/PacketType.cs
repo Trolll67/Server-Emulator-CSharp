@@ -66,6 +66,16 @@
         InfoWeightAck = 5149,
         ScriptReq = 5151,
         ScriptProcReq = 5152,
+
+        // The keeper answers that it opened what it was asked for
+        ScriptProcAck = 5153,
+
+        // The window of a keeper that has nothing to say: the client draws the dialog of
+        // the NPC by its own tables, the server only names the script and the speaker
+        ScrDialogNoMsgAck = 5901,
+
+        // The warehouse asks for its password, or answers that it was set or cleared
+        StoreSetPasswordAck = 6167,
         ItemUseReq = 5158,
         ItemDropReq = 5159,
         AbnormalAck = 5160,

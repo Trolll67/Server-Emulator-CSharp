@@ -1,21 +1,28 @@
-﻿namespace Packets.Server.Game.Enums
+namespace Packets.Server.Game.Enums
 {
-    public enum ScriptAction : byte
+    /// <summary>
+    ///     ESCRIPT_ACTION of the original: what the client asks of the keeper it is talking to.
+    ///     Everything but <see cref="PROC"/> is answered straight from the data of the server -
+    ///     only PROC runs the script of the NPC
+    /// </summary>
+    public enum ScriptAction
     {
-        PROC = 0x0,
-        OPENSHOP_BUY = 0x1,
-        OPENSHOP_SELL = 0x2,
-        OPENSHOP_CHARGE = 0x3,
-        //OPENSTORE_PUSH = 0x4,
-        //OPENSTORE_POP = 0x5,
-        //OPENBOARD = 0x6,
-        //CASTLE_MENU = 0x7,
-        //OPENGUILDSTORE = 0x8,
-        //OPEN_CHAOSBATTLE_RANKING = 0x9,
-        //OPEN_CHAOSBATTLE_SVRINFO = 0xA,
-        //OPEN_UTGW_HEROES_BATTLE_INF = 0xB,
-        //OPEN_CONSIGNMENT_SHOP = 0xC,
-        //OPEN_RUNE_SYSTEM_UI = 0xD,
-        //OPEN_TEAM_RANK_INF = 0xE
+        PROC = 0,
+        OPENSHOP_BUY = 1,
+        OPENSHOP_SELL = 2,
+        OPENSHOP_CHARGE = 3,
+        OPENSTORE_PUSH = 4,
+        OPENSTORE_POP = 5,
+        OPENBOARD = 6,
+        CASTLE_MENU = 7,
+        OPENGUILDSTORE = 8,
+        OPEN_CHAOSBATTLE_RANKING = 9,
+        OPEN_CHAOSBATTLE_SVRINFO = 10,
+        OPEN_UTGW_HEROES_BATTLE_INF = 11,
+        OPEN_CONSIGNMENT_SHOP = 12,
+        OPEN_RUNE_SYSTEM_UI = 13,
+        OPEN_TEAM_RANK_INF = 14,
+        SET_PASSWORD_STORE = 15,
+        RESET_PASSWORD_STORE = 16
     }
 }

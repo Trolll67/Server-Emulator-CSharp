@@ -14,6 +14,8 @@ using Server.Game.Network;
 using Packets.Server.Game.Enums;
 using Server.Game.Services;
 using Server.Game.Services.Database;
+using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Server.Game.Core.Handlers
@@ -41,17 +43,31 @@ namespace Server.Game.Core.Handlers
         private readonly IAttackFactory _attackFactory;
         private readonly IVisibleFactory _visibleFactory;
 
+        /// <summary>
+        ///     Map of the island a character starts on, eMapIslandGuinea of the original. Its
+        ///     towns belong to the class of the character and not to the territory
+        /// </summary>
+        private const int StartingIslandMapNo = 1;
+
+        /// <summary>
+        ///     Source of the town the character is raised in when the territory names no point of
+        ///     its own. Random is not thread safe and the respawns come off the socket threads
+        /// </summary>
+        private static readonly Random RespawnRandom = new Random();
+
+        private readonly RegionService _regionService;
         private readonly IdentificationService _identificationService;
         private readonly MoveSystem _moveSystem;
 
         private readonly ILogger<CharacterActionHandler> _logger;
 
-        public CharacterActionHandler(GameRepository gameRepository, IOptions<GameSetting> gameSetting, ICharacterActionFactory characterActionFactory, ICharacteristicFactory characteristicFactory, IAttackFactory attackFactory, IVisibleFactory visibleFactory, IdentificationService identificationService, MoveSystem moveSystem, ILogger<CharacterActionHandler> logger)
+        public CharacterActionHandler(GameRepository gameRepository, IOptions<GameSetting> gameSetting, ICharacterActionFactory characterActionFactory, ICharacteristicFactory characteristicFactory, IAttackFactory attackFactory, IVisibleFactory visibleFactory, RegionService regionService, IdentificationService identificationService, MoveSystem moveSystem, ILogger<CharacterActionHandler> logger)
         {
             _characteristicFactory = characteristicFactory;
             _characterActionFactory = characterActionFactory;
             _attackFactory = attackFactory;
             _visibleFactory = visibleFactory;
+            _regionService = regionService;
             _identificationService = identificationService;
             _moveSystem = moveSystem;
             _gameRepository = gameRepository;
@@ -275,18 +291,45 @@ namespace Server.Game.Core.Handlers
         }
 
         /// <summary>
-        ///     Put the character at its respawn point: the home position of the character when it
-        ///     has one, the start point of its class otherwise. A character whose class has no start
-        ///     point either is raised where it died - the respawn itself is not worth refusing over
-        ///     a missing setting
+        ///     Put the character at its respawn point, the way CPc::Respawn of the original does it:
+        ///     the territory the character died in decides, not the character. The region layer of
+        ///     the map paints the world into territories, and every territory holds the point its
+        ///     dead are raised at.
+        ///
+        ///     A territory of zero is the one the original treats as "no territory of its own" and
+        ///     sends to a town instead: on the starting islands to the town of the class, elsewhere
+        ///     to one of the five towns of the first territory, picked at random.
+        ///
+        ///     The battle modes of the original - siege, arena, the guild war - keep respawn points
+        ///     of their own, and none of them is ported yet
         /// </summary>
         /// <param name="pc">Character that asked to be raised</param>
         private void MoveToRespawnPoint(GPc pc)
         {
-            // TblPc.mHomePosX/Y/Z, the point the original raises the character at. The original
-            // keeps an override for a handful of maps in FNLParm.TblResurrection - a map of the
-            // dungeon against the map its dead are sent to - and everything outside that handful
-            // falls through to the home point of the character, which is what happens here
+            int territoryNo = _regionService.GetTerritory(pc.PositionCur);
+
+            TerritorySetting territory = _gameSetting.Territories
+                .FirstOrDefault(candidate => candidate.No == territoryNo);
+
+            // The territory of the death decides. Zero means the point is painted with nothing,
+            // and the original falls through to a town for it
+            if (territoryNo != 0 && territory?.Respawn != null && territory.Respawn.IsSet)
+            {
+                pc.PositionCur = ToVector(territory.Respawn);
+
+                _logger.LogDebug("Character {PcNo} died in the territory {Territory} and is raised at its respawn point", pc.Simple.PcNo, territory.Name);
+
+                return;
+            }
+
+            if (MoveToTownPoint(pc))
+            {
+                return;
+            }
+
+            // TblPc.mHomePosX/Y/Z. The original does not look at the home point of a character on
+            // an ordinary death at all, but without the region layers there is nothing better to
+            // fall back on than the point the character is bound to
             if (IsPositionSet(pc.Detail?.HomePos))
             {
                 // A copy and not the instance itself: the position of the character is replaced on
@@ -335,6 +378,57 @@ namespace Server.Game.Core.Handlers
         private static bool IsPositionSet(Vector3 position)
         {
             return position != null && (position.X != 0f || position.Y != 0f || position.Z != 0f);
+        }
+
+        /// <summary>
+        ///     Send the character to a town, STerritoryInfo::GetTownPos of the original. On the
+        ///     starting islands the town is the one of the class of the character, and everywhere
+        ///     else it is one of the five towns of the first territory, taken at random
+        /// </summary>
+        /// <param name="pc">Character that asked to be raised</param>
+        /// <returns>True when the character was moved</returns>
+        private bool MoveToTownPoint(GPc pc)
+        {
+            // The starting islands send a character to the town of its class, and the points of
+            // those towns are the very ones a character of that class is created at
+            if (pc.MapNo == StartingIslandMapNo)
+            {
+                StartPosition classTown = _gameSetting.StartPositions
+                    .FirstOrDefault(candidate => candidate.Class == (CharacterTypeEnum)pc.Simple.Class);
+
+                if (classTown != null)
+                {
+                    pc.PositionCur = new Vector3(classTown.X, classTown.Y, classTown.Z);
+                    pc.MapNo = classTown.Map;
+
+                    return true;
+                }
+            }
+
+            List<PositionSetting> towns = _gameSetting.Territories
+                .FirstOrDefault(candidate => candidate.No == 0)?.Towns?
+                .Where(town => town != null && town.IsSet)
+                .ToList();
+
+            if (towns == null || towns.Count == 0)
+            {
+                return false;
+            }
+
+            // One of the five, the way the original takes it
+            PositionSetting picked = towns[RespawnRandom.Next(towns.Count)];
+
+            pc.PositionCur = ToVector(picked);
+
+            return true;
+        }
+
+        /// <summary>
+        ///     A point of the settings as the world holds it
+        /// </summary>
+        private static Vector3 ToVector(PositionSetting position)
+        {
+            return new Vector3(position.X, position.Y, position.Z);
         }
 
         /// <summary>

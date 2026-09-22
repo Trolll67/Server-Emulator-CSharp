@@ -90,5 +90,20 @@ namespace Server.Game.Models.Settings
 
         // Стартовые карта и позиция при создании персонажа, по одной записи на класс
         public List<StartPosition> StartPositions { get; set; } = new List<StartPosition>();
+
+        /// <summary>
+        ///     Directory with the region layers of the original server - the bitmaps named
+        ///     "territory &lt;x&gt; &lt;z&gt;.bmp" that paint the world into territories. They belong to the
+        ///     rights holder and never travel with this repository: the path points at the Data
+        ///     directory of the original server. Empty turns the lookup off, and a character is
+        ///     then raised at the point it is bound to
+        /// </summary>
+        public string RegionDataDirectory { get; set; }
+
+        /// <summary>
+        ///     Territories of the world with their respawn points and towns, STerritoryInfo of
+        ///     the original
+        /// </summary>
+        public List<TerritorySetting> Territories { get; set; } = new List<TerritorySetting>();
     }
 }

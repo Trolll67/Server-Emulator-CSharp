@@ -28,10 +28,10 @@ jobs:
     - name: Copy Server Login to release folder
       run: |
        mkdir -p /home/user/Release/Server.Login
-       cp -a /home/user/actions-runner/_work/R2-Online/R2-Online/Release/Server.Login /home/user/Release/Server.Login
+       cp -a ${{ github.workspace }}/Release/Server.Login /home/user/Release/Server.Login
     - name: Publish Server Game
       run: dotnet publish ./Servers/Server.Game -c Release -o ./Release/Server.Game
     - name: Copy Server Game to release folder
       run: |
        mkdir -p /home/user/Release/Server.Game
-       cp -a /home/user/actions-runner/_work/R2-Online/R2-Online/Release/Server.Game /home/user/Release/Server.Game
+       cp -a ${{ github.workspace }}/Release/Server.Game /home/user/Release/Server.Game

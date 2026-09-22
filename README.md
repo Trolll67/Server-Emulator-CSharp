@@ -331,6 +331,6 @@ FnlDatabase__DsnDirectory=/путь/к/CleanServer/Data dotnet run --project Ser
 
 <div align="center">
 
-Made with ❤️ for R2 Online community
+Made with ❤️ for R2Genius community
 
 </div>

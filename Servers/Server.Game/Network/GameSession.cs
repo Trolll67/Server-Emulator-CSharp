@@ -320,14 +320,6 @@ namespace Server.Game.Network
             base.Send(formationPackage.GetBytes());
         }
 
-        public void SendOnlyBytesForDelevop(byte[] data)
-        {
-            if (_logger.IsEnabled(LogLevel.Debug))
-                _logger.LogDebug("Sent a recorded packet, {Size} bytes", data.Length);
-
-            base.Send(data);
-        }
-
         /// <summary>
         ///     Handle error exception
         /// </summary>

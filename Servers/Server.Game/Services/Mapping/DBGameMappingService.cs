@@ -68,6 +68,11 @@ namespace Server.Game.Services
             // world, and the answer has to be the one the character was saved with
             pc.Detail.LetterLimit = detail.IsLetterLimit ? 1 : 0;
 
+            // TblPc.mHomePosX/Y/Z, the point the character is raised at. Nothing filled it before,
+            // so the packet of the world carried zeroes in place of the home point and the
+            // resurrection had no point to send the character to
+            pc.Detail.HomePos = new Vector3(detail.HomePosX, detail.HomePosY, detail.HomePosZ);
+
             // The parm goes first: _SetDefaultInfo fills the base regeneration, the attack distance
             // and the speeds of the character, and GPc.CalcAbility reads them. Detail is replaced
             // before that call, otherwise the new one would wipe the rates written by Transformed

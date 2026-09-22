@@ -121,6 +121,8 @@ namespace Server.Game.Core.Factories
                 SessionGameId = client.Pc.UniqueId,
                 MapNo = client.Pc.MapNo,
                 Position = client.Pc.PositionCur,
+                HomePosition = client.Pc.Detail.HomePos,
+                LetterLimit = client.Pc.Detail.LetterLimit,
                 Reputation = client.Pc.Detail.Chaotic,
                 AttackRate = client.Pc.Detail.AttackRate,
                 MoveRate = client.Pc.Detail.MoveRate

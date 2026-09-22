@@ -24,6 +24,18 @@ namespace Packets.Server.Game.Models.Send
         public int MapNo { get; set; }
 
         public Vector3 Position { get; set; }
+
+        /// <summary>
+        ///     CPcDetail.mHomePos: the point the character is raised at, TblPc.mHomePosX/Y/Z
+        /// </summary>
+        public Vector3 HomePosition { get; set; }
+
+        /// <summary>
+        ///     CPcDetail.mLetterLimit: whether the character refuses letters,
+        ///     TblPcState.mIsLetterLimit
+        /// </summary>
+        public int LetterLimit { get; set; }
+
         public short Reputation { get; set; }
         public List<ItemApiModel> Items { get; set; }
         public short MoveRate { get; set; }

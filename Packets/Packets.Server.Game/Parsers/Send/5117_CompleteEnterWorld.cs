@@ -39,14 +39,24 @@ namespace Packets.Server.Game.Parsers.Send
             model.SessionGameId.Write(formationPackage);         // mUnique
             formationPackage.AddInteger(model.MapNo);            // mMapNo
             model.Position.Write(formationPackage);              // mPos
-            formationPackage.AddZeroBytes(18);                   // Не расшифрованные байты
-            formationPackage.AddShort(model.AttackRate);
-            formationPackage.AddShort(model.MoveRate);
-            formationPackage.AddZeroBytes(2);                    // Не расшифрованные байты
-            model.Position.Write(formationPackage);
-            formationPackage.AddZeroBytes(4);                    // Не расшифрованные байты
-            formationPackage.AddInteger(model.Reputation);       // Репутация
-            formationPackage.AddZeroBytes(28);                   // Не расшифрованные байты
+
+            // CPcDetail of the original, seventy two bytes with the padding of the compiler in it:
+            // nine shorts of the defences and the damage, the two rates, the home point, the kills,
+            // the reputation, and the honour and chaos fields this server does not count yet
+            formationPackage.AddZeroBytes(18);                   // mDDv..mMaxD
+            formationPackage.AddShort(model.AttackRate);         // mAttackRate
+            formationPackage.AddShort(model.MoveRate);           // mMoveRate
+            formationPackage.AddZeroBytes(2);                    // выравнивание перед mHomePos
+
+            // mHomePos: the point the character is raised at. The current position used to stand
+            // here, which told the client the character lives wherever it happens to be standing
+            (model.HomePosition ?? model.Position).Write(formationPackage);
+
+            formationPackage.AddZeroBytes(4);                    // mPkCnt
+            formationPackage.AddInteger(model.Reputation);       // mChaotic и выравнивание за ним
+            formationPackage.AddZeroBytes(4);                    // mChaoticStatus
+            formationPackage.AddInteger(model.LetterLimit);      // mLetterLimit
+            formationPackage.AddZeroBytes(20);                   // mVolitionOfHonor, mHonorPoint, mChaosPoint
 
             // CPublicInven of the original: the count of the things, then the slots themselves.
             // Six bytes of padding stand between them - CGoods starts with a flag and holds a

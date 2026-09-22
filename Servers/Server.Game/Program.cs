@@ -152,6 +152,7 @@ namespace Server.Game
                     services.AddSingleton<IdentificationService>();
                     services.AddSingleton<RegionService>();
                     services.AddSingleton<SerialNumberService>();
+                    services.AddSingleton<StoreService>();
                     services.AddSingleton<LogoutService>();
                     services.AddSingleton<GameServer>();
 

@@ -156,6 +156,18 @@ namespace Server.Game.Models.Game
         ///     Attacked unique identifier
         /// </summary>
         public UniqueId AttackedUniqueIdentifier { get; set; }
+
+        /// <summary>
+        ///     Keeper the character is talking to, __mTalkingNpc of the original. It is written the
+        ///     moment a request of a script finds the keeper close enough, and closing the window
+        ///     does not clear it: the original drops it only when the character is carried across
+        ///     the world or leaves it, so every request of one conversation finds the keeper here.
+        ///     Whoever reads it has to be ready for a keeper that is no longer in the world - the
+        ///     reference outlives the entity and nothing here is told when the entity is gone.
+        ///     TODO: the original clears it on a teleport as well; there is no teleport to clear it
+        ///     from yet, and a character that logs in again is built anew anyway
+        /// </summary>
+        public GMonster TalkingNpc { get; set; }
         #endregion
 
         #region Visible fields

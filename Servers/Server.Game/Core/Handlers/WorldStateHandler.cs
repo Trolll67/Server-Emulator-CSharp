@@ -1,15 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using Database.Fnl.Game;
-using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Packets.Core.Attributes;
 using Packets.Core.Enums;
 using Packets.Server.Game.Models.Receive;
 using Packets.Server.Game.Models.Send.Settings;
 using Server.Game.Core.Handlers.Interfaces;
 using Server.Game.Network;
+using Server.Game.Services;
 
 namespace Server.Game.Core.Handlers
 {
@@ -17,21 +13,15 @@ namespace Server.Game.Core.Handlers
     [Handler]
     public class WorldStateHandler : IWorldStateHandler
     {
-        /// <summary>
-        ///     EStoreType of the original: zero is the warehouse of the account, one and two are
-        ///     the two levels of the guild warehouse
-        /// </summary>
-        private const int StoreTypeAccount = 0;
-
-        private readonly IFnlGameRepository _gameRepository;
+        private readonly StoreService _storeService;
         private readonly ILogger<WorldStateHandler> _logger;
 
         /// <summary>
         ///     Creates a new instance
         /// </summary>
-        public WorldStateHandler(IFnlGameRepository gameRepository, ILogger<WorldStateHandler> logger)
+        public WorldStateHandler(StoreService storeService, ILogger<WorldStateHandler> logger)
         {
-            _gameRepository = gameRepository;
+            _storeService = storeService;
             _logger = logger;
         }
 
@@ -54,24 +44,24 @@ namespace Server.Game.Core.Handlers
                 // distance or the password - this is the question the client puts the moment it
                 // is in the world, only to learn whether anything lies in the warehouse at all
                 case StoreActionType.CheckRequestList:
-                    SendCheckStoreList(client, userNo);
+                    _storeService.SendCheckStoreList(client, userNo);
                     break;
 
                 // The whole list, the answer to opening the warehouse
                 case StoreActionType.RequestList:
-                    SendStoreList(client, userNo);
+                    _storeService.SendStoreList(client, userNo);
                     break;
 
                 // The keeper is asked to take something in: the original names the count first
                 // and then lets its script open the window
                 case StoreActionType.PushRequest:
-                    SendStoreCount(client, userNo);
+                    _storeService.SendStoreCount(client, userNo);
                     break;
 
                 // The keeper is asked to give something back: the count and the list behind it
                 case StoreActionType.PopRequest:
-                    SendStoreCount(client, userNo);
-                    SendStoreList(client, userNo);
+                    _storeService.SendStoreCount(client, userNo);
+                    _storeService.SendStoreList(client, userNo);
                     break;
 
                 // Putting a thing in and taking it out are not carried yet: both move a row
@@ -87,76 +77,6 @@ namespace Server.Game.Core.Handlers
                 // The original does nothing for this one either
                 case StoreActionType.Etc:
                     break;
-            }
-        }
-
-        /// <summary>
-        ///     The short list: what lies in the warehouse and how much of it, two numbers a row
-        /// </summary>
-        private void SendCheckStoreList(GameSession client, int userNo)
-        {
-            CheckStoreListAckModel model = new CheckStoreListAckModel();
-
-            foreach (StoreItemRow row in ReadStore(userNo).Take(StoreListAckModel.MaxRows))
-            {
-                model.Rows.Add(new CheckStoreRowModel { ItemNo = row.ItemNo, Count = row.Cnt });
-            }
-
-            client.Send(model);
-        }
-
-        /// <summary>
-        ///     The whole list of the warehouse of the account
-        /// </summary>
-        private void SendStoreList(GameSession client, int userNo)
-        {
-            StoreListAckModel model = new StoreListAckModel { StoreType = StoreTypeAccount };
-
-            // The original cuts the list at three hundred rows: it is the room of the packet, and
-            // the rows past it stay in the warehouse and are still counted by the count packet
-            foreach (StoreItemRow row in ReadStore(userNo).Take(StoreListAckModel.MaxRows))
-            {
-                model.Rows.Add(new StoreRowModel
-                {
-                    SerialNo = row.SerialNo,
-                    ItemNo = row.ItemNo,
-                    IsConfirm = row.IsConfirm,
-                    Status = row.Status,
-                    Count = row.Cnt,
-                    CountUse = row.CntUse,
-                    Owner = row.Owner,
-                    TermOfEffectivity = row.PracticalPeriod,
-                    HoleCount = row.HoleCount
-                });
-            }
-
-            client.Send(model);
-        }
-
-        /// <summary>
-        ///     How many rows the warehouse really holds - the number of the database, which may be
-        ///     larger than a list packet is able to carry
-        /// </summary>
-        private void SendStoreCount(GameSession client, int userNo)
-        {
-            client.Send(new StoreCountAckModel { Count = (uint)ReadStore(userNo).Count });
-        }
-
-        /// <summary>
-        ///     Rows of the warehouse. A database that did not answer leaves the warehouse empty
-        ///     rather than leaving the client without an answer at all
-        /// </summary>
-        private IReadOnlyList<StoreItemRow> ReadStore(int userNo)
-        {
-            try
-            {
-                return _gameRepository.GetStoreList(userNo);
-            }
-            catch (Exception e) when (e is SqlException || e is InvalidOperationException)
-            {
-                _logger.LogError(e, "Can not read the warehouse of account {UserNo}", userNo);
-
-                return new List<StoreItemRow>();
             }
         }
 

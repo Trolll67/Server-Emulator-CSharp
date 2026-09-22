@@ -64,6 +64,10 @@ namespace Server.Game.Services
             pc.Detail = new GPcDetail();
             pc.Detail.SetChaotic(detail.Chaotic);
 
+            // TblPcState.mIsLetterLimit: the client asks for this mark as soon as it is in the
+            // world, and the answer has to be the one the character was saved with
+            pc.Detail.LetterLimit = detail.IsLetterLimit ? 1 : 0;
+
             // The parm goes first: _SetDefaultInfo fills the base regeneration, the attack distance
             // and the speeds of the character, and GPc.CalcAbility reads them. Detail is replaced
             // before that call, otherwise the new one would wipe the rates written by Transformed

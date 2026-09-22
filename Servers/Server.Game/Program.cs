@@ -113,6 +113,7 @@ namespace Server.Game
                     services.AddTransient<IReinforceHandler, ReinforceHandler>();
                     services.AddTransient<INpcActionHandler, NpcActionHandler>();
                     services.AddTransient<IFamilyHandler, FamilyHandler>();
+                    services.AddTransient<IWorldStateHandler, WorldStateHandler>();
 
                     // Register factories
                     services.AddTransient<ISkillFactory, SkillFactory>();

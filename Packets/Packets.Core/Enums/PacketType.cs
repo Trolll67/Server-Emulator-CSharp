@@ -78,6 +78,20 @@
         InfoStomachAck = 5173,
         ItemPickupReq = 5177,
         TransformAck = 5179,
+
+        // The warehouse of the original. The client asks for its list as soon as it is in the
+        // world, and the answer is the count followed by that many rows
+        StoreReq = 5181,
+        CheckStoreListAck = 5941,
+
+        // Whether the character refuses letters, TblPcState.mIsLetterLimit
+        LetterRefuseReq = 5649,
+        LetterRefuseAck = 5650,
+
+        // Whether a gift box is waiting for the character
+        GiftBoxExistReq = 5623,
+        GiftBoxExistAck = 5624,
+
         DoMoveReq = 5188,
         MovedCharacter = 5189,
         DoMoveToAck = 5190,

@@ -71,6 +71,17 @@ namespace Server.Game.Core.Factories
             clientTo.Send(jumpEndCharactersModel);
         }
 
+        public void SendCharAction(GameSession clientTo, GameSession clientFrom)
+        {
+            CharActionAckModel charActionAckModel = new CharActionAckModel
+            {
+                SessionGameId = clientFrom.Pc.UniqueId,
+                Action = clientFrom.Pc.Action
+            };
+
+            clientTo.Send(charActionAckModel);
+        }
+
         public void SendDirectionCharacter(GameSession clientTo, GameSession clientFrom)
         {
             CharDirectionModel charDirectionModel = new CharDirectionModel

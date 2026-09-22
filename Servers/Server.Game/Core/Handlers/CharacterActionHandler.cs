@@ -11,6 +11,8 @@ using Server.Game.Core.Systems;
 using Server.Game.Models.Game;
 using Server.Game.Models.Settings;
 using Server.Game.Network;
+using Packets.Server.Game.Enums;
+using Server.Game.Services;
 using Server.Game.Services.Database;
 using System.Linq;
 
@@ -39,16 +41,18 @@ namespace Server.Game.Core.Handlers
         private readonly IAttackFactory _attackFactory;
         private readonly IVisibleFactory _visibleFactory;
 
+        private readonly IdentificationService _identificationService;
         private readonly MoveSystem _moveSystem;
 
         private readonly ILogger<CharacterActionHandler> _logger;
 
-        public CharacterActionHandler(GameRepository gameRepository, IOptions<GameSetting> gameSetting, ICharacterActionFactory characterActionFactory, ICharacteristicFactory characteristicFactory, IAttackFactory attackFactory, IVisibleFactory visibleFactory, MoveSystem moveSystem, ILogger<CharacterActionHandler> logger)
+        public CharacterActionHandler(GameRepository gameRepository, IOptions<GameSetting> gameSetting, ICharacterActionFactory characterActionFactory, ICharacteristicFactory characteristicFactory, IAttackFactory attackFactory, IVisibleFactory visibleFactory, IdentificationService identificationService, MoveSystem moveSystem, ILogger<CharacterActionHandler> logger)
         {
             _characteristicFactory = characteristicFactory;
             _characterActionFactory = characterActionFactory;
             _attackFactory = attackFactory;
             _visibleFactory = visibleFactory;
+            _identificationService = identificationService;
             _moveSystem = moveSystem;
             _gameRepository = gameRepository;
             _gameSetting = gameSetting.Value;
@@ -140,6 +144,73 @@ namespace Server.Game.Core.Handlers
             foreach (var visibleCharacterGame in client.Pc.VisibleCharacterGames)
             {
                 _characterActionFactory.SendJumpCharacter(visibleCharacterGame, client);
+            }
+        }
+
+        [HandlerAction(PacketType.CharActionReq)]
+        public void ActionCharacter(GameSession client, CharActionReqModel model)
+        {
+            if (!client.IsInWorld || client.Pc == null)
+            {
+                return;
+            }
+
+            client.Pc.Action = model.Action;
+
+            // The original carries the action to the neighbours of the character and to the
+            // character itself: its own client waits for the answer before it plays the animation
+            _characterActionFactory.SendCharAction(client, client);
+
+            foreach (var visibleCharacterGame in client.Pc.VisibleCharacterGames)
+            {
+                _characterActionFactory.SendCharAction(visibleCharacterGame, client);
+            }
+        }
+
+        [HandlerAction(PacketType.FindCharReq)]
+        public void FindCharacter(GameSession client, FindCharReqModel model)
+        {
+            if (!client.IsInWorld || client.Pc == null || model.Who == null)
+            {
+                return;
+            }
+
+            // The client holds a number it has nothing behind: the original looks the number up by
+            // the class packed into it and answers with the very packet that shows the entity when
+            // it comes into view. A number that belongs to nobody is a client that is late - the
+            // entity is gone on our side already, and the original answers such a request with
+            // nothing at all
+            switch ((UniqueIdentifierType)model.Who.Class)
+            {
+                case UniqueIdentifierType.Player:
+                    GameSession target = _identificationService.GetConnectionByUniqueIdentifier(model.Who);
+
+                    if (target != null && target.IsInWorld && target.Pc != null)
+                    {
+                        _visibleFactory.SendDisplayedDetailsCharacter(target, client);
+                    }
+
+                    break;
+
+                case UniqueIdentifierType.Monster:
+                    GMonster unit = _identificationService.GetUnitByUniqueIdentifier(model.Who);
+
+                    if (unit != null)
+                    {
+                        _visibleFactory.SendDisplayedDetailsUnit(client, unit);
+                    }
+
+                    break;
+
+                case UniqueIdentifierType.Item:
+                    GPublicItem item = _identificationService.GetItemByUniqueIdentifier(model.Who);
+
+                    if (item != null)
+                    {
+                        _visibleFactory.SendDisplayedDetailsItem(client, item);
+                    }
+
+                    break;
             }
         }
 

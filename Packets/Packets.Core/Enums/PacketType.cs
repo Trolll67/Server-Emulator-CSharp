@@ -95,6 +95,15 @@
         DoMoveReq = 5188,
         MovedCharacter = 5189,
         DoMoveToAck = 5190,
+        // An action of the character the client plays out loud - sitting down, an emote. The
+        // server carries it to everyone who sees the character, itself among them
+        CharActionReq = 5191,
+        CharActionAck = 5327,
+
+        // The client knows the number of something it sees and asks for it whole: the answer is
+        // the same packet that shows the entity when it comes into view
+        FindCharReq = 5229,
+
         CharJumpReq = 5192,
         JumpEndCharacter = 5193,
         CharDirReq = 5194,

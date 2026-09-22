@@ -10,6 +10,11 @@ namespace Server.Game.Core.Factories.Interfaces
 
         void SendJumpCharacter(GameSession clientTo, GameSession clientFrom);
 
+        /// <summary>
+        ///     The action a character plays, CTrCharActionAck of the original
+        /// </summary>
+        void SendCharAction(GameSession clientTo, GameSession clientFrom);
+
         void SendDirectionCharacter(GameSession clientTo, GameSession clientFrom);
 
         void SendRespawnCharacter(GameSession clientTo, GameSession clientFrom);

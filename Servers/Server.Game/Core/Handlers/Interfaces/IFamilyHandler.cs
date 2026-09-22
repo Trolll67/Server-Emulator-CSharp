@@ -30,11 +30,12 @@ namespace Server.Game.Core.Handlers.Interfaces
         void NotifySvrStateHandle(FamilySession familySession, NotifySvrStateAckModel notifySvrStateAckModel);
 
         /// <summary>
-        ///     The channel pings the link
+        ///     A ping of the link. It comes over the link of a channel and from a game client alike,
+        ///     and those two sessions share no base type, so the session is taken as an object
         /// </summary>
-        /// <param name="familySession"></param>
+        /// <param name="session">FamilySession of a channel or GameSession of a player</param>
         /// <param name="keepAliveNullReqModel"></param>
-        void KeepAliveHandle(FamilySession familySession, KeepAliveNullReqModel keepAliveNullReqModel);
+        void KeepAliveHandle(object session, KeepAliveNullReqModel keepAliveNullReqModel);
 
         /// <summary>
         ///     The channel asks to throw an account out of this world

@@ -57,9 +57,15 @@ namespace Server.Game.Core.Handlers
 
         /// <inheritdoc />
         [HandlerAction(PacketType.KeepAliveNullReq)]
-        public void KeepAliveHandle(FamilySession familySession, KeepAliveNullReqModel keepAliveNullReqModel)
+        public void KeepAliveHandle(object session, KeepAliveNullReqModel keepAliveNullReqModel)
         {
-            // Nothing to answer: the packet has done its job by arriving
+            // Nothing to answer: the packet has done its job by arriving.
+            //
+            // The session is taken as an object on purpose. This packet belongs to the framework of
+            // the original, and it arrives from both sides: over the link of a channel, where the
+            // session is a FamilySession, and from a game client of its own accord, where it is a
+            // GameSession. The two have no base type in common, and one packet has one handler, so
+            // a handler typed to either of them threw on every keep-alive that came from the other
         }
 
         /// <inheritdoc />
